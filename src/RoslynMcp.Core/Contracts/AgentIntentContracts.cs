@@ -14,6 +14,7 @@ public interface ICodeUnderstandingService
     Task<ListTypesResult> ListTypesAsync(ListTypesRequest request, CancellationToken ct);
     Task<ListMembersResult> ListMembersAsync(ListMembersRequest request, CancellationToken ct);
     Task<ResolveSymbolResult> ResolveSymbolAsync(ResolveSymbolRequest request, CancellationToken ct);
+    Task<ListDependenciesResult> ListDependenciesAsync(ListDependenciesRequest request, CancellationToken ct);
 }
 
 public interface IFlowTraceService

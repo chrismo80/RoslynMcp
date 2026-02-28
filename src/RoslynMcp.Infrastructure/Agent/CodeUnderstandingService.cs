@@ -798,6 +798,110 @@ public sealed class CodeUnderstandingService : ICodeUnderstandingService
             member.IsStatic);
     }
 
+    public async Task<ListDependenciesResult> ListDependenciesAsync(ListDependenciesRequest request, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var (solution, solutionError) = await GetCurrentSolutionWithAutoBootstrapAsync(
+            "Call load_solution first to list dependencies.",
+            request.ProjectPath,
+            ct).ConfigureAwait(false);
+        if (solution == null)
+        {
+            return new ListDependenciesResult(
+                Array.Empty<ProjectDependency>(),
+                0,
+                AgentErrorInfo.Normalize(solutionError, "Call load_solution first to list dependencies."));
+        }
+
+        var direction = request.Direction?.ToLowerInvariant() switch
+        {
+            "outgoing" => "outgoing",
+            "incoming" => "incoming",
+            _ => "both"
+        };
+
+        // Select target project
+        Project? targetProject = null;
+        if (!string.IsNullOrWhiteSpace(request.ProjectPath))
+        {
+            targetProject = solution.Projects.FirstOrDefault(p => p.FilePath?.EndsWith(request.ProjectPath, StringComparison.OrdinalIgnoreCase) == true);
+        }
+        else if (!string.IsNullOrWhiteSpace(request.ProjectName))
+        {
+            targetProject = solution.Projects.FirstOrDefault(p => p.Name.Equals(request.ProjectName, StringComparison.OrdinalIgnoreCase));
+        }
+        else if (!string.IsNullOrWhiteSpace(request.ProjectId))
+        {
+            targetProject = solution.Projects.FirstOrDefault(p => string.Equals(p.Id.Id.ToString(), request.ProjectId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var dependencies = new List<ProjectDependency>();
+
+        if (targetProject != null)
+        {
+            // Specific project selected
+            if (direction == "outgoing" || direction == "both")
+            {
+                foreach (var reference in targetProject.ProjectReferences)
+                {
+                    var refProject = solution.Projects.FirstOrDefault(p => p.Id == reference.ProjectId);
+                    if (refProject != null)
+                    {
+                        dependencies.Add(new ProjectDependency(refProject.Name, refProject.Id.Id.ToString()));
+                    }
+                }
+            }
+
+            if (direction == "incoming" || direction == "both")
+            {
+                foreach (var project in solution.Projects)
+                {
+                    if (project.ProjectReferences.Any(r => r.ProjectId == targetProject.Id))
+                    {
+                        dependencies.Add(new ProjectDependency(project.Name, project.Id.Id.ToString()));
+                    }
+                }
+            }
+        }
+        else
+        {
+            // No specific project - return all dependencies as a graph
+            if (direction == "outgoing" || direction == "both")
+            {
+                foreach (var project in solution.Projects)
+                {
+                    foreach (var reference in project.ProjectReferences)
+                    {
+                        var refProject = solution.Projects.FirstOrDefault(p => p.Id == reference.ProjectId);
+                        if (refProject != null)
+                        {
+                            dependencies.Add(new ProjectDependency(refProject.Name, refProject.Id.Id.ToString()));
+                        }
+                    }
+                }
+            }
+
+            if (direction == "incoming")
+            {
+                // For incoming without a target, show incoming for all projects
+                foreach (var project in solution.Projects)
+                {
+                    var incoming = solution.Projects.Where(p => p.ProjectReferences.Any(r => r.ProjectId == project.Id));
+                    foreach (var dep in incoming)
+                    {
+                        dependencies.Add(new ProjectDependency(dep.Name, dep.Id.Id.ToString()));
+                    }
+                }
+            }
+        }
+
+        // Remove duplicates
+        var uniqueDeps = dependencies.Distinct().ToList();
+
+        return new ListDependenciesResult(uniqueDeps, uniqueDeps.Count, null);
+    }
+
     private static async Task<ResolveSymbolCandidate[]> ResolveByQualifiedNameAsync(
         string qualifiedName,
         IReadOnlyList<Project> projects,
