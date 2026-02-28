@@ -29,6 +29,19 @@ public sealed record UnderstandCodebaseRequest(string? Profile = null);
 
 public sealed record ModuleSummary(string Name, string? Path, int OutgoingDependencies, int IncomingDependencies);
 
+public sealed record ProjectDependency(string ProjectName, string ProjectId);
+
+public sealed record ListDependenciesRequest(
+    string? ProjectPath = null,
+    string? ProjectName = null,
+    string? ProjectId = null,
+    string? Direction = null); // "outgoing", "incoming", "both" (default)
+
+public sealed record ListDependenciesResult(
+    IReadOnlyList<ProjectDependency> Dependencies,
+    int TotalCount,
+    ErrorInfo? Error = null);
+
 public sealed record HotspotSummary(
     string Label,
     string Path,

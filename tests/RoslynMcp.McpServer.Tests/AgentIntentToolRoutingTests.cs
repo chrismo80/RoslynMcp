@@ -107,6 +107,11 @@ public sealed class AgentIntentToolRoutingTests
             LastResolveSymbolRequest = request;
             return Task.FromResult(new ResolveSymbolResult(null, false, Array.Empty<ResolveSymbolCandidate>()));
         }
+
+        public Task<ListDependenciesResult> ListDependenciesAsync(ListDependenciesRequest request, CancellationToken ct)
+        {
+            return Task.FromResult(new ListDependenciesResult(Array.Empty<ProjectDependency>(), 0));
+        }
     }
 
     private sealed class RecordingFlowTraceService : IFlowTraceService

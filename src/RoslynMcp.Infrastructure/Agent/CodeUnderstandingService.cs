@@ -798,6 +798,178 @@ public sealed class CodeUnderstandingService : ICodeUnderstandingService
             member.IsStatic);
     }
 
+    public async Task<ListDependenciesResult> ListDependenciesAsync(ListDependenciesRequest request, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var (solution, solutionError) = await GetCurrentSolutionWithAutoBootstrapAsync(
+            "Call load_solution first to list dependencies.",
+            request.ProjectPath,
+            ct).ConfigureAwait(false);
+        if (solution == null)
+        {
+            return new ListDependenciesResult(
+                Array.Empty<ProjectDependency>(),
+                0,
+                AgentErrorInfo.Normalize(solutionError, "Call load_solution first to list dependencies."));
+        }
+
+        var normalizedDirection = request.Direction?.ToLowerInvariant() ?? "both";
+        if (normalizedDirection is not "outgoing" and not "incoming" and not "both")
+        {
+            return new ListDependenciesResult(
+                Array.Empty<ProjectDependency>(),
+                0,
+                AgentErrorInfo.Create(
+                    ErrorCodes.InvalidInput,
+                    $"direction '{request.Direction}' is not valid.",
+                    "Use 'outgoing', 'incoming', or 'both'.",
+                    ("field", "direction"),
+                    ("provided", request.Direction)));
+        }
+        var direction = normalizedDirection;
+
+        // Select target project
+        Project? targetProject = null;
+        bool selectorProvided = false;
+        string? selectorField = null;
+        string? selectorValue = null;
+
+        // Check for multiple selectors
+        var hasProjectPath = !string.IsNullOrWhiteSpace(request.ProjectPath);
+        var hasProjectName = !string.IsNullOrWhiteSpace(request.ProjectName);
+        var hasProjectId = !string.IsNullOrWhiteSpace(request.ProjectId);
+        var selectorCount = (hasProjectPath ? 1 : 0) + (hasProjectName ? 1 : 0) + (hasProjectId ? 1 : 0);
+
+        if (selectorCount > 1)
+        {
+            return new ListDependenciesResult(
+                Array.Empty<ProjectDependency>(),
+                0,
+                AgentErrorInfo.Create(
+                    ErrorCodes.InvalidInput,
+                    "Multiple project selectors provided. Provide exactly one of projectPath, projectName, or projectId.",
+                    "Specify only one selector to identify the target project.",
+                    ("selectors", $"projectPath:{hasProjectPath}, projectName:{hasProjectName}, projectId:{hasProjectId}")));
+        }
+
+        if (hasProjectPath)
+        {
+            selectorProvided = true;
+            selectorField = "projectPath";
+            selectorValue = request.ProjectPath;
+            targetProject = solution.Projects.FirstOrDefault(p =>
+                string.Equals(p.FilePath, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
+        }
+        else if (hasProjectName)
+        {
+            selectorProvided = true;
+            selectorField = "projectName";
+            selectorValue = request.ProjectName;
+            var matchingByName = solution.Projects.Where(p => p.Name.Equals(request.ProjectName, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (matchingByName.Count > 1)
+            {
+                return new ListDependenciesResult(
+                    Array.Empty<ProjectDependency>(),
+                    0,
+                    AgentErrorInfo.Create(
+                        ErrorCodes.AmbiguousSymbol,
+                        $"projectName '{request.ProjectName}' matched {matchingByName.Count} projects.",
+                        "Use projectPath or projectId to disambiguate.",
+                        ("field", "projectName"),
+                        ("provided", request.ProjectName),
+                        ("matchingCount", matchingByName.Count.ToString())));
+            }
+            targetProject = matchingByName.FirstOrDefault();
+        }
+        else if (hasProjectId)
+        {
+            selectorProvided = true;
+            selectorField = "projectId";
+            selectorValue = request.ProjectId;
+            targetProject = solution.Projects.FirstOrDefault(p => string.Equals(p.Id.Id.ToString(), request.ProjectId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Return error if selector provided but project not found
+        if (selectorProvided && targetProject == null)
+        {
+            return new ListDependenciesResult(
+                Array.Empty<ProjectDependency>(),
+                0,
+                AgentErrorInfo.Create(
+                    ErrorCodes.InvalidInput,
+                    $"{selectorField} '{selectorValue}' did not match any project in the solution.",
+                    "Verify the selector value from load_solution output and try again.",
+                    ("field", selectorField),
+                    ("provided", selectorValue)));
+        }
+
+        var dependencies = new List<ProjectDependency>();
+
+        if (targetProject != null)
+        {
+            // Specific project selected
+            if (direction == "outgoing" || direction == "both")
+            {
+                foreach (var reference in targetProject.ProjectReferences)
+                {
+                    var refProject = solution.Projects.FirstOrDefault(p => p.Id == reference.ProjectId);
+                    if (refProject != null)
+                    {
+                        dependencies.Add(new ProjectDependency(refProject.Name, refProject.Id.Id.ToString()));
+                    }
+                }
+            }
+
+            if (direction == "incoming" || direction == "both")
+            {
+                foreach (var project in solution.Projects)
+                {
+                    if (project.ProjectReferences.Any(r => r.ProjectId == targetProject.Id))
+                    {
+                        dependencies.Add(new ProjectDependency(project.Name, project.Id.Id.ToString()));
+                    }
+                }
+            }
+        }
+        else
+        {
+            // No specific project - return all dependencies as a graph
+            if (direction == "outgoing" || direction == "both")
+            {
+                foreach (var project in solution.Projects)
+                {
+                    foreach (var reference in project.ProjectReferences)
+                    {
+                        var refProject = solution.Projects.FirstOrDefault(p => p.Id == reference.ProjectId);
+                        if (refProject != null)
+                        {
+                            dependencies.Add(new ProjectDependency(refProject.Name, refProject.Id.Id.ToString()));
+                        }
+                    }
+                }
+            }
+
+            if (direction == "incoming" || direction == "both")
+            {
+                // For incoming without a target, show incoming for all projects
+                foreach (var project in solution.Projects)
+                {
+                    var incoming = solution.Projects.Where(p => p.ProjectReferences.Any(r => r.ProjectId == project.Id));
+                    foreach (var dep in incoming)
+                    {
+                        dependencies.Add(new ProjectDependency(dep.Name, dep.Id.Id.ToString()));
+                    }
+                }
+            }
+        }
+
+        // Remove duplicates
+        var uniqueDeps = dependencies.Distinct().ToList();
+
+        return new ListDependenciesResult(uniqueDeps, uniqueDeps.Count, null);
+    }
+
     private static async Task<ResolveSymbolCandidate[]> ResolveByQualifiedNameAsync(
         string qualifiedName,
         IReadOnlyList<Project> projects,
