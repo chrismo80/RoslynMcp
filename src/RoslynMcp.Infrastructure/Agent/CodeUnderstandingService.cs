@@ -841,7 +841,21 @@ public sealed class CodeUnderstandingService : ICodeUnderstandingService
             selectorProvided = true;
             selectorField = "projectName";
             selectorValue = request.ProjectName;
-            targetProject = solution.Projects.FirstOrDefault(p => p.Name.Equals(request.ProjectName, StringComparison.OrdinalIgnoreCase));
+            var matchingByName = solution.Projects.Where(p => p.Name.Equals(request.ProjectName, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (matchingByName.Count > 1)
+            {
+                return new ListDependenciesResult(
+                    Array.Empty<ProjectDependency>(),
+                    0,
+                    AgentErrorInfo.Create(
+                        ErrorCodes.AmbiguousSymbol,
+                        $"projectName '{request.ProjectName}' matched {matchingByName.Count} projects.",
+                        "Use projectPath or projectId to disambiguate.",
+                        ("field", "projectName"),
+                        ("provided", request.ProjectName),
+                        ("matchingCount", matchingByName.Count.ToString())));
+            }
+            targetProject = matchingByName.FirstOrDefault();
         }
         else if (!string.IsNullOrWhiteSpace(request.ProjectId))
         {
@@ -911,7 +925,7 @@ public sealed class CodeUnderstandingService : ICodeUnderstandingService
                 }
             }
 
-            if (direction == "incoming")
+            if (direction == "incoming" || direction == "both")
             {
                 // For incoming without a target, show incoming for all projects
                 foreach (var project in solution.Projects)
