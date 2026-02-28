@@ -835,16 +835,33 @@ public sealed class CodeUnderstandingService : ICodeUnderstandingService
         string? selectorField = null;
         string? selectorValue = null;
 
-        if (!string.IsNullOrWhiteSpace(request.ProjectPath))
+        // Check for multiple selectors
+        var hasProjectPath = !string.IsNullOrWhiteSpace(request.ProjectPath);
+        var hasProjectName = !string.IsNullOrWhiteSpace(request.ProjectName);
+        var hasProjectId = !string.IsNullOrWhiteSpace(request.ProjectId);
+        var selectorCount = (hasProjectPath ? 1 : 0) + (hasProjectName ? 1 : 0) + (hasProjectId ? 1 : 0);
+
+        if (selectorCount > 1)
+        {
+            return new ListDependenciesResult(
+                Array.Empty<ProjectDependency>(),
+                0,
+                AgentErrorInfo.Create(
+                    ErrorCodes.InvalidInput,
+                    "Multiple project selectors provided. Provide exactly one of projectPath, projectName, or projectId.",
+                    "Specify only one selector to identify the target project.",
+                    ("selectors", $"projectPath:{hasProjectPath}, projectName:{hasProjectName}, projectId:{hasProjectId}")));
+        }
+
+        if (hasProjectPath)
         {
             selectorProvided = true;
             selectorField = "projectPath";
             selectorValue = request.ProjectPath;
             targetProject = solution.Projects.FirstOrDefault(p =>
-                string.Equals(p.FilePath, request.ProjectPath, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(p.Name, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
+                string.Equals(p.FilePath, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
         }
-        else if (!string.IsNullOrWhiteSpace(request.ProjectName))
+        else if (hasProjectName)
         {
             selectorProvided = true;
             selectorField = "projectName";
@@ -865,7 +882,7 @@ public sealed class CodeUnderstandingService : ICodeUnderstandingService
             }
             targetProject = matchingByName.FirstOrDefault();
         }
-        else if (!string.IsNullOrWhiteSpace(request.ProjectId))
+        else if (hasProjectId)
         {
             selectorProvided = true;
             selectorField = "projectId";
