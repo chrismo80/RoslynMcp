@@ -814,7 +814,7 @@ public sealed class CodeUnderstandingService : ICodeUnderstandingService
                 AgentErrorInfo.Normalize(solutionError, "Call load_solution first to list dependencies."));
         }
 
-        var direction = request.Direction?.ToLowerInvariant() switch
+        var direction = request.Direction?.Trim().ToLowerInvariant() switch
         {
             "outgoing" => "outgoing",
             "incoming" => "incoming",
@@ -832,7 +832,9 @@ public sealed class CodeUnderstandingService : ICodeUnderstandingService
             selectorProvided = true;
             selectorField = "projectPath";
             selectorValue = request.ProjectPath;
-            targetProject = solution.Projects.FirstOrDefault(p => p.FilePath?.EndsWith(request.ProjectPath, StringComparison.OrdinalIgnoreCase) == true);
+            targetProject = solution.Projects.FirstOrDefault(p =>
+                string.Equals(p.FilePath, request.ProjectPath, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Name, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
         }
         else if (!string.IsNullOrWhiteSpace(request.ProjectName))
         {
