@@ -172,6 +172,17 @@ internal static class ToolContractMapper
         => new(
             NormalizeString(path));
 
+    public static ListDependenciesRequest ToListDependenciesRequest(
+        string? projectPath,
+        string? projectName,
+        string? projectId,
+        string? direction)
+        => new(
+            NormalizeOptionalString(projectPath),
+            NormalizeOptionalString(projectName),
+            NormalizeOptionalString(projectId),
+            NormalizeOptionalString(direction)?.ToLowerInvariant());
+
     private static int NormalizeDepth(int? value)
         => Math.Max(value ?? MinimumDepth, MinimumDepth);
 

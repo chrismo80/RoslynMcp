@@ -814,12 +814,20 @@ public sealed class CodeUnderstandingService : ICodeUnderstandingService
                 AgentErrorInfo.Normalize(solutionError, "Call load_solution first to list dependencies."));
         }
 
-        var direction = request.Direction?.Trim().ToLowerInvariant() switch
+        var normalizedDirection = request.Direction?.ToLowerInvariant() ?? "both";
+        if (normalizedDirection is not "outgoing" and not "incoming" and not "both")
         {
-            "outgoing" => "outgoing",
-            "incoming" => "incoming",
-            _ => "both"
-        };
+            return new ListDependenciesResult(
+                Array.Empty<ProjectDependency>(),
+                0,
+                AgentErrorInfo.Create(
+                    ErrorCodes.InvalidInput,
+                    $"direction '{request.Direction}' is not valid.",
+                    "Use 'outgoing', 'incoming', or 'both'.",
+                    ("field", "direction"),
+                    ("provided", request.Direction)));
+        }
+        var direction = normalizedDirection;
 
         // Select target project
         Project? targetProject = null;

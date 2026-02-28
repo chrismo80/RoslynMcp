@@ -28,6 +28,6 @@ public sealed class ListDependenciesTools
         [Description("Dependency direction: 'outgoing' (projects this project depends on), 'incoming' (projects that depend on this project), or 'both'. Defaults to 'both'.")]
         string? direction = null)
         => _codeUnderstandingService.ListDependenciesAsync(
-            new ListDependenciesRequest(projectPath, projectName, projectId, direction),
+            ToolContractMapper.ToListDependenciesRequest(projectPath, projectName, projectId, direction),
             cancellationToken);
 }
