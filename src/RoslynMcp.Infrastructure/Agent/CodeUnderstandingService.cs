@@ -823,17 +823,44 @@ public sealed class CodeUnderstandingService : ICodeUnderstandingService
 
         // Select target project
         Project? targetProject = null;
+        bool selectorProvided = false;
+        string? selectorField = null;
+        string? selectorValue = null;
+
         if (!string.IsNullOrWhiteSpace(request.ProjectPath))
         {
+            selectorProvided = true;
+            selectorField = "projectPath";
+            selectorValue = request.ProjectPath;
             targetProject = solution.Projects.FirstOrDefault(p => p.FilePath?.EndsWith(request.ProjectPath, StringComparison.OrdinalIgnoreCase) == true);
         }
         else if (!string.IsNullOrWhiteSpace(request.ProjectName))
         {
+            selectorProvided = true;
+            selectorField = "projectName";
+            selectorValue = request.ProjectName;
             targetProject = solution.Projects.FirstOrDefault(p => p.Name.Equals(request.ProjectName, StringComparison.OrdinalIgnoreCase));
         }
         else if (!string.IsNullOrWhiteSpace(request.ProjectId))
         {
+            selectorProvided = true;
+            selectorField = "projectId";
+            selectorValue = request.ProjectId;
             targetProject = solution.Projects.FirstOrDefault(p => string.Equals(p.Id.Id.ToString(), request.ProjectId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Return error if selector provided but project not found
+        if (selectorProvided && targetProject == null)
+        {
+            return new ListDependenciesResult(
+                Array.Empty<ProjectDependency>(),
+                0,
+                AgentErrorInfo.Create(
+                    ErrorCodes.InvalidInput,
+                    $"{selectorField} '{selectorValue}' did not match any project in the solution.",
+                    "Verify the selector value from load_solution output and try again.",
+                    ("field", selectorField),
+                    ("provided", selectorValue)));
         }
 
         var dependencies = new List<ProjectDependency>();

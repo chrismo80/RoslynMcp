@@ -38,7 +38,8 @@ public static class ServiceCollectionExtensions
             .WithTools<ListMembersTools>(serializerOptions)
             .WithTools<ResolveSymbolTools>(serializerOptions)
             .WithTools<TraceFlowTools>(serializerOptions)
-            .WithTools<CodeSmellTools>(serializerOptions);
+            .WithTools<CodeSmellTools>(serializerOptions)
+            .WithTools<ListDependenciesTools>(serializerOptions);
 
         return services
             .AddSingleton<LoadSolutionTools>()
@@ -48,6 +49,7 @@ public static class ServiceCollectionExtensions
             .AddSingleton<ListMembersTools>()
             .AddSingleton<ResolveSymbolTools>()
             .AddSingleton<TraceFlowTools>()
-            .AddSingleton<CodeSmellTools>();
+            .AddSingleton<CodeSmellTools>()
+            .AddSingleton<ListDependenciesTools>();
     }
 }
