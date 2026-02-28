@@ -125,3 +125,5 @@ dotnet run --project src/RoslynMcp.McpServer
   }
 }
 ```
+
+_This project uses Roslynator, licensed under Apache 2.0._
