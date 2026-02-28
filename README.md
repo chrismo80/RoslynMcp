@@ -83,6 +83,16 @@ Parameters:
 - `direction` (optional): Traversal direction: `upstream`, `downstream`, or `both`. Aliases `up`/`down` are accepted. Default is `both`.
 - `depth` (optional): Traversal depth as a non-negative integer. Defaults to `2` when omitted; values below `1` execute as depth `1`.
 
+### `list_dependencies`
+
+Lists project dependencies. Returns all projects that a project depends on (`outgoing`), projects that depend on it (`incoming`), or both. Use at session start to understand project relationships. Without a specific project selector, returns dependencies across the solution.
+
+Parameters:
+- `projectPath` (optional): Project selector option 1: exact project path from `load_solution` output. Provide exactly one selector (`path`, `name`, or `id`).
+- `projectName` (optional): Project selector option 2: project name from `load_solution` output.
+- `projectId` (optional): Project selector option 3: projectId from `load_solution` output.
+- `direction` (optional): Dependency direction: `outgoing`, `incoming`, or `both`. Defaults to `both`.
+
 ### `find_codesmells`
 
 Finds deterministic code-smell candidates in a document by probing Roslyn diagnostics and refactoring anchors.
