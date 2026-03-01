@@ -31,8 +31,8 @@ public sealed class FindUsagesTools
         CancellationToken cancellationToken,
         [Description("Canonical symbolId from resolve_symbol, list_types, or list_members.")]
         string symbolId,
-        [Description("Search scope: 'document' (current file only), 'project' (containing project), or 'solution' (all projects). Defaults to 'solution'.")]
-        string? scope = null,
+        [Description("Search scope: 'document' (current file only), 'project' (containing project), or 'solution' (all projects).")]
+        string scope = "solution",
         [Description("Required when scope='document': the file path to search within.")]
         string? path = null)
         => _navigationService.FindReferencesScopedAsync(
