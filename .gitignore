@@ -15,4 +15,5 @@ TestResults/
 *.DS_Store
 
 tmp/
-docs/
+docs/docs/
+collaboration.txt

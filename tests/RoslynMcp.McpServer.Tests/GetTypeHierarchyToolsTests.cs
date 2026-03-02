@@ -9,6 +9,7 @@ using Is.Assertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.DependencyInjection;
+using System.Linq;
 
 namespace RoslynMcp.McpServer.Tests;
 
@@ -33,7 +34,7 @@ public sealed class GetTypeHierarchyToolsTests
             CancellationToken.None);
         
         search.Error.IsNull();
-        (search.Symbols.Count > 0).IsTrue();
+        search.Symbols.Count.IsGreaterThan(0);
         var baseClass = search.Symbols.First();
         
         // Now call the tool
@@ -45,8 +46,15 @@ public sealed class GetTypeHierarchyToolsTests
         
         result.Error.IsNull();
         result.Symbol.IsNotNull();
-        // Should find DerivedClass and LeafClass
-        (result.DerivedTypes.Count >= 1).IsTrue();
+        result.Symbol.Name.Is("BaseClass");
+        
+        // Should find IWorker as implemented interface
+        result.ImplementedInterfaces.Any(i => i.Name == "IWorker").IsTrue();
+        
+        // Should find DerivedClass and LeafClass in derived types
+        (result.DerivedTypes.Count >= 2).IsTrue();
+        result.DerivedTypes.Any(t => t.Name == "DerivedClass").IsTrue();
+        result.DerivedTypes.Any(t => t.Name == "LeafClass").IsTrue();
     }
 
     [Fact]
@@ -61,7 +69,7 @@ public sealed class GetTypeHierarchyToolsTests
             CancellationToken.None);
         
         search.Error.IsNull();
-        (search.Symbols.Count > 0).IsTrue();
+        search.Symbols.Count.IsGreaterThan(0);
         var workerInterface = search.Symbols.First();
         
         var result = await tool.GetTypeHierarchyAsync(
@@ -71,8 +79,12 @@ public sealed class GetTypeHierarchyToolsTests
             maxDerived: 10);
         
         result.Error.IsNull();
-        // Should find implementations
-        (result.DerivedTypes.Count >= 1).IsTrue();
+        result.Symbol.IsNotNull();
+        result.Symbol.Name.Is("IWorker");
+        
+        // Should find BaseClass as implementation (and transitively DerivedClass, LeafClass)
+        result.DerivedTypes.Count.IsGreaterThan(0);
+        result.DerivedTypes.Any(t => t.Name == "BaseClass").IsTrue();
     }
 
     [Fact]
