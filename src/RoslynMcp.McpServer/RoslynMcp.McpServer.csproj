@@ -1,22 +1,46 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <ItemGroup>
-    <ProjectReference Include="..\RoslynMcp.Core\RoslynMcp.Core.csproj" />
-    <ProjectReference Include="..\RoslynMcp.Infrastructure\RoslynMcp.Infrastructure.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.3" />
-    <PackageReference Include="ModelContextProtocol" Version="1.0.0" />
-  </ItemGroup>
-
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
-
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <ProjectReference Include="..\RoslynMcp.Core\RoslynMcp.Core.csproj" />
+        <ProjectReference Include="..\RoslynMcp.Infrastructure\RoslynMcp.Infrastructure.csproj" />
+        <None Include="..\..\assets\icon.png"
+              Pack="true"
+              PackagePath="\" />
+        <None Include="..\..\README.md"
+              Pack="true"
+              PackagePath="\" />
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions"
+                          Version="10.0.3" />
+        <PackageReference Include="Microsoft.Extensions.Hosting"
+                          Version="10.0.3" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Console"
+                          Version="10.0.3" />
+        <PackageReference Include="ModelContextProtocol"
+                          Version="1.0.0" />
+    </ItemGroup>
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+    <PropertyGroup>
+        <!-- Wichtig -->
+        <PackAsTool>true</PackAsTool>
+        <ToolCommandName>roslynmcp</ToolCommandName>
+        <!-- Für NuGet -->
+        <PackageId>RoslynMcp</PackageId>
+        <Version>0.1.2</Version>
+        <Authors>chrismo80</Authors>
+        <Description>Roslyn-based MCP server for semantic C# analysis.</Description>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/chrismo80/RoslynMcp</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/chrismo80/RoslynMcp</RepositoryUrl>
+        <PackageOutputPath>../../.nupkg</PackageOutputPath>
+        <PackageIcon>icon.png</PackageIcon>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageTags>dotnet8;mcp;agent;ai;vibe;coding;C#;grep;glob</PackageTags>
+    </PropertyGroup>
 </Project>

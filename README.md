@@ -172,27 +172,26 @@ Run the server from source for the most reliable `MSBuildWorkspace` behavior.
 - .NET SDK 8.0 (or the version pinned by `global.json`)
 - A usable MSBuild environment (normally available with the .NET SDK)
 
-### Start from source
+### Installation
 
 ```bash
-git clone https://github.com/chrismo80/RoslynMcp.git
-cd RoslynMcp
-dotnet restore
-dotnet run --project src/RoslynMcp.McpServer
+dotnet tool install -g RoslynMcp
 ```
 
-### MCP config
+### Update
+
+```bash
+dotnet tool update -g RoslynMcp
+```
+
+
+### MCP config (OpenCode)
 
 ```json
 {
   "roslyn": {
     "type": "local",
-    "command": [
-      "dotnet",
-      "run",
-      "--project",
-      "[Path-To-Project]/src/RoslynMcp.McpServer"
-    ]
+    "command": [ "roslynmcp" ]
   }
 }
 ```
