@@ -67,6 +67,7 @@ Traditional AI code assistants often rely on simplistic pattern matching (grep/g
 | **Explain Symbols**     | Understand what a symbol does and where it's used    |
 | **Trace Call Flow**     | See upstream callers or downstream callees           |
 | **Find Usages**         | Locate all references to a type/member               |
+| **Find Implementations**         | Locate all implementaions of a interface or abstract class/method               |
 | **Get Type Hierarchy**  | Explore type inheritance and derived types           |
 | **Find Code Smells**    | Detect potential issues in a file                    |
 
@@ -183,6 +184,14 @@ Use this tool when you need to find all places where a specific symbol is refere
 Parameters:
 - `symbolId` (required): The stable symbol ID, obtained from `resolve_symbol`, `list_types`, or `list_members`.
 - `scope` (optional): The search scope. `project` searches only within the containing project. `solution` searches the entire solution. Defaults to `solution`.
+
+
+### `find_implementations`
+
+Use this tool when you need to find all implementations of an interface, abstract class, or abstract/virtual method. This is essential for understanding polymorphism — where interfaces are implemented or where abstract members are overridden.
+    
+Parameters:
+- `symbolId` (required):The stable symbol ID of an interface, abstract class, or abstract/virtual method, obtained from `resolve_symbol`, `list_types`, or `list_members`.
 
 
 ### `get_type_hierarchy`
