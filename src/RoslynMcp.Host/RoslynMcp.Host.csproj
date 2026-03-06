@@ -25,7 +25,7 @@
     <PackageId>RoslynMcp</PackageId>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>roslynmcp</ToolCommandName>
-    <Version>0.3.1</Version>
+    <Version>0.4.0</Version>
     <Authors>chrismo80</Authors>
     <Description>Roslyn-based MCP server for semantic C# analysis.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

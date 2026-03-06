@@ -3,11 +3,11 @@ using ProjectImpl;
 
 namespace ProjectApp;
 
-public sealed class AppOrchestrator(IWorkItemOperation operation)
+public sealed class AppOrchestrator(IRenamedWorkItemOperation operation)
 {
     private static readonly Guid SampleId = Guid.Parse("11111111-2222-3333-4444-555555555555");
 
-    private readonly IWorkItemOperation _operation = operation;
+    private readonly IRenamedWorkItemOperation _operation = operation;
     private readonly ProcessingSession _session = new();
     private readonly CodeSmells _smells = new();
     private int _steps;

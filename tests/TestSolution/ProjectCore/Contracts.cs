@@ -28,7 +28,7 @@ public interface IFactory<out T> where T : class, new()
     T Create();
 }
 
-public interface IWorkItemOperation : ITrackedOperation<WorkItem, OperationResult>
+public interface IRenamedWorkItemOperation : ITrackedOperation<WorkItem, OperationResult>
 {
 }
 

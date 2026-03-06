@@ -12,7 +12,7 @@ public sealed class RoundRobinWorker : IWorker
     }
 }
 
-public sealed class FastWorkItemOperation : OperationBase<WorkItem>, IWorkItemOperation
+public sealed class FastWorkItemOperation : OperationBase<WorkItem>, IRenamedWorkItemOperation
 {
     public override async Task<OperationResult> ExecuteAsync(WorkItem input, CancellationToken cancellationToken = default)
     {
@@ -35,7 +35,7 @@ public sealed class FastWorkItemOperation : OperationBase<WorkItem>, IWorkItemOp
     }
 }
 
-public sealed class SafeWorkItemOperation : OperationBase<WorkItem>, IWorkItemOperation
+public sealed class SafeWorkItemOperation : OperationBase<WorkItem>, IRenamedWorkItemOperation
 {
     public override async Task<OperationResult> ExecuteAsync(WorkItem input, CancellationToken cancellationToken = default)
     {

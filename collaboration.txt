@@ -1,0 +1,26 @@
+# RoslynMcp Collaboration Log
+
+## 2026-03-06 - Bob (OpenClaw)
+
+### Heutige Arbeit
+
+**Feature: rename_symbol Tool**
+
+- Neues MCP Tool `rename_symbol` implementiert
+- Nutzt bestehende `IRefactoringService.RenameSymbolAsync` Infrastruktur
+- Integration Tests hinzugefügt
+- README aktualisiert mit Dokumentation
+- Version auf 0.4.0 erhöht
+
+**PR erstellt:** https://github.com/chrismo80/RoslynMcp/pull/6
+
+### Technische Details
+
+Das Tool ermöglicht sicheres Umbenennen von Symbolen (Typen, Methoden, Properties, etc.) 
+über die gesamte Solution hinweg. Nutzt Roslyn's Renamer API für korrekte Referenz-Updates.
+
+**Parameter:**
+- `symbolId`: Zu umbenennendes Symbol
+- `newName`: Neuer Identifier
+
+**Build-Hinweis:** Projekt benötigt .NET 10.0 SDK (Preview Features: Extension Types)
