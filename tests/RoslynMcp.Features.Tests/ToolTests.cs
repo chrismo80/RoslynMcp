@@ -19,5 +19,5 @@ public abstract class ToolTests<TTool>(FeatureTestsFixture fixture, ITestOutputH
     
     protected void Trace(string message) => output.WriteLine(typeof(TTool) + ": " + message);
     
-    private string GetFilePath(string project, string file) => Path.Combine(TestSolutionDirectory, project, $"{file}.cs");
+    protected string GetFilePath(string project, string file) => Path.Combine(TestSolutionDirectory, project, $"{file}.cs");
 }

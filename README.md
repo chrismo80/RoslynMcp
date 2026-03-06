@@ -174,7 +174,7 @@ Parameters:
 - `line` (optional): Line number (1-based) pointing to the symbol in the source file.
 - `column` (optional): Column number (1-based) pointing to the symbol in the source file.
 - `direction` (optional): Which direction to trace. `upstream` finds callers (who uses this). `downstream` finds callees (what this calls). `both` returns both directions. Defaults to `both`.
-- `depth` (optional): How many levels of the call chain to traverse. Defaults to `2`. Use larger values for deeper analysis, or `null` for unlimited depth.
+- `depth` (optional): How many levels of the call chain to traverse. Defaults to `2`. Use larger values for deeper analysis. `null` behaves the same as omitting the parameter.
 
 
 ### `find_usages`

@@ -23,7 +23,7 @@ public sealed class TraceCallFlowTool(IFlowTraceService flowTraceService) : Tool
         int? column = null,
         [Description("Which direction to trace. upstream finds callers (who uses this). downstream finds callees (what this calls). both returns both directions. Defaults to both.")]
         string? direction = null,
-        [Description("How many levels of the call chain to traverse. Defaults to 2. Use larger values for deeper analysis, or null for unlimited depth.")]
+        [Description("How many levels of the call chain to traverse. Defaults to 2. Use larger values for deeper analysis. Null is treated the same as omitting the parameter.")]
         int? depth = null
         )
         => _flowTraceService.TraceFlowAsync(symbolId.ToTraceFlowRequest(path, line, column, direction, depth), cancellationToken);
