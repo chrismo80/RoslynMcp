@@ -10,5 +10,7 @@ public abstract class ToolTests<TTool>(FeatureTestsFixture fixture, ITestOutputH
     
     protected TTool Sut { get; } = fixture.GetRequiredService<TTool>();
     
+    protected string TestSolutionDirectory => Path.GetDirectoryName(Fixture.SolutionPath)!;
+    
     protected void Trace(string message) => output.WriteLine(typeof(TTool) + ": " + message);
 }

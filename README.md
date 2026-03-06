@@ -179,7 +179,7 @@ Parameters:
 
 ### `find_usages`
 
-Use this tool when you need to find all places where a specific symbol is referenced across a project or the entire solution. This is critical before refactoring or modifying any symbol to understand its impact.
+Use this tool when you need to find source-code references to a specific symbol across a document, project, or the entire solution. This is critical before refactoring or modifying a symbol to understand its static impact, but it may not include dynamic, reflection-based, or string-based usages.
 
 Parameters:
 - `symbolId` (required): The stable symbol ID, obtained from `resolve_symbol`, `list_types`, or `list_members`.

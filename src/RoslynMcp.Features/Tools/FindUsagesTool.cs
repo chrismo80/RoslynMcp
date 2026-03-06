@@ -11,7 +11,7 @@ public sealed class FindUsagesTool(INavigationService navigationService) : Tool
     private readonly INavigationService _navigationService = navigationService ?? throw new ArgumentNullException(nameof(navigationService));
 
     [McpServerTool(Name = "find_usages", Title = "Find Usages", ReadOnly = true, Idempotent = true)]
-    [Description("Use this tool when you need to find all places where a specific symbol is referenced across a project or the entire solution. This is critical before refactoring or modifying any symbol to understand its impact.")]
+    [Description("Use this tool when you need to find source-code references to a specific symbol across a document, project, or the entire solution. This is critical before refactoring or modifying a symbol to understand its static impact, but it may not include dynamic, reflection-based, or string-based usages.")]
     public Task<FindReferencesScopedResult> ExecuteAsync(CancellationToken cancellationToken,
         [Description("The stable symbol ID, obtained from resolve_symbol, list_types, or list_members.")]
         string symbolId,

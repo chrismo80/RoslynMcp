@@ -8,7 +8,7 @@ public static class AssertionsExtensions
 {
     extension(string text)
     {
-        public void ShouldNotBeEmpty()
+        internal void ShouldNotBeEmpty()
         {
             string.IsNullOrEmpty(text).IsFalse();
         }
@@ -16,12 +16,12 @@ public static class AssertionsExtensions
     
     extension(ErrorInfo? error)
     {
-        public void ShouldBeNone()
+        internal void ShouldBeNone()
         {
             error.IsNull();
         }
 
-        public void ShouldHaveCode(string expectedCode)
+        internal void ShouldHaveCode(string expectedCode)
         {
             error.IsNotNull();
             error!.Code.Is(expectedCode);
@@ -30,7 +30,7 @@ public static class AssertionsExtensions
 
     extension(ResolvedSymbolSummary? symbol)
     {
-        public void ShouldMatchResolvedSymbol(string expectedDisplayName, string expectedKind, string expectedFileName)
+        internal void ShouldMatchResolvedSymbol(string expectedDisplayName, string expectedKind, string expectedFileName)
         {
             symbol.IsNotNull();
             symbol!.DisplayName.Is(expectedDisplayName);
@@ -39,10 +39,24 @@ public static class AssertionsExtensions
             symbol.SymbolId.ShouldNotBeEmpty();
         }
     }
+    
+    extension(IReadOnlyList<SourceLocation> references)
+    {
+        internal void ShouldMatchReferences(params (string FileName, int Line)[] expected)
+        {
+            references.Count.Is(expected.Length);
+
+            for (var i = 0; i < expected.Length; i++)
+            {
+                references[i].FilePath.EndsWith(expected[i].FileName, StringComparison.OrdinalIgnoreCase).IsTrue();
+                references[i].Line.Is(expected[i].Line);
+            }
+        }
+    }
 
     extension(IReadOnlyList<CodeSmellMatch> actual)
     {
-        public void ShouldMatchFindings(ExpectedCodeSmellFinding[] expected)
+        internal void ShouldMatchFindings(ExpectedCodeSmellFinding[] expected)
         {
             actual.Count.Is(expected.Length);
 

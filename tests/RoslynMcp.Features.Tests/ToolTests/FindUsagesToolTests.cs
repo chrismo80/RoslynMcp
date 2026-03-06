@@ -9,21 +9,81 @@ namespace RoslynMcp.Features.Tests.ToolTests;
 public sealed class FindUsagesToolTests(FeatureTestsFixture fixture, ITestOutputHelper output)
     : ToolTests<FindUsagesTool>(fixture, output)
 {
+    private string ContractsPath => Path.Combine(TestSolutionDirectory, "ProjectCore", "Contracts.cs");
+
+    private string AppOrchestratorPath => Path.Combine(TestSolutionDirectory, "ProjectApp", "AppOrchestrator.cs");
+
     [Fact]
-    public async Task FindUsagesAsync_WithSolutionScope_ReturnsReferences()
+    public async Task FindUsagesAsync_WithSolutionScope_ReturnsOrderedReferences()
     {
-        var resolver = Fixture.GetRequiredService<ResolveSymbolTool>();
-        var contractsPath = Path.Combine(Path.GetDirectoryName(Fixture.SolutionPath)!, "ProjectCore", "Contracts.cs");
-        var resolved = await resolver.ExecuteAsync(CancellationToken.None, path: contractsPath, line: 31, column: 24);
+        var symbolId = await ResolveWorkItemOperationSymbolIdAsync();
 
-        resolved.Error.ShouldBeNone();
-
-        var result = await Sut.ExecuteAsync(CancellationToken.None, resolved.Symbol!.SymbolId, scope: "solution");
+        var result = await Sut.ExecuteAsync(CancellationToken.None, symbolId, scope: "solution");
 
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
-        result.TotalCount.IsGreaterThan(0);
-        result.References.Any(reference => reference.FilePath.EndsWith("AppOrchestrator.cs", StringComparison.OrdinalIgnoreCase)).Is(true);
+        result.Symbol!.Name.Is("IWorkItemOperation");
+        result.TotalCount.Is(4);
+        
+        result.References.ShouldMatchReferences(
+            ("ProjectApp\\AppOrchestrator.cs", 6),
+            ("ProjectApp\\AppOrchestrator.cs", 10),
+            ("ProjectImpl\\WorkItemOperations.cs", 15),
+            ("ProjectImpl\\WorkItemOperations.cs", 38));
+    }
+
+    [Fact]
+    public async Task FindUsagesAsync_WithProjectScope_ExcludesCrossProjectReferences()
+    {
+        var symbolId = await ResolveWorkItemOperationSymbolIdAsync();
+
+        var result = await Sut.ExecuteAsync(CancellationToken.None, symbolId, scope: "project");
+
+        result.Error.ShouldBeNone();
+        result.Symbol.IsNotNull();
+        result.TotalCount.Is(0);
+        result.References.IsEmpty();
+    }
+
+    [Fact]
+    public async Task FindUsagesAsync_WithDocumentScopeAndValidPath_ReturnsOnlyDocumentReferences()
+    {
+        var symbolId = await ResolveWorkItemOperationSymbolIdAsync();
+
+        var result = await Sut.ExecuteAsync(CancellationToken.None, symbolId, scope: "document", path: AppOrchestratorPath);
+
+        result.Error.ShouldBeNone();
+        result.Symbol.IsNotNull();
+        result.TotalCount.Is(2);
+        
+        result.References.ShouldMatchReferences(
+            ("ProjectApp\\AppOrchestrator.cs", 6),
+            ("ProjectApp\\AppOrchestrator.cs", 10));
+    }
+
+    [Fact]
+    public async Task FindUsagesAsync_WithDocumentScopeWithoutPath_ReturnsValidationError()
+    {
+        var symbolId = await ResolveWorkItemOperationSymbolIdAsync();
+
+        var result = await Sut.ExecuteAsync(CancellationToken.None, symbolId, scope: "document");
+
+        result.Error.ShouldHaveCode(ErrorCodes.InvalidRequest);
+        result.TotalCount.Is(0);
+        result.References.IsEmpty();
+    }
+
+    [Fact]
+    public async Task FindUsagesAsync_WithDocumentScopeAndInvalidPath_ReturnsInvalidPathError()
+    {
+        var symbolId = await ResolveWorkItemOperationSymbolIdAsync();
+
+        var result = await Sut.ExecuteAsync(CancellationToken.None, symbolId, scope: "document", path: Path.Combine(TestSolutionDirectory, "ProjectApp", "Missing.cs"));
+
+        result.Error.ShouldHaveCode(ErrorCodes.InvalidPath);
+        result.Symbol.IsNull();
+        result.TotalCount.Is(0);
+        result.References.IsEmpty();
     }
 
     [Fact]
@@ -32,5 +92,31 @@ public sealed class FindUsagesToolTests(FeatureTestsFixture fixture, ITestOutput
         var result = await Sut.ExecuteAsync(CancellationToken.None, "symbol-id", scope: "invalid");
 
         result.Error.ShouldHaveCode(ErrorCodes.InvalidRequest);
+        result.TotalCount.Is(0);
+        result.References.IsEmpty();
+    }
+
+    [Theory]
+    [InlineData("not-a-real-symbol-id", ErrorCodes.SymbolNotFound)]
+    [InlineData("   ", ErrorCodes.InvalidInput)]
+    public async Task FindUsagesAsync_WithUnresolvedOrInvalidSymbolId_ReturnsExpectedError(string symbolId, string expectedErrorCode)
+    {
+        var result = await Sut.ExecuteAsync(CancellationToken.None, symbolId, scope: "solution");
+
+        result.Error.ShouldHaveCode(expectedErrorCode);
+        result.Symbol.IsNull();
+        result.TotalCount.Is(0);
+        result.References.IsEmpty();
+    }
+    
+    private async Task<string> ResolveWorkItemOperationSymbolIdAsync()
+    {
+        var resolver = Fixture.GetRequiredService<ResolveSymbolTool>();
+        var resolved = await resolver.ExecuteAsync(CancellationToken.None, path: ContractsPath, line: 31, column: 24);
+
+        resolved.Error.ShouldBeNone();
+        resolved.Symbol.IsNotNull();
+
+        return resolved.Symbol!.SymbolId;
     }
 }
