@@ -96,3 +96,16 @@ public sealed record ApplyRefactoringResult(
     int ChangedDocumentCount,
     IReadOnlyList<string> ChangedFiles,
     ErrorInfo? Error = null);
+
+public sealed record OrganizeUsingsRequest(
+    string Path,
+    bool RemoveUnused = true,
+    bool SortUsings = true);
+
+public sealed record OrganizeUsingsResult(
+    string Path,
+    int RemovedCount,
+    int SortedCount,
+    bool Changed,
+    IReadOnlyList<string> ChangedFiles,
+    ErrorInfo? Error = null);

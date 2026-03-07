@@ -11,37 +11,36 @@ namespace RoslynMcp.Host;
 
 public static class HostExtensions
 {
-    extension(IServiceCollection services)
+    public static void Compose(this IServiceCollection services) => services
+        .AddInfrastructure()
+        .AddImplementations<Features.Tool>()
+        .AddMcpRuntime();
+
+    private static IServiceCollection AddMcpRuntime(this IServiceCollection services)
     {
-        public void Compose() => services
-            .AddInfrastructure()
-            .AddImplementations<Features.Tool>()
-            .AddMcpRuntime();
-
-        private void AddMcpRuntime()
+        var serializerOptions = new JsonSerializerOptions
         {
-            var serializerOptions = new JsonSerializerOptions
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
+            WriteIndented = true
+        };
+
+        var builder = services.AddMcpServer(options =>
+        {
+            options.ServerInfo = new Implementation
             {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
-                WriteIndented = true
+                Name = "RoslynMcp",
+                Version = "0.1.0"
             };
+        });
 
-            var builder = services.AddMcpServer(options =>
-            {
-                options.ServerInfo = new Implementation
-                {
-                    Name = "RoslynMcp",
-                    Version = "0.1.0"
-                };
-            });
+        builder.WithStdioServerTransport();
+        builder.WithTools(FeatureExtensions.GetImplementations<Features.Tool>(), serializerOptions);
 
-            builder.WithStdioServerTransport();
-            builder.WithTools(FeatureExtensions.GetImplementations<Features.Tool>(), serializerOptions);
+        services.AddSingleton<HostRuntime>();
+        services.AddHostedService(provider => provider.GetRequiredService<HostRuntime>());
 
-            services.AddSingleton<HostRuntime>();
-            services.AddHostedService(provider => provider.GetRequiredService<HostRuntime>());
-        }
+        return services;
     }
 }
