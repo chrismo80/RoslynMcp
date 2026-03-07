@@ -12,4 +12,5 @@ public interface IRefactoringService
     Task<ApplyCodeFixResult> ApplyCodeFixAsync(ApplyCodeFixRequest request, CancellationToken ct);
     Task<ExecuteCleanupResult> ExecuteCleanupAsync(ExecuteCleanupRequest request, CancellationToken ct);
     Task<RenameSymbolResult> RenameSymbolAsync(RenameSymbolRequest request, CancellationToken ct);
+    Task<OrganizeUsingsResult> OrganizeUsingsAsync(OrganizeUsingsRequest request, CancellationToken ct);
 }

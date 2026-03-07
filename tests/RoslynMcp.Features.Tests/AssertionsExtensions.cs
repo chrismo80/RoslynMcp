@@ -6,17 +6,14 @@ namespace RoslynMcp.Features.Tests;
 
 public static class AssertionsExtensions
 {
-    extension(string actualPath)
+    internal static bool HasPathSuffix(this string actualPath, string expectedPathSuffix)
     {
-        internal bool HasPathSuffix(string expectedPathSuffix)
-        {
-            return NormalizePathSeparators(actualPath).EndsWith(NormalizePathSeparators(expectedPathSuffix), StringComparison.OrdinalIgnoreCase);
-        }
+        return NormalizePathSeparators(actualPath).EndsWith(NormalizePathSeparators(expectedPathSuffix), StringComparison.OrdinalIgnoreCase);
+    }
 
-        internal void ShouldEndWithPathSuffix(string expectedPathSuffix)
-        {
-            actualPath.HasPathSuffix(expectedPathSuffix).IsTrue();
-        }
+    internal static void ShouldEndWithPathSuffix(this string actualPath, string expectedPathSuffix)
+    {
+        actualPath.HasPathSuffix(expectedPathSuffix).IsTrue();
     }
 
     internal static void ShouldNotBeEmpty(this string text)
@@ -24,18 +21,15 @@ public static class AssertionsExtensions
         string.IsNullOrEmpty(text).IsFalse();
     }
 
-    extension(ErrorInfo? error)
+    internal static void ShouldBeNone(this ErrorInfo? error)
     {
-        internal void ShouldBeNone()
-        {
-            error.IsNull();
-        }
+        error.IsNull();
+    }
 
-        internal void ShouldHaveCode(string expectedCode)
-        {
-            error.IsNotNull();
-            error!.Code.Is(expectedCode);
-        }
+    internal static void ShouldHaveCode(this ErrorInfo? error, string expectedCode)
+    {
+        error.IsNotNull();
+        error!.Code.Is(expectedCode);
     }
 
     internal static void ShouldMatchResolvedSymbol(this ResolvedSymbolSummary? symbol, string expectedDisplayName, string expectedKind, string expectedFileName)

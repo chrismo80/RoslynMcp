@@ -796,3 +796,143 @@ internal sealed class RenameOperations
         }
     }
 }
+
+internal sealed class OrganizeUsingsOperations
+{
+    private readonly RefactoringOperationOrchestrator _owner;
+
+    public OrganizeUsingsOperations(RefactoringOperationOrchestrator owner)
+    {
+        _owner = owner;
+    }
+
+    public async Task<OrganizeUsingsResult> OrganizeUsingsAsync(OrganizeUsingsRequest request, CancellationToken ct)
+    {
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        ct.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(request.Path))
+        {
+            return new OrganizeUsingsResult(
+                request.Path ?? string.Empty,
+                0,
+                0,
+                false,
+                Array.Empty<string>(),
+                new ErrorInfo(ErrorCodes.InvalidInput, "Path must be provided."));
+        }
+
+        try
+        {
+            var (solution, error) = await _owner.TryGetSolutionAsync(ct).ConfigureAwait(false);
+            if (solution == null)
+            {
+                return new OrganizeUsingsResult(
+                    request.Path,
+                    0,
+                    0,
+                    false,
+                    Array.Empty<string>(),
+                    error ?? new ErrorInfo(ErrorCodes.InternalError, "Unable to access the current solution."));
+            }
+
+            var document = solution.Projects
+                .SelectMany(static project => project.Documents)
+                .FirstOrDefault(d => d.FilePath.MatchesByNormalizedPath(request.Path));
+
+            if (document == null)
+            {
+                return new OrganizeUsingsResult(
+                    request.Path,
+                    0,
+                    0,
+                    false,
+                    Array.Empty<string>(),
+                    new ErrorInfo(ErrorCodes.PathOutOfScope, "The provided path is outside the selected solution scope."));
+            }
+
+            var root = await document.GetSyntaxRootAsync(ct).ConfigureAwait(false);
+            if (root == null)
+            {
+                return new OrganizeUsingsResult(
+                    request.Path,
+                    0,
+                    0,
+                    false,
+                    Array.Empty<string>(),
+                    new ErrorInfo(ErrorCodes.InternalError, "Could not parse document syntax."));
+            }
+
+            var originalUsings = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.UsingDirectiveSyntax>().ToList();
+            var originalUsingsCount = originalUsings.Count;
+
+            if (originalUsingsCount == 0)
+            {
+                return new OrganizeUsingsResult(
+                    request.Path,
+                    0,
+                    0,
+                    false,
+                    Array.Empty<string>());
+            }
+
+            // Use the existing OrganizeUsings method from the orchestrator
+            var scopeDocuments = new List<Microsoft.CodeAnalysis.Document> { document };
+            var newSolution = await _owner.OrganizeUsingsAsync(solution, scopeDocuments, ct).ConfigureAwait(false);
+
+            var changed = newSolution != solution;
+            var newDocument = newSolution.GetDocument(document.Id);
+            var newRoot = await newDocument!.GetSyntaxRootAsync(ct).ConfigureAwait(false);
+            var newUsings = newRoot!.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.UsingDirectiveSyntax>().ToList();
+            var removedCount = originalUsingsCount - newUsings.Count;
+
+            if (changed)
+            {
+                var (applied, applyError) = await _owner._solutionAccessor.TryApplySolutionAsync(newSolution, ct).ConfigureAwait(false);
+                if (!applied)
+                {
+                    return new OrganizeUsingsResult(
+                        request.Path,
+                        removedCount,
+                        request.SortUsings ? newUsings.Count : 0,
+                        false,
+                        Array.Empty<string>(),
+                        applyError ?? new ErrorInfo(ErrorCodes.InternalError, "Failed to apply changes."));
+                }
+
+                return new OrganizeUsingsResult(
+                    request.Path,
+                    removedCount,
+                    request.SortUsings ? newUsings.Count : 0,
+                    true,
+                    new[] { request.Path });
+            }
+
+            return new OrganizeUsingsResult(
+                request.Path,
+                0,
+                0,
+                false,
+                Array.Empty<string>());
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _owner._logger.LogError(ex, "OrganizeUsings failed for {Path}", request.Path);
+            return new OrganizeUsingsResult(
+                request.Path,
+                0,
+                0,
+                false,
+                Array.Empty<string>(),
+                new ErrorInfo(ErrorCodes.InternalError, $"Failed to organize usings: {ex.Message}"));
+        }
+    }
+}
