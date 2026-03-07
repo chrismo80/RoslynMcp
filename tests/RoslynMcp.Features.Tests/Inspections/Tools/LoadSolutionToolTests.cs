@@ -1,9 +1,10 @@
 using Is.Assertions;
+using RoslynMcp.Features.Tests.Mutations;
 using RoslynMcp.Features.Tools;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace RoslynMcp.Features.Tests.ToolTests;
+namespace RoslynMcp.Features.Tests.Inspections.Tools;
 
 public sealed class LoadSolutionToolTests(SharedSandboxFixture fixture, ITestOutputHelper output)
     : SharedToolTests<LoadSolutionTool>(fixture, output)
@@ -18,7 +19,7 @@ public sealed class LoadSolutionToolTests(SharedSandboxFixture fixture, ITestOut
         result.Error.ShouldBeNone();
 
         var projectNames = result.Projects.Select(static project => project.Name).ToArray();
-        
+
         projectNames.IsContaining("ProjectApp");
         projectNames.IsContaining("ProjectCore");
         projectNames.IsContaining("ProjectImpl");

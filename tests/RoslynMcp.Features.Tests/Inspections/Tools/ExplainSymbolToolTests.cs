@@ -4,7 +4,7 @@ using RoslynMcp.Features.Tools;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace RoslynMcp.Features.Tests.ToolTests;
+namespace RoslynMcp.Features.Tests.Inspections.Tools;
 
 public sealed class ExplainSymbolToolTests(SharedSandboxFixture fixture, ITestOutputHelper output)
     : SharedToolTests<ExplainSymbolTool>(fixture, output)

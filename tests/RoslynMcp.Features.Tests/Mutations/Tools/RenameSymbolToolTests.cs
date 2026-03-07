@@ -5,7 +5,7 @@ using RoslynMcp.Features.Tools;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace RoslynMcp.Features.Tests.ToolTests;
+namespace RoslynMcp.Features.Tests.Mutations.Tools;
 
 public sealed class RenameSymbolToolTests(ITestOutputHelper output)
     : IsolatedToolTests<RenameSymbolTool>(output)

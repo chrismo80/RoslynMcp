@@ -1,16 +1,10 @@
 using Xunit.Abstractions;
 
-namespace RoslynMcp.Features.Tests;
+namespace RoslynMcp.Features.Tests.Mutations;
 
-public abstract class IsolatedToolTests<TTool> where TTool : notnull
+public abstract class IsolatedToolTests<TTool>(ITestOutputHelper output)
+    where TTool : notnull
 {
-    private readonly ITestOutputHelper _output;
-
-    protected IsolatedToolTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
-
     protected Task<IsolatedSandboxContext> CreateContextAsync(CancellationToken cancellationToken = default)
         => IsolatedSandboxContext.CreateAsync(cancellationToken);
 
@@ -18,5 +12,5 @@ public abstract class IsolatedToolTests<TTool> where TTool : notnull
         => context.GetRequiredService<TTool>();
 
     protected void Trace(string message) =>
-        _output.WriteLine(typeof(TTool) + ": " + message);
+        output.WriteLine(typeof(TTool) + ": " + message);
 }

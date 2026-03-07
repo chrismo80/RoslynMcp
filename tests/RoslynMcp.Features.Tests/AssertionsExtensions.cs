@@ -1,6 +1,6 @@
 using Is.Assertions;
 using RoslynMcp.Core.Models;
-using RoslynMcp.Features.Tests.ToolTests;
+using RoslynMcp.Features.Tests.Inspections.Tools;
 
 namespace RoslynMcp.Features.Tests;
 

@@ -1,4 +1,4 @@
-namespace RoslynMcp.Features.Tests;
+namespace RoslynMcp.Features.Tests.Mutations;
 
 public sealed class IsolatedSandboxContext : SandboxContext
 {

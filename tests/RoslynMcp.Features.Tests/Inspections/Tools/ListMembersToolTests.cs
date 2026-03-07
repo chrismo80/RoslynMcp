@@ -5,7 +5,7 @@ using RoslynMcp.Features.Tools;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace RoslynMcp.Features.Tests.ToolTests;
+namespace RoslynMcp.Features.Tests.Inspections.Tools;
 
 public sealed class ListMembersToolTests(SharedSandboxFixture fixture, ITestOutputHelper output)
     : SharedToolTests<ListMembersTool>(fixture, output)

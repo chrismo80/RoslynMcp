@@ -3,7 +3,7 @@ using RoslynMcp.Features.Tools;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace RoslynMcp.Features.Tests.ToolTests;
+namespace RoslynMcp.Features.Tests.Inspections.Tools;
 
 public sealed class UnderstandCodebaseToolTests(SharedSandboxFixture fixture, ITestOutputHelper output)
     : SharedToolTests<UnderstandCodebaseTool>(fixture, output)

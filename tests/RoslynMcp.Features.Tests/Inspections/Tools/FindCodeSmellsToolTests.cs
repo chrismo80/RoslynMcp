@@ -5,7 +5,7 @@ using RoslynMcp.Features.Tools;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace RoslynMcp.Features.Tests.ToolTests;
+namespace RoslynMcp.Features.Tests.Inspections.Tools;
 
 public sealed record ExpectedCodeSmellFinding(int Line, int Column, string Title, string Category, string RiskLevel);
 
@@ -123,7 +123,7 @@ public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestO
         new(40, 5, "Convert comment to documentation comment", "roslynator", "blocked"),
         new(25, 24, "Parenthesize 'value * 42'", "roslynator", "blocked")
     ];
-    
+
     private static void ShouldMatchFindings(IReadOnlyList<CodeSmellMatch> actual, ExpectedCodeSmellFinding[] expected)
     {
         actual.Count.Is(expected.Length);

@@ -1,7 +1,7 @@
 using Xunit;
 using Xunit.Abstractions;
 
-namespace RoslynMcp.Features.Tests;
+namespace RoslynMcp.Features.Tests.Inspections;
 
 [Collection(SharedSandboxFeatureTestsCollection.CollectionName)]
 public abstract class SharedToolTests<TTool> where TTool : notnull

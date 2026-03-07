@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace RoslynMcp.Features.Tests;
+namespace RoslynMcp.Features.Tests.Inspections;
 
 [CollectionDefinition(CollectionName)]
 public sealed class SharedSandboxFeatureTestsCollection : ICollectionFixture<SharedSandboxFixture>

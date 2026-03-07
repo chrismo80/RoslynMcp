@@ -31,8 +31,7 @@ public abstract class SandboxContext : IAsyncDisposable
     protected TestSolutionSandbox? Sandbox { get; private set; }
 
     public T GetRequiredService<T>() where T : notnull
-        => (_provider ?? throw new InvalidOperationException("The feature test services have not been initialized."))
-            .GetRequiredService<T>();
+        => _provider.GetRequiredService<T>();
 
     public ProjectSummary GetProject(string projectName)
         => LoadedSolution.Projects.Single(project => project.Name == projectName);
@@ -45,9 +44,7 @@ public abstract class SandboxContext : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(sandbox);
 
         if (_provider is not null || Sandbox is not null)
-        {
             throw new InvalidOperationException("The sandbox context has already been initialized.");
-        }
 
         ServiceProvider? provider = null;
         try
@@ -80,11 +77,10 @@ public abstract class SandboxContext : IAsyncDisposable
         }
     }
 
-    protected virtual ServiceProvider CreateServiceProvider()
-        => new ServiceCollection()
-            .AddInfrastructure()
-            .AddImplementations<Tool>()
-            .BuildServiceProvider();
+    protected virtual ServiceProvider CreateServiceProvider() => new ServiceCollection()
+        .AddInfrastructure()
+        .AddImplementations<Tool>()
+        .BuildServiceProvider();
 
     public async ValueTask DisposeAsync()
     {
@@ -105,10 +101,9 @@ public abstract class SandboxContext : IAsyncDisposable
         while (current is not null)
         {
             var markerPath = Path.Combine(current.FullName, "RoslynMcp.slnx");
+
             if (File.Exists(markerPath))
-            {
                 return current.FullName;
-            }
 
             current = current.Parent;
         }

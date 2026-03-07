@@ -10,13 +10,13 @@ public sealed class SandboxContextTests
     {
         var context = new TestSandboxContext();
         var sandbox = TestSolutionSandbox.Create(context.CanonicalTestSolutionDirectory);
-        var sandboxRoot = sandbox.SandboxRoot;
 
         File.Delete(sandbox.SolutionPath);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => context.InitializeForTestAsync(sandbox));
 
-        Directory.Exists(sandboxRoot).IsFalse();
+        Directory.Exists(sandbox.SandboxRoot).IsFalse();
+
         await context.DisposeAsync();
     }
 
