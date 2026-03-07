@@ -38,15 +38,16 @@ public static partial class CodeUnderstandingExtensions
 
             foreach (var symbol in symbols)
             {
-                var symbolId = SymbolIdentity.CreateId(symbol);
-                var candidateKey = $"{project.Id.Id:N}|{symbolId}";
+                var normalizedSymbol = symbol.OriginalDefinition ?? symbol;
+                var symbolId = SymbolIdentity.CreateId(normalizedSymbol);
+                var candidateKey = symbolId;
 
                 if (!seen.Add(candidateKey))
                 {
                     continue;
                 }
 
-                candidates.Add((symbol, project.Name));
+                candidates.Add((normalizedSymbol, normalizedSymbol.ResolveProjectName(project)));
             }
         }
 
@@ -123,12 +124,20 @@ public static partial class CodeUnderstandingExtensions
                     normalizedId is null ? null : $"projectId={normalizedId}"
                 }.Where(static value => value != null)!);
 
+            var message = normalizedId == null
+                ? "Project selector did not match any loaded project."
+                : "projectId did not match any project in the current loaded snapshot.";
+            var nextAction = normalizedId == null
+                ? "Use load_solution output to provide an exact projectPath, projectName, or projectId."
+                : "projectId values are snapshot-local and can change after reload. Refresh selectors from the current snapshot or prefer projectPath for automation.";
+
             error = AgentErrorInfo.Create(
                 ErrorCodes.InvalidInput,
-                "Project selector did not match any loaded project.",
-                "Use load_solution output to provide an exact projectPath, projectName, or projectId.",
+                message,
+                nextAction,
                 ("field", "project selector"),
-                ("provided", provided));
+                ("provided", provided),
+                ("projectIdScope", normalizedId == null ? null : "snapshot-local"));
             return Array.Empty<Project>();
         }
 

@@ -11,13 +11,13 @@ public sealed class ListTypesTool(ICodeUnderstandingService codeUnderstandingSer
     private readonly ICodeUnderstandingService _codeUnderstandingService = codeUnderstandingService ?? throw new ArgumentNullException(nameof(codeUnderstandingService));
 
     [McpServerTool(Name = "list_types", Title = "List Types", ReadOnly = true, Idempotent = true)]
-    [Description("Use this tool when you need to list types declared in a specific loaded project. It is useful for project-scoped discovery and for finding type symbols by name before calling tools like list_members, resolve_symbol, or get_type_hierarchy.")]
+    [Description("Use this tool when you need to list types declared in a specific loaded project. For automation, prefer projectPath as the stable selector; projectId is snapshot-local. Results favor hand-written source by default for interactive discovery.")]
     public Task<ListTypesResult> ExecuteAsync(CancellationToken cancellationToken,
         [Description("Exact path to a project file (.csproj). Specify only one of projectPath, projectName, or projectId.")]
         string? projectPath = null,
         [Description("Name of a project. Specify only one of projectPath, projectName, or projectId.")]
         string? projectName = null,
-        [Description("Project identifier from load_solution output. Specify only one of projectPath, projectName, or projectId.")]
+        [Description("Project identifier from the current loaded workspace snapshot. projectId values are snapshot-local and can change after reload, so prefer projectPath for durable automation. Specify only one of projectPath, projectName, or projectId.")]
         string? projectId = null,
         [Description("Filter to only types in namespaces starting with this prefix.")]
         string? namespacePrefix = null,

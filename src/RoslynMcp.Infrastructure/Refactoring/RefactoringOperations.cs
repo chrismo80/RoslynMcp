@@ -671,7 +671,10 @@ internal sealed class RenameOperations
         _owner = owner;
     }
 
-    public async Task<RenameSymbolResult> RenameSymbolAsync(RenameSymbolRequest request, CancellationToken ct)
+    public Task<RenameSymbolResult> RenameSymbolAsync(RenameSymbolRequest request, CancellationToken ct)
+        => RenameSymbolAsync(request, ct, allowReloadFallback: true);
+
+    private async Task<RenameSymbolResult> RenameSymbolAsync(RenameSymbolRequest request, CancellationToken ct, bool allowReloadFallback)
     {
         if (request == null)
         {
@@ -752,6 +755,15 @@ internal sealed class RenameOperations
             var (applied, applyError) = await _owner._solutionAccessor.TryApplySolutionAsync(renamedSolution, ct).ConfigureAwait(false);
             if (!applied)
             {
+                if (allowReloadFallback && _owner._solutionAccessor is ISolutionSessionService sessionService)
+                {
+                    var reload = await sessionService.ReloadSolutionAsync(new ReloadSolutionRequest(), ct).ConfigureAwait(false);
+                    if (reload.Success)
+                    {
+                        return await RenameSymbolAsync(request, ct, allowReloadFallback: false).ConfigureAwait(false);
+                    }
+                }
+
                 return RefactoringOperationExtensions.CreateErrorResult(applyError ??
                     RefactoringOperationExtensions.CreateError(ErrorCodes.InternalError,
                         "Failed to update the active solution after rename.",

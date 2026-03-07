@@ -112,6 +112,11 @@ internal sealed class ListTypesHandler
                 }
 
                 var (filePath, line, column) = type.GetDeclarationPosition();
+                if (!SourceVisibility.ShouldIncludeInHumanResults(filePath))
+                {
+                    continue;
+                }
+
                 entries.Add(new TypeListEntry(
                     type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
                     SymbolIdentity.CreateId(type),

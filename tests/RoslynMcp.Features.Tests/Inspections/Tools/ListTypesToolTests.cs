@@ -112,9 +112,10 @@ public sealed class ListTypesToolTests(SharedSandboxFixture fixture, ITestOutput
     {
         var result = await Sut.ExecuteAsync(CancellationToken.None, projectId: "00000000-0000-0000-0000-000000000000");
 
-        result.ShouldHaveError(ErrorCodes.InvalidInput, "Project selector did not match any loaded project.");
+        result.ShouldHaveError(ErrorCodes.InvalidInput, "projectId did not match any project in the current loaded snapshot.");
         result.TotalCount.Is(0);
         result.Types.Count.Is(0);
+        result.Error!.Details!["projectIdScope"].Is("snapshot-local");
     }
 
     private async Task<string> GetProjectIdAsync(string projectName)

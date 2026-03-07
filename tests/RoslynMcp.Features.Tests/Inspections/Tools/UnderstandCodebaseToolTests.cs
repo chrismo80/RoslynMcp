@@ -17,6 +17,7 @@ public sealed class UnderstandCodebaseToolTests(SharedSandboxFixture fixture, IT
         result.Profile.Is("quick");
         result.Modules.Select(static module => module.Name).Is("ProjectApp", "ProjectCore", "ProjectImpl");
         result.Hotspots.Count.Is(3);
+        result.Hotspots.All(static hotspot => !hotspot.FilePath.Contains("/obj/", StringComparison.OrdinalIgnoreCase) && !hotspot.FilePath.Contains("\\obj\\", StringComparison.OrdinalIgnoreCase)).IsTrue();
     }
 
     [Fact]
@@ -36,5 +37,6 @@ public sealed class UnderstandCodebaseToolTests(SharedSandboxFixture fixture, IT
         result.Error.ShouldBeNone();
         result.Modules.Select(static module => $"{module.Name}:{module.OutgoingDependencies}:{module.IncomingDependencies}").Is("ProjectApp:2:0", "ProjectCore:0:2", "ProjectImpl:1:1");
         result.Hotspots.All(static hotspot => !string.IsNullOrWhiteSpace(hotspot.DisplayName) && !string.IsNullOrWhiteSpace(hotspot.FilePath) && hotspot.Score >= 0) .IsTrue();
+        result.Hotspots.All(static hotspot => !hotspot.DisplayName.Contains("GeneratedExecutionHooks", StringComparison.Ordinal)).IsTrue();
     }
 }

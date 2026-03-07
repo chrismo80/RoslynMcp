@@ -85,7 +85,7 @@ These tool descriptions are written as routing triggers. Use them to help an age
 
 ### `load_solution`
 
-Use this tool when you need to start working with a .NET solution and no solution has been loaded yet. This must be the first tool called in a session before any code analysis or navigation tools can be used.
+Use this tool when you need to start working with a .NET solution and no solution has been loaded yet. This must be the first tool called in a session before any code analysis or navigation tools can be used. In fresh or detached worktrees, `baselineDiagnostics` can spike when generated/intermediate artifacts have not been restored yet, so high counts are not always handwritten-source failures.
 
 Parameters:
 - `solutionHintPath` (optional): Absolute path to a `.sln` file, or to a directory used as the recursive discovery root for `.sln`/`.slnx` files. If omitted, the tool will auto-detect from the current workspace.
@@ -93,7 +93,7 @@ Parameters:
 
 ### `understand_codebase`
 
-Use this tool when you need a quick overview of the codebase structure at the start of a session. It returns the project structure with dependency relationships and identifies "hotspots" — the most complex and heavily-commented methods that are likely worth attention.
+Use this tool when you need a quick overview of the codebase structure at the start of a session. It returns the project structure with dependency relationships and identifies "hotspots" — the most complex and heavily-commented methods that are likely worth attention. Results are human-source-first by default, so generated/intermediate files such as `obj/` and `bin/` are filtered out of the initial hotspot view.
 
 Parameters:
 - `profile` (optional): Analysis depth. `quick` for fast results, `standard` for balanced output, `deep` for thorough analysis. Defaults to `standard`.
@@ -104,20 +104,20 @@ Parameters:
 Use this tool when you need to understand how projects relate to each other within a solution. It shows the dependency graph between projects, indicating which projects depend on which others.
 
 Parameters:
-- `projectPath` (optional): Exact path to a project file (`.csproj`). Specify only one of `projectPath`, `projectName`, or `projectId`.
+- `projectPath` (optional): Exact path to a project file (`.csproj`). This is the recommended stable selector for automation. Specify only one of `projectPath`, `projectName`, or `projectId`.
 - `projectName` (optional): Name of a project. Specify only one of `projectPath`, `projectName`, or `projectId`.
-- `projectId` (optional): Project identifier from `load_solution` output. Specify only one of `projectPath`, `projectName`, or `projectId`.
+- `projectId` (optional): Project identifier from the current `load_solution` workspace snapshot. It is snapshot-local and can change after reload, so prefer `projectPath` for automation. Specify only one of `projectPath`, `projectName`, or `projectId`.
 - `direction` (optional): Which direction of dependencies to return. `outgoing` shows what the selected project depends on. `incoming` shows what depends on the selected project. `both` returns both directions. Defaults to `both`.
 
 
 ### `list_types`
 
-Use this tool when you need to list types declared in a specific loaded project. It is useful for project-scoped discovery and for finding type symbols by name before calling tools like `list_members`, `resolve_symbol`, or `get_type_hierarchy`.
+Use this tool when you need to list types declared in a specific loaded project. It is useful for project-scoped discovery and for finding type symbols by name before calling tools like `list_members`, `resolve_symbol`, or `get_type_hierarchy`. Results are human-source-first by default, so generated/intermediate declarations are filtered out of the default listing.
 
 Parameters:
-- `projectPath` (optional): Exact path to a project file (`.csproj`). Specify only one of `projectPath`, `projectName`, or `projectId`.
+- `projectPath` (optional): Exact path to a project file (`.csproj`). This is the recommended stable selector for automation. Specify only one of `projectPath`, `projectName`, or `projectId`.
 - `projectName` (optional): Name of a project. Specify only one of `projectPath`, `projectName`, or `projectId`.
-- `projectId` (optional): Project identifier from `load_solution` output. Specify only one of `projectPath`, `projectName`, or `projectId`.
+- `projectId` (optional): Project identifier from the current `load_solution` workspace snapshot. It is snapshot-local and can change after reload, so prefer `projectPath` for automation. Specify only one of `projectPath`, `projectName`, or `projectId`.
 - `namespacePrefix` (optional): Filter to only types in namespaces starting with this prefix.
 - `kind` (optional): Filter by type kind: `class`, `record`, `interface`, `enum`, or `struct`.
 - `accessibility` (optional): Filter by accessibility: `public`, `internal`, `protected`, `private`, `protected_internal`, or `private_protected`.
@@ -144,7 +144,7 @@ Parameters:
 
 ### `resolve_symbol`
 
-Use this tool when you have a source position (`path` + `line` + `column`), a qualified symbol name, or an existing `symbolId` and need the stable `symbolId` plus declaration location used by other navigation tools. This is often the first step before calling `explain_symbol`, `trace_call_flow`, `find_callers`, or `find_usages`. Qualified-name lookup can search the whole loaded solution, but project selectors help disambiguate short names or duplicate symbols across projects.
+Use this tool when you have a source position (`path` + `line` + `column`), a qualified symbol name, or an existing `symbolId` and need the stable `symbolId` plus declaration location used by other navigation tools. This is often the first step before calling `explain_symbol`, `trace_call_flow`, `find_callers`, or `find_usages`. Qualified-name lookup can search the whole loaded solution, but `projectPath` is the preferred stable disambiguator for automation.
 
 Parameters:
 - `symbolId` (optional): An existing symbol ID to look up. Provide this OR `path`+`line`+`column` OR `qualifiedName`.
@@ -152,9 +152,9 @@ Parameters:
 - `line` (optional): Line number (1-based) in the source file.
 - `column` (optional): Column number (1-based) in the source file.
 - `qualifiedName` (optional): A fully qualified or short type/member name (e.g., `System.String`, `MyNamespace.MyType.MyMethod`, or `MyMethod`). Provide this instead of `symbolId` or `path`+`line`+`column`.
-- `projectPath` (optional): Optional project scope for `qualifiedName` lookup — path to a project that contains the symbol. Use this to narrow ambiguous matches.
+- `projectPath` (optional): Optional project scope for `qualifiedName` lookup — path to a project that contains the symbol. This is the preferred stable selector for automation.
 - `projectName` (optional): Optional project scope for `qualifiedName` lookup — name of a project that contains the symbol. Use this to narrow ambiguous matches.
-- `projectId` (optional): Optional project scope for `qualifiedName` lookup — project ID from `load_solution` that contains the symbol. Use this to narrow ambiguous matches.
+- `projectId` (optional): Optional project scope for `qualifiedName` lookup — project ID from the current `load_solution` workspace snapshot. It is snapshot-local and can change after reload, so prefer `projectPath` when you need a durable selector.
 
 
 ### `explain_symbol`
@@ -170,7 +170,7 @@ Parameters:
 
 ### `trace_call_flow`
 
-Use this tool when you need to understand how code flows through your system — either finding what calls a specific symbol (upstream) or what a symbol calls (downstream). This is essential for debugging, impact analysis, and understanding architectural patterns.
+Use this tool when you need to understand how code flows through your system — either finding what calls a specific symbol (upstream) or what a symbol calls (downstream). This is essential for debugging, impact analysis, and understanding architectural patterns. Results are human-source-first by default, so generated/intermediate call edges are filtered from the default interactive view.
 
 Parameters:
 - `symbolId` (optional): The stable symbol ID, obtained from `resolve_symbol`, `list_types`, or `list_members`. Provide this OR `path`+`line`+`column`.
@@ -223,8 +223,14 @@ Use this tool when you need to check a specific file for potential code quality 
 Parameters:
 - `path` (required): Path to the source file to analyze. The file must exist in the currently loaded solution.
 - `maxFindings` (optional): Maximum number of accepted findings to return. Discovery stops as soon as this many matching findings are found.
-- `riskLevels` (optional): Accepted risk levels to include. Use values returned in `find_codesmells` results, such as `safe`, `review_required`, `high`, `low`, `medium`, or `info`.
+- `riskLevels` (optional): Accepted risk levels to include. Public result values are `low`, `review_required`, `high`, and `info`.
 - `categories` (optional): Accepted categories to include. Empty or omitted means all categories are included.
+
+## Usage Notes
+
+- For automation, prefer `projectPath` over `projectName` and `projectId`. `projectPath` is the canonical stable project selector.
+- Treat `projectId` as workspace-snapshot-local metadata from the current `load_solution` result. Refresh it after reloads, or avoid it in durable automation.
+- For interactive exploration, `understand_codebase`, `list_types`, and `trace_call_flow` prioritize hand-written source and filter generated/intermediate artifacts such as `obj/`, `bin/`, `.g.cs`, and similar files by default.
 
 
 ### `rename_symbol`

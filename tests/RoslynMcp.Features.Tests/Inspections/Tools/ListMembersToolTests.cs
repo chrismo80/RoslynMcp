@@ -21,17 +21,17 @@ public sealed class ListMembersToolTests(SharedSandboxFixture fixture, ITestOutp
         result.IncludeInherited.Is(false);
         result.TotalCount.Is(5);
         ShouldMatchMembers(result.Members,
-            ("ExecuteFlowAsync", "method", "private", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 53),
-            ("OnStateChanged", "method", "private", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 66),
-            ("OnStepCompleted", "method", "private", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 58),
+            ("ExecuteFlowAsync", "method", "private", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 54),
+            ("OnStateChanged", "method", "private", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 67),
+            ("OnStepCompleted", "method", "private", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 59),
             ("RunAsync", "method", "public", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 15),
-            ("RunReflectionPathAsync", "method", "public", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 33));
+            ("RunReflectionPathAsync", "method", "public", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 34));
     }
 
     [Fact]
     public async Task ListMembersAsync_WithSourcePositionSelector_ReturnsContainingTypeFields()
     {
-        var result = await Sut.ExecuteAsync(CancellationToken.None, path: AppOrchestratorPath, line: 53, column: 35, kind: "field");
+        var result = await Sut.ExecuteAsync(CancellationToken.None, path: AppOrchestratorPath, line: 54, column: 35, kind: "field");
 
         result.Error.ShouldBeNone();
         result.IncludeInherited.Is(false);
@@ -59,7 +59,7 @@ public sealed class ListMembersToolTests(SharedSandboxFixture fixture, ITestOutp
         result.TotalCount.Is(2);
         ShouldMatchMembers(result.Members,
             ("RunAsync", "method", "public", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 15),
-            ("RunReflectionPathAsync", "method", "public", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 33));
+            ("RunReflectionPathAsync", "method", "public", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 34));
     }
 
     [Fact]
@@ -138,8 +138,8 @@ public sealed class ListMembersToolTests(SharedSandboxFixture fixture, ITestOutp
         pagedResult.TotalCount.Is(5);
 
         ShouldMatchMembers(pagedResult.Members,
-            ("OnStateChanged", "method", "private", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 66),
-            ("OnStepCompleted", "method", "private", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 58));
+            ("OnStateChanged", "method", "private", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 67),
+            ("OnStepCompleted", "method", "private", false, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 59));
 
         pagedResult.Members.Select(static member => member.DisplayName)
             .Is(fullResult.Members.Skip(1).Take(2).Select(static member => member.DisplayName));

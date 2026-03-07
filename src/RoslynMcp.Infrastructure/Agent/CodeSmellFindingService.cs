@@ -120,12 +120,14 @@ public sealed class CodeSmellFindingService(IRoslynSolutionAccessor solutionAcce
 
             foreach (var action in actionsAtAnchor)
             {
+                var normalizedRiskLevel = NormalizeRiskLevel(action.RiskLevel, action.Origin, action.Category);
+                var normalizedCategory = NormalizeCategory(action.Category, action.Origin);
                 var match = new CodeSmellMatch(
                     action.Title,
-                    action.Category,
+                    normalizedCategory,
                     new SourceLocation(anchor.FilePath, anchor.Line, anchor.Column),
                     action.Origin,
-                    action.RiskLevel);
+                    normalizedRiskLevel);
 
                 if (!filters.Accepts(match))
                 {
@@ -136,12 +138,19 @@ public sealed class CodeSmellFindingService(IRoslynSolutionAccessor solutionAcce
 
                 if (filters.HasReachedLimit(actions.Count))
                 {
-                    return new FindCodeSmellsResult(actions.ToArray(), warnings);
+                    var limitedMatches = DeduplicateMatches(actions, warnings);
+                    return new FindCodeSmellsResult(limitedMatches, warnings);
                 }
             }
         }
 
-        return new FindCodeSmellsResult(actions.ToArray(), warnings);
+        var deduped = DeduplicateMatches(actions, warnings);
+        if (deduped.Count == 0 && (filters.RiskLevels is not null || filters.Categories is not null))
+        {
+            warnings.Add("No findings matched the requested riskLevels/categories filters.");
+        }
+
+        return new FindCodeSmellsResult(deduped, warnings);
     }
 
     private async Task<IReadOnlyList<AnchorPosition>> CollectAnchorsAsync(Document document, List<string> warnings, CancellationToken ct)
@@ -428,12 +437,88 @@ public sealed class CodeSmellFindingService(IRoslynSolutionAccessor solutionAcce
 
     private static RiskLevel MapRisk(string riskLevel)
     {
-        return riskLevel.ToLowerInvariant() switch
+        return NormalizeRiskLevel(riskLevel, origin: null, category: null) switch
         {
-            "safe" or "low" => RiskLevel.Low,
+            "low" => RiskLevel.Low,
             "review_required" or "medium" => RiskLevel.Medium,
             _ => RiskLevel.High
         };
+    }
+
+    private static string NormalizeRiskLevel(string? riskLevel, string? origin, string? category)
+    {
+        if (string.Equals(origin, "roslynator_diagnostic", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(category, "analyzer", StringComparison.OrdinalIgnoreCase))
+        {
+            return "info";
+        }
+
+        return (riskLevel ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "" => "info",
+            "safe" or "low" => "low",
+            "review_required" or "medium" => "review_required",
+            "blocked" or "high" => "high",
+            "info" => "info",
+            var value => value
+        };
+    }
+
+    private static string NormalizeCategory(string? category, string? origin)
+    {
+        var normalized = (category ?? string.Empty).Trim().ToLowerInvariant();
+        if (!string.IsNullOrWhiteSpace(normalized))
+        {
+            return normalized;
+        }
+
+        return string.Equals(origin, "roslynator_diagnostic", StringComparison.OrdinalIgnoreCase)
+            ? "analyzer"
+            : "unknown";
+    }
+
+    private static IReadOnlyList<CodeSmellMatch> DeduplicateMatches(IReadOnlyList<CodeSmellMatch> matches, List<string> warnings)
+    {
+        if (matches.Count == 0)
+        {
+            return matches;
+        }
+
+        var deduped = new List<CodeSmellMatch>(matches.Count);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var duplicateCount = 0;
+
+        foreach (var match in matches
+                     .OrderBy(static item => item.Location.FilePath, StringComparer.Ordinal)
+                     .ThenBy(static item => item.Location.Line)
+                     .ThenBy(static item => item.Location.Column)
+                     .ThenBy(static item => item.Title, StringComparer.Ordinal)
+                     .ThenBy(static item => item.Category, StringComparer.Ordinal)
+                     .ThenBy(static item => item.Origin, StringComparer.Ordinal))
+        {
+            var key = string.Join('|',
+                NormalizePathForDeduplication(match.Location.FilePath),
+                match.Location.Line,
+                match.Title,
+                match.Category,
+                match.Origin,
+                match.RiskLevel);
+
+            if (!seen.Add(key))
+            {
+                duplicateCount++;
+                continue;
+            }
+
+            deduped.Add(match);
+        }
+
+        if (duplicateCount > 0)
+        {
+            warnings.Add($"Deduplicated {duplicateCount} repetitive findings by title/category/line.");
+        }
+
+        return deduped;
     }
 
     private sealed record AnchorPosition(string FilePath, int Line, int Column, string AnchorKind, bool IsDiagnostic);

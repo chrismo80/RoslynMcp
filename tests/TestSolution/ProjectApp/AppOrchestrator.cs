@@ -19,6 +19,7 @@ public sealed class AppOrchestrator(IWorkItemOperation operation)
 
         await _session.StartAsync(cancellationToken);
         var item = new WorkItem(SampleId, "direct", Priority: 2);
+        GeneratedExecutionHooks.BeforeRun(item);
         var directResult = await ExecuteFlowAsync(item, cancellationToken);
 
         _ = _smells.Calculate(3);

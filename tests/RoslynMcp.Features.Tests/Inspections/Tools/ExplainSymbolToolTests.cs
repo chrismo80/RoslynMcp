@@ -19,6 +19,9 @@ public sealed class ExplainSymbolToolTests(SharedSandboxFixture fixture, ITestOu
         result.Symbol!.Name.Is("AppOrchestrator");
 
         result.RoleSummary.ShouldNotBeEmpty();
+        result.RoleSummary.Contains("Key collaborators:", StringComparison.Ordinal).IsTrue();
+        result.RoleSummary.Contains("IWorkItemOperation", StringComparison.Ordinal).IsTrue();
+        result.RoleSummary.Contains("ProcessingSession", StringComparison.Ordinal).IsTrue();
         result.Signature.ShouldNotBeEmpty();
     }
 

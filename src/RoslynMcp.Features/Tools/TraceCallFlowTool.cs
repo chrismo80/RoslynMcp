@@ -11,7 +11,7 @@ public sealed class TraceCallFlowTool(IFlowTraceService flowTraceService) : Tool
     private readonly IFlowTraceService _flowTraceService = flowTraceService ?? throw new ArgumentNullException(nameof(flowTraceService));
 
     [McpServerTool(Name = "trace_call_flow", Title = "Trace Call Flow", ReadOnly = true, Idempotent = true)]
-    [Description("Use this tool when you need to understand how code flows through your system — either finding what calls a specific symbol (upstream) or what a symbol calls (downstream). This is essential for debugging, impact analysis, and understanding architectural patterns.")]
+        [Description("Use this tool when you need to understand how code flows through your system — either finding what calls a specific symbol (upstream) or what a symbol calls (downstream). Results prefer hand-written source by default so generated/intermediate call edges do not overwhelm interactive traces.")]
     public Task<TraceFlowResult> ExecuteAsync(CancellationToken cancellationToken,
         [Description("The stable symbol ID, obtained from resolve_symbol, list_types, or list_members. Provide this OR path+line+column.")]
         string? symbolId = null,

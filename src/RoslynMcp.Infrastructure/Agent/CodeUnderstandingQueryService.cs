@@ -76,12 +76,16 @@ internal sealed class CodeUnderstandingQueryService(
             .OrderByDescending(static m => m.CyclomaticComplexity ?? 0)
             .ThenByDescending(static m => m.LineCount ?? 0)
             .ThenBy(static m => m.SymbolId, StringComparer.Ordinal)
-            .Take(hotspotCount)
             .ToArray();
 
-        var hotspots = new List<HotspotSummary>(ranked.Length);
+        var hotspots = new List<HotspotSummary>(hotspotCount);
         foreach (var metric in ranked)
         {
+            if (hotspots.Count >= hotspotCount)
+            {
+                break;
+            }
+
             var complexity = metric.CyclomaticComplexity ?? 0;
             var lineCount = metric.LineCount ?? 0;
             var score = complexity + lineCount;
@@ -89,6 +93,11 @@ internal sealed class CodeUnderstandingQueryService(
             var symbol = await symbolLookupService.ResolveSymbolAsync(metric.SymbolId, solution, ct).ConfigureAwait(false);
             var displayName = symbol?.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat) ?? metric.SymbolId;
             var (filePath, startLine, _, endLine, _) = symbol.GetSourceSpan();
+            if (!SourceVisibility.ShouldIncludeInHumanResults(filePath))
+            {
+                continue;
+            }
+
             var reason = $"complexity={complexity}, lines={lineCount}";
             if (string.IsNullOrWhiteSpace(filePath))
             {

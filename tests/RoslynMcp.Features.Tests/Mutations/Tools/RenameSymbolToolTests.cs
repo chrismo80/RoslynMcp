@@ -115,6 +115,38 @@ public sealed class RenameSymbolToolTests(ITestOutputHelper output)
         contractsText.Contains("IWorkItemOperation", StringComparison.Ordinal).IsTrue();
     }
 
+    [Fact]
+    public async Task RenameSymbolAsync_CanRenameBackWithoutManualReload()
+    {
+        await using var context = await CreateContextAsync();
+        var sut = GetSut(context);
+        var resolver = context.GetRequiredService<ResolveSymbolTool>();
+        var contractsPath = context.GetFilePath("ProjectCore", "Contracts");
+
+        var resolved = await resolver.ExecuteAsync(CancellationToken.None, path: contractsPath, line: 31, column: 24);
+
+        resolved.Error.ShouldBeNone();
+        resolved.Symbol.IsNotNull();
+
+        var renamed = await sut.ExecuteAsync(CancellationToken.None, resolved.Symbol!.SymbolId, "IRenamedWorkItemOperation");
+
+        renamed.Error.ShouldBeNone();
+        renamed.RenamedSymbolId.IsNotNull();
+
+        var reverted = await sut.ExecuteAsync(CancellationToken.None, renamed.RenamedSymbolId!, "IWorkItemOperation");
+
+        reverted.Error.ShouldBeNone();
+        reverted.RenamedSymbolId.IsNotNull();
+
+        var finalResolution = await resolver.ExecuteAsync(CancellationToken.None,
+            qualifiedName: "ProjectCore.IWorkItemOperation",
+            projectName: "ProjectCore");
+
+        finalResolution.Error.ShouldBeNone();
+        finalResolution.Symbol.IsNotNull();
+        finalResolution.Symbol!.DisplayName.Is("IWorkItemOperation");
+    }
+
     private static void ShouldContainAffectedLocation(IReadOnlyList<SourceLocation> locations, string expectedFileName, int expectedLine)
     {
         locations.Any(location => location.FilePath.HasPathSuffix(expectedFileName) && location.Line == expectedLine).IsTrue();

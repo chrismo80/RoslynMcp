@@ -56,23 +56,23 @@ public sealed class ResolveSymbolToolTests(SharedSandboxFixture fixture, ITestOu
     [Fact]
     public async Task ResolveSymbolAsync_WithSourcePositionOnMethodDeclaration_ReturnsResolvedMethodSymbol()
     {
-        var result = await Sut.ExecuteAsync(CancellationToken.None, path: AppOrchestratorPath, line: 53, column: 35);
+        var result = await Sut.ExecuteAsync(CancellationToken.None, path: AppOrchestratorPath, line: 54, column: 35);
 
         result.Error.ShouldBeNone();
         result.IsAmbiguous.IsFalse();
         result.Candidates.IsEmpty();
-        ShouldMatchResolvedMember(result.Symbol, "ExecuteFlowAsync", "Method", Path.Combine("ProjectApp", "AppOrchestrator.cs"), 53);
+        ShouldMatchResolvedMember(result.Symbol, "ExecuteFlowAsync", "Method", Path.Combine("ProjectApp", "AppOrchestrator.cs"), 54);
     }
 
     [Fact]
     public async Task ResolveSymbolAsync_WithSourcePositionOnMethodCallSite_ReturnsResolvedMethodSymbol()
     {
-        var result = await Sut.ExecuteAsync(CancellationToken.None, path: AppOrchestratorPath, line: 22, column: 34);
+        var result = await Sut.ExecuteAsync(CancellationToken.None, path: AppOrchestratorPath, line: 23, column: 34);
 
         result.Error.ShouldBeNone();
         result.IsAmbiguous.IsFalse();
         result.Candidates.IsEmpty();
-        ShouldMatchResolvedMember(result.Symbol, "ExecuteFlowAsync", "Method", Path.Combine("ProjectApp", "AppOrchestrator.cs"), 53);
+        ShouldMatchResolvedMember(result.Symbol, "ExecuteFlowAsync", "Method", Path.Combine("ProjectApp", "AppOrchestrator.cs"), 54);
     }
 
     [Fact]
@@ -94,20 +94,14 @@ public sealed class ResolveSymbolToolTests(SharedSandboxFixture fixture, ITestOu
     }
 
     [Fact]
-    public async Task ResolveSymbolAsync_WithAmbiguousQualifiedName_ReturnsCandidates()
+    public async Task ResolveSymbolAsync_WithDuplicateProjectViews_ReturnsCanonicalResolvedSymbol()
     {
         var result = await Sut.ExecuteAsync(CancellationToken.None, qualifiedName: "ProjectImpl.FastWorkItemOperation");
 
-        result.Error.ShouldHaveCode(ErrorCodes.AmbiguousSymbol);
-        result.IsAmbiguous.Is(true);
-        result.Symbol.IsNull();
-        result.Candidates.Count.Is(2);
-
-        result.Candidates[0].SymbolId.Is("""7 "C#" (D (N "ProjectImpl" 0 (N "" 1 (U (S "ProjectImpl" 4) 3) 2) 1) "FastWorkItemOperation" 0 ! ! 0 0 0 (% 0) 0)""");
-        (result.Candidates[0] is { DisplayName: "FastWorkItemOperation", Kind: "NamedType", ProjectName: "ProjectApp" }).IsTrue();
-
-        result.Candidates[1].SymbolId.Is("""7 "C#" (D (N "ProjectImpl" 0 (N "" 1 (U (S "ProjectImpl" 4) 3) 2) 1) "FastWorkItemOperation" 0 ! ! 0 0 0 (% 0) 0)""");
-        (result.Candidates[1] is { DisplayName: "FastWorkItemOperation", Kind: "NamedType", ProjectName: "ProjectImpl" }).IsTrue();
+        result.Error.ShouldBeNone();
+        result.IsAmbiguous.IsFalse();
+        result.Candidates.IsEmpty();
+        ShouldMatchResolvedSymbol(result.Symbol, "FastWorkItemOperation", "NamedType", Path.Combine("ProjectImpl", "WorkItemOperations.cs"));
     }
 
     [Fact]
@@ -118,21 +112,18 @@ public sealed class ResolveSymbolToolTests(SharedSandboxFixture fixture, ITestOu
         result.Error.ShouldBeNone();
         result.IsAmbiguous.IsFalse();
         result.Candidates.IsEmpty();
-        ShouldMatchResolvedMember(result.Symbol, "RunReflectionPathAsync", "Method", Path.Combine("ProjectApp", "AppOrchestrator.cs"), 33);
+        ShouldMatchResolvedMember(result.Symbol, "RunReflectionPathAsync", "Method", Path.Combine("ProjectApp", "AppOrchestrator.cs"), 34);
     }
 
     [Fact]
-    public async Task ResolveSymbolAsync_WithAmbiguousShortName_ReturnsOrderedCandidates()
+    public async Task ResolveSymbolAsync_WithShortNameAndDuplicateProjectViews_ReturnsCanonicalResolvedSymbol()
     {
         var result = await Sut.ExecuteAsync(CancellationToken.None, qualifiedName: "FastWorkItemOperation");
 
-        result.Error.ShouldHaveCode(ErrorCodes.AmbiguousSymbol);
-        result.IsAmbiguous.IsTrue();
-        result.Symbol.IsNull();
-        result.Candidates.Count.Is(2);
-        (result.Candidates[0] is { DisplayName: "FastWorkItemOperation", Kind: "NamedType", ProjectName: "ProjectApp" }).IsTrue();
-        (result.Candidates[1] is { DisplayName: "FastWorkItemOperation", Kind: "NamedType", ProjectName: "ProjectImpl" }).IsTrue();
-        (string.CompareOrdinal(result.Candidates[0].ProjectName, result.Candidates[1].ProjectName) < 0).IsTrue();
+        result.Error.ShouldBeNone();
+        result.IsAmbiguous.IsFalse();
+        result.Candidates.IsEmpty();
+        ShouldMatchResolvedSymbol(result.Symbol, "FastWorkItemOperation", "NamedType", Path.Combine("ProjectImpl", "WorkItemOperations.cs"));
     }
 
     [Fact]

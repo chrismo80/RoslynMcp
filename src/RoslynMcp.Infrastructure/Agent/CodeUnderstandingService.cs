@@ -34,7 +34,7 @@ public sealed class CodeUnderstandingService : ICodeUnderstandingService
         _listTypesHandler = new ListTypesHandler(queries);
         _listMembersHandler = new ListMembersHandler(queries);
         _resolveSymbolHandler = new ResolveSymbolHandler(queries, symbolLookupService);
-        _explainSymbolHandler = new ExplainSymbolHandler(queries, navigationService);
+        _explainSymbolHandler = new ExplainSymbolHandler(queries, navigationService, solutionAccessor, symbolLookupService);
         _listDependenciesHandler = new ListDependenciesHandler(queries);
     }
 
