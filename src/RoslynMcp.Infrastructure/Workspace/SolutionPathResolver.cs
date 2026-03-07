@@ -35,10 +35,10 @@ internal sealed class SolutionPathResolver : ISolutionPathResolver
                 new ErrorInfo(ErrorCodes.InvalidPath, $"Solution path '{requestedPath}' is invalid: {ex.Message}"));
         }
 
-        if (!resolved.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
+        if (!IsSupportedSolutionPath(resolved))
         {
             return (null, null,
-                new ErrorInfo(ErrorCodes.InvalidPath, $"Only .sln files can be selected ('{resolved}')."));
+                new ErrorInfo(ErrorCodes.InvalidPath, $"Only .sln and .slnx files can be selected ('{resolved}')."));
         }
 
         if (!File.Exists(resolved))
@@ -61,4 +61,8 @@ internal sealed class SolutionPathResolver : ISolutionPathResolver
 
         return (resolved, workspaceRoot, null);
     }
+
+    private static bool IsSupportedSolutionPath(string path) =>
+        path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) ||
+        path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase);
 }

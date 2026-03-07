@@ -49,16 +49,34 @@ public abstract class SandboxContext : IAsyncDisposable
             throw new InvalidOperationException("The sandbox context has already been initialized.");
         }
 
-        Sandbox = sandbox;
-        _provider = CreateServiceProvider();
-
-        LoadedSolution = await GetRequiredService<LoadSolutionTool>()
-            .ExecuteAsync(cancellationToken, SolutionPath)
-            .ConfigureAwait(false);
-
-        if (LoadedSolution.Error is not null)
+        ServiceProvider? provider = null;
+        try
         {
-            throw new InvalidOperationException($"Failed to load sandbox solution '{SolutionPath}': {LoadedSolution.Error.Message}");
+            Sandbox = sandbox;
+            provider = CreateServiceProvider();
+            _provider = provider;
+
+            LoadedSolution = await GetRequiredService<LoadSolutionTool>()
+                .ExecuteAsync(cancellationToken, SolutionPath)
+                .ConfigureAwait(false);
+
+            if (LoadedSolution.Error is not null)
+            {
+                throw new InvalidOperationException($"Failed to load sandbox solution '{SolutionPath}': {LoadedSolution.Error.Message}");
+            }
+        }
+        catch
+        {
+            if (provider is not null)
+            {
+                await provider.DisposeAsync().ConfigureAwait(false);
+                _provider = null;
+            }
+
+            Sandbox?.Dispose();
+            Sandbox = null;
+            LoadedSolution = default!;
+            throw;
         }
     }
 

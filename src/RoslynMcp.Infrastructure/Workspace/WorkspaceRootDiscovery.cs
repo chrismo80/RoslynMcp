@@ -42,13 +42,16 @@ internal sealed class WorkspaceRootDiscovery : IWorkspaceRootDiscovery
 
     public Task<(IReadOnlyList<string> Solutions, ErrorInfo? Error)> DiscoverSolutionsAsync(string normalizedRoot, CancellationToken ct)
     {
-        var solutions = new List<string>();
+        var solutions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         try
         {
-            foreach (var solutionPath in Directory.EnumerateFiles(normalizedRoot, "*.sln", SearchOption.AllDirectories))
+            foreach (var pattern in new[] { "*.sln", "*.slnx" })
             {
-                ct.ThrowIfCancellationRequested();
-                solutions.Add(Path.GetFullPath(solutionPath));
+                foreach (var solutionPath in Directory.EnumerateFiles(normalizedRoot, pattern, SearchOption.AllDirectories))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    solutions.Add(Path.GetFullPath(solutionPath));
+                }
             }
         }
         catch (OperationCanceledException)
@@ -62,7 +65,7 @@ internal sealed class WorkspaceRootDiscovery : IWorkspaceRootDiscovery
                 (ErrorInfo?)new ErrorInfo(ErrorCodes.InvalidPath, $"Failed to read workspace '{normalizedRoot}': {ex.Message}")));
         }
 
-        solutions.Sort(StringComparer.OrdinalIgnoreCase);
-        return Task.FromResult(((IReadOnlyList<string>)solutions, (ErrorInfo?)null));
+        var orderedSolutions = solutions.OrderBy(static path => path, StringComparer.OrdinalIgnoreCase).ToArray();
+        return Task.FromResult(((IReadOnlyList<string>)orderedSolutions, (ErrorInfo?)null));
     }
 }

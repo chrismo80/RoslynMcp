@@ -24,3 +24,22 @@ public sealed class LoadSolutionToolTests(SharedSandboxFixture fixture, ITestOut
         projectNames.IsContaining("ProjectImpl");
     }
 }
+
+public sealed class LoadSolutionToolIsolatedTests(ITestOutputHelper output)
+    : IsolatedToolTests<LoadSolutionTool>(output)
+{
+    [Fact]
+    public async Task LoadSolutionAsync_WithSlnxSolutionPath_LoadsRepositorySolution()
+    {
+        await using var context = await CreateContextAsync();
+        var sut = GetSut(context);
+        var solutionPath = Path.Combine(context.RepositoryRoot, "RoslynMcp.slnx");
+
+        var result = await sut.ExecuteAsync(CancellationToken.None, solutionPath);
+
+        result.Error.ShouldBeNone();
+        result.SelectedSolutionPath.Is(solutionPath);
+        result.Projects.Any(project => project.Name == "RoslynMcp.Features").IsTrue();
+        result.Projects.Any(project => project.Name == "RoslynMcp.Infrastructure").IsTrue();
+    }
+}

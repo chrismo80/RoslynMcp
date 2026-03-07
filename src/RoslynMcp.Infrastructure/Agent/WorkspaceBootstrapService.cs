@@ -35,7 +35,7 @@ public sealed class WorkspaceBootstrapService : IWorkspaceBootstrapService
                 string.Empty,
                 Array.Empty<ProjectSummary>(),
                 new DiagnosticsSummary(0, 0, 0, 0),
-                AgentErrorInfo.Normalize(discoveryError, "Provide a valid solution path or run load_solution from a folder containing a .sln file."));
+                AgentErrorInfo.Normalize(discoveryError, "Provide a valid solution path or run load_solution from a folder containing a .sln or .slnx file."));
         }
 
         var select = await _solutionSessionService.SelectSolutionAsync(new SelectSolutionRequest(solutionPath), ct).ConfigureAwait(false);
@@ -47,7 +47,7 @@ public sealed class WorkspaceBootstrapService : IWorkspaceBootstrapService
                 string.Empty,
                 Array.Empty<ProjectSummary>(),
                 new DiagnosticsSummary(0, 0, 0, 0),
-                AgentErrorInfo.Normalize(select.Error, "Provide a valid .sln path and retry load_solution."));
+                AgentErrorInfo.Normalize(select.Error, "Provide a valid .sln or .slnx path and retry load_solution."));
         }
 
         var (solution, currentError) = await _solutionAccessor.GetCurrentSolutionAsync(ct).ConfigureAwait(false);
@@ -88,7 +88,7 @@ public sealed class WorkspaceBootstrapService : IWorkspaceBootstrapService
 
     private async Task<(string? Path, ErrorInfo? Error)> ResolveSolutionPathAsync(string? hint, CancellationToken ct)
     {
-        if (!string.IsNullOrWhiteSpace(hint) && hint.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
+        if (IsExplicitSolutionPath(hint))
         {
             return (hint, null);
         }
@@ -105,9 +105,14 @@ public sealed class WorkspaceBootstrapService : IWorkspaceBootstrapService
             return (null, AgentErrorInfo.Create(
                 "solution_not_found",
                 "No solution files were discovered.",
-                "Provide a solution hint path or run load_solution from a workspace that contains a .sln file."));
+                "Provide a solution hint path or run load_solution from a workspace that contains a .sln or .slnx file."));
         }
 
         return (discovered.SolutionPaths[0], null);
     }
+
+    private static bool IsExplicitSolutionPath(string? hint)
+        => !string.IsNullOrWhiteSpace(hint)
+            && (hint.EndsWith(".sln", StringComparison.OrdinalIgnoreCase)
+                || hint.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase));
 }

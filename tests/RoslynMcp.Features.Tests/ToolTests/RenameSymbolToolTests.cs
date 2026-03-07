@@ -75,6 +75,46 @@ public sealed class RenameSymbolToolTests(ITestOutputHelper output)
         contractsText.Contains("IRenamedWorkItemOperation", StringComparison.Ordinal).IsFalse();
     }
 
+    [Fact]
+    public async Task RenameSymbolAsync_WithUnknownSymbolId_ReturnsSymbolNotFoundWithoutChanges()
+    {
+        await using var context = await CreateContextAsync();
+        var sut = GetSut(context);
+
+        var result = await sut.ExecuteAsync(CancellationToken.None, "not-a-real-symbol-id", "IRenamedWorkItemOperation");
+
+        result.Error.ShouldHaveCode(ErrorCodes.SymbolNotFound);
+        result.RenamedSymbolId.IsNull();
+        result.ChangedDocumentCount.Is(0);
+        result.AffectedLocations.IsEmpty();
+        result.ChangedFiles.IsEmpty();
+    }
+
+    [Fact]
+    public async Task RenameSymbolAsync_WithConflictingName_ReturnsRenameConflictWithoutChanges()
+    {
+        await using var context = await CreateContextAsync();
+        var sut = GetSut(context);
+        var resolver = context.GetRequiredService<ResolveSymbolTool>();
+        var contractsPath = context.GetFilePath("ProjectCore", "Contracts");
+
+        var resolved = await resolver.ExecuteAsync(CancellationToken.None, path: contractsPath, line: 31, column: 24);
+
+        resolved.Error.ShouldBeNone();
+        resolved.Symbol.IsNotNull();
+
+        var result = await sut.ExecuteAsync(CancellationToken.None, resolved.Symbol!.SymbolId, "IFactory");
+
+        result.Error.ShouldHaveCode(ErrorCodes.RenameConflict);
+        result.RenamedSymbolId.IsNull();
+        result.ChangedDocumentCount.Is(0);
+        result.AffectedLocations.IsEmpty();
+        result.ChangedFiles.IsEmpty();
+
+        var contractsText = await File.ReadAllTextAsync(contractsPath);
+        contractsText.Contains("IWorkItemOperation", StringComparison.Ordinal).IsTrue();
+    }
+
     private static void ShouldContainAffectedLocation(IReadOnlyList<SourceLocation> locations, string expectedFileName, int expectedLine)
     {
         locations.Any(location => location.FilePath.HasPathSuffix(expectedFileName) && location.Line == expectedLine).IsTrue();

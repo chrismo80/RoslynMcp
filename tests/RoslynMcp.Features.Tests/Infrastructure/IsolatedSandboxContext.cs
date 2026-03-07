@@ -8,11 +8,16 @@ public sealed class IsolatedSandboxContext : SandboxContext
     public static async Task<IsolatedSandboxContext> CreateAsync(CancellationToken cancellationToken = default)
     {
         var context = new IsolatedSandboxContext();
-
-        var sandbox = TestSolutionSandbox.Create(context.CanonicalTestSolutionDirectory);
-
-        await context.InitializeSandboxAsync(sandbox, cancellationToken).ConfigureAwait(false);
-
-        return context;
+        try
+        {
+            var sandbox = TestSolutionSandbox.Create(context.CanonicalTestSolutionDirectory);
+            await context.InitializeSandboxAsync(sandbox, cancellationToken).ConfigureAwait(false);
+            return context;
+        }
+        catch
+        {
+            await context.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
     }
 }
