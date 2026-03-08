@@ -13,4 +13,5 @@ internal interface IRefactoringOperationOrchestrator
     Task<ExecuteCleanupResult> ExecuteCleanupAsync(ExecuteCleanupRequest request, CancellationToken ct);
     Task<RenameSymbolResult> RenameSymbolAsync(RenameSymbolRequest request, CancellationToken ct);
     Task<OrganizeUsingsResult> OrganizeUsingsAsync(OrganizeUsingsRequest request, CancellationToken ct);
+    Task<FormatDocumentResult> FormatDocumentAsync(FormatDocumentRequest request, CancellationToken ct);
 }

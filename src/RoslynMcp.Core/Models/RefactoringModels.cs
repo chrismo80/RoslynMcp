@@ -109,3 +109,11 @@ public sealed record OrganizeUsingsResult(
     bool Changed,
     IReadOnlyList<string> ChangedFiles,
     ErrorInfo? Error = null);
+
+public sealed record FormatDocumentRequest(string Path);
+
+public sealed record FormatDocumentResult(
+    string Path,
+    bool Changed,
+    IReadOnlyList<string> ChangedFiles,
+    ErrorInfo? Error = null);

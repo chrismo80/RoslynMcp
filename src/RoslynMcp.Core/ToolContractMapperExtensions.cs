@@ -116,6 +116,9 @@ public static class ToolContractMapperExtensions
     public static OrganizeUsingsRequest ToOrganizeUsingsRequest(this string? solutionHintPath, bool removeUnused, bool sortUsings)
         => new(NormalizeOptionalString(solutionHintPath) ?? string.Empty, removeUnused, sortUsings);
 
+    public static FormatDocumentRequest ToFormatDocumentRequest(this string? solutionHintPath)
+        => new(NormalizeOptionalString(solutionHintPath) ?? string.Empty);
+
     private static int NormalizePosition(int value)
         => Math.Max(value, MinimumLineOrColumn);
 

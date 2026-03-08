@@ -809,6 +809,100 @@ internal sealed class RenameOperations
     }
 }
 
+internal sealed class FormatDocumentOperations
+{
+    private readonly RefactoringOperationOrchestrator _owner;
+
+    public FormatDocumentOperations(RefactoringOperationOrchestrator owner)
+    {
+        _owner = owner;
+    }
+
+    public async Task<FormatDocumentResult> FormatDocumentAsync(FormatDocumentRequest request, CancellationToken ct)
+    {
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        ct.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(request.Path))
+        {
+            return new FormatDocumentResult(
+                request.Path ?? string.Empty,
+                false,
+                Array.Empty<string>(),
+                new ErrorInfo(ErrorCodes.InvalidInput, "Path must be provided."));
+        }
+
+        try
+        {
+            var (solution, error) = await _owner.TryGetSolutionAsync(ct).ConfigureAwait(false);
+            if (solution == null)
+            {
+                return new FormatDocumentResult(
+                    request.Path,
+                    false,
+                    Array.Empty<string>(),
+                    error ?? new ErrorInfo(ErrorCodes.InternalError, "Unable to access the current solution."));
+            }
+
+            var document = solution.Projects
+                .SelectMany(static project => project.Documents)
+                .FirstOrDefault(d => d.FilePath.MatchesByNormalizedPath(request.Path));
+
+            if (document == null)
+            {
+                return new FormatDocumentResult(
+                    request.Path,
+                    false,
+                    Array.Empty<string>(),
+                    new ErrorInfo(ErrorCodes.PathOutOfScope, "The provided path is outside the selected solution scope."));
+            }
+
+            var formattedDocument = await _owner.FormatDocumentAsync(solution, document, ct).ConfigureAwait(false);
+            var changed = formattedDocument != solution;
+
+            if (changed)
+            {
+                var (applied, applyError) = await _owner._solutionAccessor.TryApplySolutionAsync(formattedDocument, ct).ConfigureAwait(false);
+                if (!applied)
+                {
+                    return new FormatDocumentResult(
+                        request.Path,
+                        false,
+                        Array.Empty<string>(),
+                        applyError ?? new ErrorInfo(ErrorCodes.InternalError, "Failed to apply formatting changes."));
+                }
+
+                return new FormatDocumentResult(
+                    request.Path,
+                    true,
+                    new[] { request.Path });
+            }
+
+            return new FormatDocumentResult(
+                request.Path,
+                false,
+                Array.Empty<string>());
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _owner._logger.LogError(ex, "FormatDocument failed for {Path}", request.Path);
+            return new FormatDocumentResult(
+                request.Path,
+                false,
+                Array.Empty<string>(),
+                new ErrorInfo(ErrorCodes.InternalError, $"Failed to format document: {ex.Message}"));
+        }
+    }
+}
+
 internal sealed class OrganizeUsingsOperations
 {
     private readonly RefactoringOperationOrchestrator _owner;

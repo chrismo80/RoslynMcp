@@ -62,6 +62,7 @@ internal sealed class RefactoringOperationOrchestrator : IRefactoringOperationOr
     private readonly CleanupOperations _cleanupOperations;
     private readonly RenameOperations _renameOperations;
     private readonly OrganizeUsingsOperations _organizeUsingsOperations;
+    private readonly FormatDocumentOperations _formatDocumentOperations;
 
     public RefactoringOperationOrchestrator(IRoslynSolutionAccessor solutionAccessor,
         ILogger<RoslynRefactoringService>? logger = null)
@@ -76,6 +77,7 @@ internal sealed class RefactoringOperationOrchestrator : IRefactoringOperationOr
         _cleanupOperations = new CleanupOperations(this);
         _renameOperations = new RenameOperations(this);
         _organizeUsingsOperations = new OrganizeUsingsOperations(this);
+        _formatDocumentOperations = new FormatDocumentOperations(this);
     }
 
     public Task<GetRefactoringsAtPositionResult> GetRefactoringsAtPositionAsync(
@@ -106,6 +108,9 @@ internal sealed class RefactoringOperationOrchestrator : IRefactoringOperationOr
 
     public Task<OrganizeUsingsResult> OrganizeUsingsAsync(OrganizeUsingsRequest request, CancellationToken ct)
         => _organizeUsingsOperations.OrganizeUsingsAsync(request, ct);
+
+    public Task<FormatDocumentResult> FormatDocumentAsync(FormatDocumentRequest request, CancellationToken ct)
+        => _formatDocumentOperations.FormatDocumentAsync(request, ct);
 
     internal async Task<Solution> ApplyDiagnosticCleanupStepAsync(
         Solution solution,
@@ -217,6 +222,12 @@ internal sealed class RefactoringOperationOrchestrator : IRefactoringOperationOr
         }
 
         return updated;
+    }
+
+    internal async Task<Solution> FormatDocumentAsync(Solution solution, Document document, CancellationToken ct)
+    {
+        var formatted = await Formatter.FormatAsync(document, cancellationToken: ct).ConfigureAwait(false);
+        return formatted.Project.Solution;
     }
 
     internal async Task<(Solution? Solution, ErrorInfo? Error)> TryGetSolutionAsync(CancellationToken ct)
