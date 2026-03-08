@@ -1,0 +1,19 @@
+RoslynMcp Collaboration Log
+============================
+
+2026-03-08 - Morning Feature Creator
+------------------------------------
+Created new format_document tool for the MCP server.
+
+Feature: format_document
+- Allows formatting individual C# source files
+- Uses Roslyn's Formatter.FormatAsync internally  
+- Targeted alternative to full cleanup pipeline
+- Applies standard C# formatting (indentation, spacing, braces)
+
+PR: https://github.com/chrismo80/RoslynMcp/pull/8
+Branch: feature/format-document-tool
+Status: Open, ready for review
+
+Build: Successful (net9.0 on Raspberry Pi 5)
+Tests: Skipped (timeout on Pi hardware)
