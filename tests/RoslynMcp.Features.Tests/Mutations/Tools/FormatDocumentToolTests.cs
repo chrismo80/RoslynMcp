@@ -76,4 +76,27 @@ public sealed class FormatDocumentToolTests(ITestOutputHelper output)
         after.Contains("public int Add(int left, int right)", StringComparison.Ordinal).IsTrue();
         after.Contains("return left + right;", StringComparison.Ordinal).IsTrue();
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WithDirectDiskEditAfterLoad_PreservesEditWhileFormatting()
+    {
+        await using var context = await CreateContextAsync();
+        var sut = GetSut(context);
+        var filePath = context.GetFilePath("ProjectImpl", "FormattingFixture");
+
+        await File.WriteAllTextAsync(
+            filePath,
+            "namespace ProjectImpl;\r\n\r\npublic sealed class FormattingFixture\r\n{\r\npublic int Add( int left,int right )\r\n    {\r\n            return left+right+1;\r\n    }\r\n}\r\n");
+
+        var result = await sut.ExecuteAsync(CancellationToken.None, filePath);
+
+        result.Error.ShouldBeNone();
+        result.Path.ShouldEndWithPathSuffix(Path.Combine("ProjectImpl", "FormattingFixture.cs"));
+        result.WasFormatted.IsTrue();
+
+        var after = await File.ReadAllTextAsync(filePath);
+        after.Contains("public int Add(int left, int right)", StringComparison.Ordinal).IsTrue();
+        after.Contains("return left + right + 1;", StringComparison.Ordinal).IsTrue();
+        after.Contains("return left + right;", StringComparison.Ordinal).IsFalse();
+    }
 }
