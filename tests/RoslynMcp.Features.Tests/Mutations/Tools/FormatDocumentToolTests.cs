@@ -99,4 +99,19 @@ public sealed class FormatDocumentToolTests(ITestOutputHelper output)
         after.Contains("return left + right + 1;", StringComparison.Ordinal).IsTrue();
         after.Contains("return left + right;", StringComparison.Ordinal).IsFalse();
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WithUnreadableFileDuringHealthCheck_ReturnsStaleWorkspaceSnapshot()
+    {
+        await using var context = await CreateContextAsync();
+        var sut = GetSut(context);
+        var filePath = context.GetFilePath("ProjectImpl", "FormattingFixture");
+
+        await using var lockStream = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+        var result = await sut.ExecuteAsync(CancellationToken.None, filePath);
+
+        result.Error.ShouldHaveCode(ErrorCodes.StaleWorkspaceSnapshot);
+        result.WasFormatted.IsFalse();
+    }
 }

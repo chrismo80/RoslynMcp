@@ -36,7 +36,26 @@ internal static class WorkspaceDocumentFilesystemHealthEvaluator
             }
 
             var documentText = await document.GetTextAsync(ct).ConfigureAwait(false);
-            var fileText = await ReadFileTextAsync(filePath, ct).ConfigureAwait(false);
+            SourceText? fileText;
+            try
+            {
+                fileText = await ReadFileTextAsync(filePath, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (IOException)
+            {
+                missingRootedFiles.Add(filePath);
+                continue;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                missingRootedFiles.Add(filePath);
+                continue;
+            }
+
             if (!documentText.ContentEquals(fileText))
             {
                 driftedRootedFiles.Add(filePath);
