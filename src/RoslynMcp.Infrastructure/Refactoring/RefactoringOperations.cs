@@ -2,6 +2,7 @@ using RoslynMcp.Core;
 using RoslynMcp.Core.Contracts;
 using RoslynMcp.Core.Models;
 using RoslynMcp.Infrastructure.Agent;
+using RoslynMcp.Infrastructure.Workspace;
 using Microsoft.CodeAnalysis.Rename;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
@@ -534,7 +535,7 @@ internal sealed class CleanupOperations
         const bool healthCheckPerformed = true;
         var autoReloadAttempted = false;
         var autoReloadSucceeded = false;
-        var health = scopedDocuments.EvaluateWorkspaceFilesystemHealth();
+        var health = await WorkspaceDocumentFilesystemHealthEvaluator.EvaluateAsync(scopedDocuments, ct).ConfigureAwait(false);
         if (!health.IsConsistent)
         {
             if (_owner._solutionAccessor is ISolutionSessionService sessionService)
@@ -576,7 +577,7 @@ internal sealed class CleanupOperations
                                 ("path", request.Path)));
                     }
 
-                    health = scopedDocuments.EvaluateWorkspaceFilesystemHealth();
+                    health = await WorkspaceDocumentFilesystemHealthEvaluator.EvaluateAsync(scopedDocuments, ct).ConfigureAwait(false);
                 }
                 else
                 {
@@ -858,7 +859,7 @@ internal sealed class DocumentFormattingOperations
                     ("operation", "format_document"));
             }
 
-            var health = new[] { document }.EvaluateWorkspaceFilesystemHealth();
+            var health = await WorkspaceDocumentFilesystemHealthEvaluator.EvaluateAsync([document], ct).ConfigureAwait(false);
             if (!health.IsConsistent)
             {
                 if (allowReloadFallback && _owner._solutionAccessor is ISolutionSessionService sessionService)

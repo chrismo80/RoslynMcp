@@ -4,8 +4,6 @@ using Microsoft.CodeAnalysis.CodeActions;
 
 namespace RoslynMcp.Infrastructure.Refactoring;
 
-internal sealed record CleanupWorkspaceHealth(bool IsConsistent, IReadOnlyList<string> MissingRootedFiles);
-
 internal readonly record struct ProviderCodeFixKey(string ProviderTypeName, string DiagnosticId, string? EquivalenceKey, string ActionTitle);
 
 internal readonly record struct ProviderRefactoringKey(string ProviderTypeName, string? EquivalenceKey, string ActionTitle);

@@ -13,6 +13,8 @@ namespace RoslynMcp.Infrastructure.Workspace;
 /// </summary>
 public sealed class RoslynSolutionSessionService : ISolutionSessionService, IRoslynSolutionAccessor
 {
+    private const string StaleWorkspaceSnapshotMessage = "Workspace snapshot is stale relative to filesystem. Run reload_solution or load_solution, then retry.";
+
     private readonly ISessionStateStore _stateStore;
     private readonly IWorkspaceRootDiscovery _workspaceRootDiscovery;
     private readonly ISolutionPathResolver _solutionPathResolver;
@@ -127,11 +129,27 @@ public sealed class RoslynSolutionSessionService : ISolutionSessionService, IRos
         ArgumentNullException.ThrowIfNull(solution);
         ct.ThrowIfCancellationRequested();
 
-        return await _stateStore.WithLockAsync(snapshot =>
+        return await _stateStore.WithLockAsync(async snapshot =>
         {
             if (snapshot.CurrentSession == null)
             {
                 return (false, (ErrorInfo?)new ErrorInfo(ErrorCodes.SolutionNotSelected, "No solution has been selected."));
+            }
+
+            var changedDocuments = solution.GetChanges(snapshot.CurrentSession.Solution)
+                .GetProjectChanges()
+                .SelectMany(static projectChange => projectChange.GetChangedDocuments())
+                .Distinct()
+                .Select(snapshot.CurrentSession.Solution.GetDocument)
+                .OfType<Document>()
+                .ToArray();
+
+            var filesystemHealth = await WorkspaceDocumentFilesystemHealthEvaluator
+                .EvaluateAsync(changedDocuments, ct)
+                .ConfigureAwait(false);
+            if (!filesystemHealth.IsConsistent)
+            {
+                return (false, (ErrorInfo?)new ErrorInfo(ErrorCodes.StaleWorkspaceSnapshot, StaleWorkspaceSnapshotMessage));
             }
 
             if (!snapshot.CurrentSession.Workspace.TryApplyChanges(solution))

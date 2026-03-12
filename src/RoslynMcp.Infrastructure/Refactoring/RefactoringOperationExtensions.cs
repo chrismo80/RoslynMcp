@@ -452,21 +452,6 @@ internal static class RefactoringOperationExtensions
             .ToList();
     }
 
-    public static CleanupWorkspaceHealth EvaluateWorkspaceFilesystemHealth(this IReadOnlyList<Document> scopedDocuments)
-    {
-        var missingRootedFiles = scopedDocuments
-            .Select(static document => document.FilePath)
-            .Where(static path => !string.IsNullOrWhiteSpace(path))
-            .Select(static path => path!)
-            .Where(static filePath => Path.IsPathRooted(filePath))
-            .Where(static path => !File.Exists(path))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        return new CleanupWorkspaceHealth(missingRootedFiles.Length == 0, missingRootedFiles);
-    }
-
     public static IReadOnlyList<string> BuildCleanupMetadataWarnings(bool healthCheckPerformed, bool autoReloadAttempted, bool autoReloadSucceeded)
         =>
         [
