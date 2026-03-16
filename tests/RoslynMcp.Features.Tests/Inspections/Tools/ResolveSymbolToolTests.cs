@@ -3,6 +3,8 @@ using RoslynMcp.Core;
 using RoslynMcp.Core.Models;
 using RoslynMcp.Features.Tools;
 using RoslynMcp.Features.Tools.Inspections;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -31,11 +33,11 @@ public sealed class ResolveSymbolToolTests(SharedSandboxFixture fixture, ITestOu
         result.IsAmbiguous.IsFalse();
         result.Candidates.IsEmpty();
         result.Symbol.ShouldMatchResolvedSymbol("AppOrchestrator", "NamedType", Path.Combine("ProjectApp", "AppOrchestrator.cs"));
-        result.Symbol!.QualifiedDisplayName.Is("ProjectApp.AppOrchestrator");
+        result.Symbol!.QualifiedDisplayName.IsNull();
         result.Symbol.SymbolId.ShouldBeExternalSymbolId();
-        
-        result.Symbol.Reference.ShouldMatchReference("type:ProjectApp.AppOrchestrator", "ProjectApp.AppOrchestrator",
-            Path.Combine("ProjectApp", "AppOrchestrator.cs"), 6);
+        result.Symbol.Location.IsNotNull();
+        result.Symbol.Location!.FilePath.ShouldEndWithPathSuffix(Path.Combine("ProjectApp", "AppOrchestrator.cs"));
+        result.Symbol.Location.Line.Is(6);
     }
 
     [Fact]
@@ -47,7 +49,7 @@ public sealed class ResolveSymbolToolTests(SharedSandboxFixture fixture, ITestOu
         result.IsAmbiguous.IsFalse();
         result.Candidates.IsEmpty();
         result.Symbol.ShouldMatchResolvedSymbol("OperationBase<TInput>", "NamedType", Path.Combine("ProjectCore", "Contracts.cs"));
-        result.Symbol!.QualifiedDisplayName.Is("ProjectCore.OperationBase<TInput>");
+        result.Symbol!.QualifiedDisplayName.IsNull();
     }
 
     [Fact]
@@ -62,7 +64,7 @@ public sealed class ResolveSymbolToolTests(SharedSandboxFixture fixture, ITestOu
         result.IsAmbiguous.IsFalse();
         result.Candidates.IsEmpty();
         result.Symbol.ShouldMatchResolvedMember("ExecuteAsync", "Method", Path.Combine("ProjectImpl", "WorkItemOperations.cs"), 27);
-        result.Symbol!.QualifiedDisplayName.Is("ProjectImpl.FastWorkItemOperation.ExecuteAsync(Guid, string, CancellationToken)");
+        result.Symbol!.QualifiedDisplayName.IsNull();
     }
 
     [Fact]
@@ -113,12 +115,9 @@ public sealed class ResolveSymbolToolTests(SharedSandboxFixture fixture, ITestOu
         roundtrip.Candidates.IsEmpty();
         roundtrip.Symbol.ShouldMatchResolvedSymbol("AppOrchestrator", "NamedType", Path.Combine("ProjectApp", "AppOrchestrator.cs"));
         roundtrip.Symbol!.SymbolId.Is(initial.Symbol.SymbolId);
-        roundtrip.Symbol.FilePath.Is(initial.Symbol.FilePath);
-        roundtrip.Symbol.Reference.IsNotNull();
-        initial.Symbol.Reference.IsNotNull();
-        roundtrip.Symbol.Reference!.SymbolId.Is(initial.Symbol.Reference!.SymbolId);
-        roundtrip.Symbol.Reference.Handle.Is(initial.Symbol.Reference.Handle);
-        roundtrip.Symbol.Reference.QualifiedDisplayName.Is(initial.Symbol.Reference.QualifiedDisplayName);
+        roundtrip.Symbol.Location.IsNotNull();
+        initial.Symbol.Location.IsNotNull();
+        roundtrip.Symbol.Location!.FilePath.Is(initial.Symbol.Location!.FilePath);
     }
 
     [Fact]
@@ -200,10 +199,7 @@ public sealed class ResolveSymbolToolTests(SharedSandboxFixture fixture, ITestOu
         result.Candidates.ShouldContainCandidate("ProjectImpl.FastWorkItemOperation.ExecuteAsync(WorkItem, CancellationToken)", "ProjectImpl");
         result.Candidates.ShouldContainCandidate("ProjectImpl.FastWorkItemOperation.ExecuteAsync(Guid, string, CancellationToken)", "ProjectImpl");
         result.Candidates.ShouldContainCandidate("ProjectImpl.FastWorkItemOperation.ExecuteAsync(Guid, string, int, CancellationToken)", "ProjectImpl");
-        result.Candidates.All(static candidate => candidate.Reference is not null).IsTrue();
-        result.Candidates.Any(static candidate => candidate.Reference!.Handle == "method:ProjectImpl.FastWorkItemOperation.ExecuteAsync(Guid, string, CancellationToken)").IsTrue();
-        result.Candidates.Any(static candidate => candidate.Reference!.Handle == "method:ProjectImpl.FastWorkItemOperation.ExecuteAsync(Guid, string, int, CancellationToken)").IsTrue();
-        result.Candidates.Any(static candidate => candidate.Reference!.Handle == "method:ProjectImpl.FastWorkItemOperation.ExecuteAsync(WorkItem, CancellationToken)").IsTrue();
+        result.Candidates.All(static candidate => candidate.QualifiedDisplayName is not null).IsTrue();
     }
 
     [Fact]
@@ -213,22 +209,27 @@ public sealed class ResolveSymbolToolTests(SharedSandboxFixture fixture, ITestOu
 
         result.Error.ShouldHaveCode(ErrorCodes.InvalidInput);
     }
+
+    [Fact]
+    public async Task ResolveSymbolAsync_NonAmbiguousSerialization_OmitsReferenceBallast()
+    {
+        var result = await Sut.ExecuteAsync(CancellationToken.None, qualifiedName: "ProjectApp.AppOrchestrator");
+
+        result.Error.ShouldBeNone();
+
+        var json = JsonSerializer.Serialize(result, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        });
+
+        json.Contains("reference", StringComparison.Ordinal).IsFalse();
+        json.Contains("qualifiedDisplayName", StringComparison.Ordinal).IsFalse();
+    }
 }
 
 file static class AssertionExtensions
 {
-    extension(ResolvedSymbolSummary? symbol)
-    {
-        internal void ShouldMatchResolvedSymbol(string expectedDisplayName, string expectedKind, string expectedFileName)
-        {
-            symbol.IsNotNull();
-            symbol!.DisplayName.Is(expectedDisplayName);
-            symbol.Kind.Is(expectedKind);
-            symbol.FilePath.ShouldEndWithPathSuffix(expectedFileName);
-            symbol.SymbolId.ShouldNotBeEmpty();
-        }
-    }
-    
     extension(ResolvedSymbolSummary? symbol)
     {
         internal void ShouldMatchResolvedMember(string expectedName, string expectedKind, string expectedFileName, int expectedLine)
@@ -236,8 +237,9 @@ file static class AssertionExtensions
             symbol.IsNotNull();
             symbol!.DisplayName.Contains(expectedName, StringComparison.Ordinal).IsTrue();
             symbol.Kind.Is(expectedKind);
-            symbol.FilePath.ShouldEndWithPathSuffix(expectedFileName);
-            symbol.Line.Is(expectedLine);
+            symbol.Location.IsNotNull();
+            symbol.Location!.FilePath.ShouldEndWithPathSuffix(expectedFileName);
+            symbol.Location.Line.Is(expectedLine);
             symbol.SymbolId.ShouldNotBeEmpty();
         }
     }
@@ -250,20 +252,6 @@ file static class AssertionExtensions
                     string.Equals(candidate.QualifiedDisplayName, expectedQualifiedDisplayName, StringComparison.Ordinal)
                     && string.Equals(candidate.ProjectName, expectedProjectName, StringComparison.Ordinal))
                 .IsTrue();
-        }
-    }
-
-    extension(SymbolReference? reference)
-    {
-        internal void ShouldMatchReference(string expectedHandle, string expectedQualifiedDisplayName, string expectedFileName, int expectedLine)
-        {
-            reference.IsNotNull();
-            reference!.Handle.Is(expectedHandle);
-            reference.QualifiedDisplayName.Is(expectedQualifiedDisplayName);
-            reference.DeclarationLocation.IsNotNull();
-            reference.DeclarationLocation!.FilePath.ShouldEndWithPathSuffix(expectedFileName);
-            reference.DeclarationLocation.Line.Is(expectedLine);
-            reference.SymbolId.ShouldBeExternalSymbolId();
         }
     }
 }

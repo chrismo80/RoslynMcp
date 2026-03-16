@@ -782,7 +782,7 @@ internal sealed class RenameOperations
             return new RenameSymbolResult(
                 renamedSymbolId,
                 changedDocumentIds.Count,
-                affectedLocations,
+                affectedLocations.GroupAffectedLocationsByFile(),
                 changedFiles);
         }
         catch (ArgumentException ex)

@@ -20,12 +20,13 @@ public sealed class GetTypeHierarchyToolTests(SharedSandboxFixture fixture, ITes
 
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
-        result.Symbol!.Name.Is("DerivedClass");
+        result.Symbol!.Display.Is("DerivedClass");
         result.Symbol.Kind.Is("NamedType");
-        result.Symbol.DeclarationLocation.FilePath.ShouldEndWithPathSuffix(Path.Combine("ProjectCore", "Hierarchy.cs"));
-        result.Symbol.DeclarationLocation.Line.Is(23);
+        result.Symbol.Location.IsNotNull();
+        result.Symbol.Location!.FilePath.ShouldEndWithPathSuffix(Path.Combine("ProjectCore", "Hierarchy.cs"));
+        result.Symbol.Location.Line.Is(23);
 
-        result.BaseTypes.Select(static type => type.Name).ToArray().Is(new[] { "BaseClass", "Object" });
+        result.BaseTypes.Select(static type => type.Display).ToArray().Is(new[] { "BaseClass", "Object" });
 
         result.ImplementedInterfaces.ShouldMatchSymbols(("IWorker", "NamedType", Path.Combine("ProjectCore", "Hierarchy.cs"), 3, null));
         result.DerivedTypes.ShouldMatchSymbols(("LeafClass", "NamedType", Path.Combine("ProjectCore", "Hierarchy.cs"), 28, null));
@@ -40,9 +41,9 @@ public sealed class GetTypeHierarchyToolTests(SharedSandboxFixture fixture, ITes
 
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
-        result.Symbol!.Name.Is("DerivedClass");
+        result.Symbol!.Display.Is("DerivedClass");
 
-        result.BaseTypes.Select(static type => type.Name).Is("BaseClass");
+        result.BaseTypes.Select(static type => type.Display).Is("BaseClass");
         result.ImplementedInterfaces.IsEmpty();
 
         result.DerivedTypes.ShouldMatchSymbols(("LeafClass", "NamedType", Path.Combine("ProjectCore", "Hierarchy.cs"), 28, null));
@@ -57,7 +58,7 @@ public sealed class GetTypeHierarchyToolTests(SharedSandboxFixture fixture, ITes
 
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
-        result.Symbol!.Name.Is("IWorker");
+        result.Symbol!.Display.Is("IWorker");
         result.Symbol.Kind.Is("NamedType");
         result.BaseTypes.IsEmpty();
         result.ImplementedInterfaces.IsEmpty();
@@ -80,7 +81,7 @@ public sealed class GetTypeHierarchyToolTests(SharedSandboxFixture fixture, ITes
 
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
-        result.Symbol!.Name.Is("BaseClass");
+        result.Symbol!.Display.Is("BaseClass");
         result.DerivedTypes.Count.Is(1);
         result.DerivedTypes.ShouldMatchSymbols(("DerivedClass", "NamedType", Path.Combine("ProjectCore", "Hierarchy.cs"), 23, null));
     }
@@ -125,7 +126,7 @@ public sealed class GetTypeHierarchyToolTests(SharedSandboxFixture fixture, ITes
 
 file static class AssertionExtensions
 {
-    extension(IReadOnlyList<SymbolDescriptor> actual)
+    extension(IReadOnlyList<CompactSymbolSummary> actual)
     {
         internal void ShouldMatchSymbols(params (string Name, string Kind, string FileName, int Line, string? ContainingType)[] expected)
         {
@@ -133,11 +134,13 @@ file static class AssertionExtensions
 
             for (var i = 0; i < expected.Length; i++)
             {
-                actual[i].Name.Is(expected[i].Name);
+                actual[i].Display.Is(expected[i].Name);
                 actual[i].Kind.Is(expected[i].Kind);
-                actual[i].ContainingType.Is(expected[i].ContainingType);
-                actual[i].DeclarationLocation.FilePath.ShouldEndWithPathSuffix(expected[i].FileName);
-                actual[i].DeclarationLocation.Line.Is(expected[i].Line);
+                if (expected[i].ContainingType != null)
+                    actual[i].Owner.Is(expected[i].ContainingType);
+                actual[i].Location.IsNotNull();
+                actual[i].Location!.FilePath.ShouldEndWithPathSuffix(expected[i].FileName);
+                actual[i].Location.Line.Is(expected[i].Line);
             }
         }
     }

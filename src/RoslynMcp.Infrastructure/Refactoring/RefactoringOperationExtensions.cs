@@ -500,13 +500,22 @@ internal static class RefactoringOperationExtensions
     }
 
     public static RenameSymbolResult CreateErrorResult(string code, string message, params (string Key, string? Value)[] details)
-        => new(null, 0, Array.Empty<SourceLocation>(), Array.Empty<string>(), CreateError(code, message, details));
+        => new(null, 0, Array.Empty<AffectedFileLocations>(), Array.Empty<string>(), CreateError(code, message, details));
 
     public static RenameSymbolResult CreateErrorResult(ErrorInfo? error)
     {
         var safeError = error ?? new ErrorInfo(Core.ErrorCodes.InternalError, "An unknown error occurred while renaming a symbol.");
-        return new RenameSymbolResult(null, 0, Array.Empty<SourceLocation>(), Array.Empty<string>(), safeError);
+        return new RenameSymbolResult(null, 0, Array.Empty<AffectedFileLocations>(), Array.Empty<string>(), safeError);
     }
+
+    public static IReadOnlyList<AffectedFileLocations> GroupAffectedLocationsByFile(this IReadOnlyList<SourceLocation> locations)
+        => locations
+            .GroupBy(static location => location.FilePath, StringComparer.Ordinal)
+            .OrderBy(static group => group.Key, StringComparer.Ordinal)
+            .Select(group => new AffectedFileLocations(
+                group.Key,
+                group.Select(static location => new ReferencePosition(location.Line, location.Column)).ToArray()))
+            .ToArray();
 
     public static FormatDocumentResult CreateFormatDocumentErrorResult(string path, string code, string message, params (string Key, string? Value)[] details)
         => new(path, false, CreateError(code, message, details));

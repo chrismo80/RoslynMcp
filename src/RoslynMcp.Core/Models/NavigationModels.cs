@@ -6,8 +6,28 @@ public sealed record SymbolDescriptor(
     string Kind,
     string? ContainingType,
     string? ContainingNamespace,
-    SourceLocation DeclarationLocation,
-    SymbolReference? Reference = null);
+    SourceLocation DeclarationLocation);
+
+public sealed record UsageSymbolSummary(
+    string SymbolId,
+    string Display,
+    string Kind,
+    SourceLocation? Location);
+
+public sealed record ReferencePosition(
+    int Line,
+    int Column);
+
+public sealed record ReferenceFileGroup(
+    string FilePath,
+    IReadOnlyList<ReferencePosition> References);
+
+public sealed record CompactSymbolSummary(
+    string SymbolId,
+    string Display,
+    string Kind,
+    SourceLocation? Location,
+    string? Owner = null);
 
 public sealed record FindSymbolRequest(string SymbolId);
 
@@ -56,21 +76,21 @@ public static class ReferenceScopes
 
 public sealed record FindReferencesScopedRequest(string SymbolId, string Scope, string? Path = null);
 
-public sealed record FindReferencesScopedResult(SymbolDescriptor? Symbol,
-    IReadOnlyList<SourceLocation> References,
+public sealed record FindReferencesScopedResult(UsageSymbolSummary? Symbol,
+    IReadOnlyList<ReferenceFileGroup> ReferenceFiles,
     int TotalCount,
     ErrorInfo? Error = null);
 
 public sealed record FindImplementationsRequest(string SymbolId);
 
-public sealed record FindImplementationsResult(SymbolDescriptor? Symbol, IReadOnlyList<SymbolDescriptor> Implementations, ErrorInfo? Error = null);
+public sealed record FindImplementationsResult(CompactSymbolSummary? Symbol, IReadOnlyList<CompactSymbolSummary> Implementations, ErrorInfo? Error = null);
 
 public sealed record GetTypeHierarchyRequest(string SymbolId, bool? IncludeTransitive = null, int? MaxDerived = null);
 
-public sealed record GetTypeHierarchyResult(SymbolDescriptor? Symbol,
-    IReadOnlyList<SymbolDescriptor> BaseTypes,
-    IReadOnlyList<SymbolDescriptor> ImplementedInterfaces,
-    IReadOnlyList<SymbolDescriptor> DerivedTypes,
+public sealed record GetTypeHierarchyResult(CompactSymbolSummary? Symbol,
+    IReadOnlyList<CompactSymbolSummary> BaseTypes,
+    IReadOnlyList<CompactSymbolSummary> ImplementedInterfaces,
+    IReadOnlyList<CompactSymbolSummary> DerivedTypes,
     ErrorInfo? Error = null);
 
 public sealed record GetSymbolOutlineRequest(string SymbolId, int? Depth = null);

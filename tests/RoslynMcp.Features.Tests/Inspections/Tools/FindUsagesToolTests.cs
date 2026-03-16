@@ -20,10 +20,10 @@ public sealed class FindUsagesToolTests(SharedSandboxFixture fixture, ITestOutpu
 
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
-        result.Symbol!.Name.Is("IWorkItemOperation");
+        result.Symbol!.Display.Is("IWorkItemOperation");
         result.TotalCount.Is(4);
 
-        result.References.ShouldMatchReferences(
+        result.ReferenceFiles.ShouldMatchReferences(
             (Path.Combine("ProjectApp", "AppOrchestrator.cs"), 6),
             (Path.Combine("ProjectApp", "AppOrchestrator.cs"), 10),
             (Path.Combine("ProjectImpl", "WorkItemOperations.cs"), 15),
@@ -40,7 +40,7 @@ public sealed class FindUsagesToolTests(SharedSandboxFixture fixture, ITestOutpu
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
         result.TotalCount.Is(0);
-        result.References.IsEmpty();
+        result.ReferenceFiles.IsEmpty();
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public sealed class FindUsagesToolTests(SharedSandboxFixture fixture, ITestOutpu
         result.Symbol.IsNotNull();
         result.TotalCount.Is(2);
 
-        result.References.ShouldMatchReferences(
+        result.ReferenceFiles.ShouldMatchReferences(
             (Path.Combine("ProjectApp", "AppOrchestrator.cs"), 6),
             (Path.Combine("ProjectApp", "AppOrchestrator.cs"), 10));
     }
@@ -68,7 +68,7 @@ public sealed class FindUsagesToolTests(SharedSandboxFixture fixture, ITestOutpu
 
         result.Error.ShouldHaveCode(ErrorCodes.InvalidRequest);
         result.TotalCount.Is(0);
-        result.References.IsEmpty();
+        result.ReferenceFiles.IsEmpty();
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class FindUsagesToolTests(SharedSandboxFixture fixture, ITestOutpu
         result.Error.ShouldHaveCode(ErrorCodes.InvalidPath);
         result.Symbol.IsNull();
         result.TotalCount.Is(0);
-        result.References.IsEmpty();
+        result.ReferenceFiles.IsEmpty();
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class FindUsagesToolTests(SharedSandboxFixture fixture, ITestOutpu
 
         result.Error.ShouldHaveCode(ErrorCodes.InvalidRequest);
         result.TotalCount.Is(0);
-        result.References.IsEmpty();
+        result.ReferenceFiles.IsEmpty();
     }
 
     [Theory]
@@ -104,7 +104,7 @@ public sealed class FindUsagesToolTests(SharedSandboxFixture fixture, ITestOutpu
         result.Error.ShouldHaveCode(expectedErrorCode);
         result.Symbol.IsNull();
         result.TotalCount.Is(0);
-        result.References.IsEmpty();
+        result.ReferenceFiles.IsEmpty();
     }
 
     private async Task<string> ResolveWorkItemOperationSymbolIdAsync()
@@ -119,19 +119,3 @@ public sealed class FindUsagesToolTests(SharedSandboxFixture fixture, ITestOutpu
     }
 }
 
-file static class AssertionExtensions
-{
-    extension(IReadOnlyList<SourceLocation> references)
-    {
-        internal void ShouldMatchReferences(params (string FileName, int Line)[] expected)
-        {
-            references.Count.Is(expected.Length);
-
-            for (var i = 0; i < expected.Length; i++)
-            {
-                references[i].FilePath.ShouldEndWithPathSuffix(expected[i].FileName);
-                references[i].Line.Is(expected[i].Line);
-            }
-        }
-    }
-}

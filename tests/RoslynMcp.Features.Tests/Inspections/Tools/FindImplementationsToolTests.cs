@@ -21,10 +21,11 @@ public sealed class FindImplementationsToolTests(SharedSandboxFixture fixture, I
 
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
-        result.Symbol!.Name.Is("IWorker");
+        result.Symbol!.Display.Is("IWorker");
         result.Symbol.Kind.Is("NamedType");
-        result.Symbol.DeclarationLocation.FilePath.ShouldEndWithPathSuffix(Path.Combine("ProjectCore", "Hierarchy.cs"));
-        result.Symbol.DeclarationLocation.Line.Is(3);
+        result.Symbol.Location.IsNotNull();
+        result.Symbol.Location!.FilePath.ShouldEndWithPathSuffix(Path.Combine("ProjectCore", "Hierarchy.cs"));
+        result.Symbol.Location.Line.Is(3);
 
         result.Implementations.ShouldMatchImplementations(
             ("BaseClass", "NamedType", Path.Combine("ProjectCore", "Hierarchy.cs"), 18, null),
@@ -44,9 +45,9 @@ public sealed class FindImplementationsToolTests(SharedSandboxFixture fixture, I
 
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
-        result.Symbol!.Name.Is("Work");
+        result.Symbol!.Display.Contains("Work", StringComparison.Ordinal).IsTrue();
         result.Symbol.Kind.Is("Method");
-        result.Symbol.ContainingType.Is("global::ProjectCore.IWorker");
+        result.Symbol.Owner.Is("global::ProjectCore.IWorker");
 
         result.Implementations.ShouldMatchImplementations(
             ("Work", "Method", Path.Combine("ProjectCore", "Hierarchy.cs"), 20, "global::ProjectCore.BaseClass"),
@@ -64,9 +65,9 @@ public sealed class FindImplementationsToolTests(SharedSandboxFixture fixture, I
 
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
-        result.Symbol!.Name.Is("ExecuteAsync");
+        result.Symbol!.Display.Contains("ExecuteAsync", StringComparison.Ordinal).IsTrue();
         result.Symbol.Kind.Is("Method");
-        result.Symbol.ContainingType.Is("global::ProjectCore.OperationBase<TInput>");
+        result.Symbol.Owner.Is("global::ProjectCore.OperationBase<TInput>");
         result.Implementations.ShouldMatchImplementations(
             ("ExecuteAsync", "Method", Path.Combine("ProjectImpl", "WorkItemOperations.cs"), 17, "global::ProjectImpl.FastWorkItemOperation"),
             ("ExecuteAsync", "Method", Path.Combine("ProjectImpl", "WorkItemOperations.cs"), 40, "global::ProjectImpl.SafeWorkItemOperation"));
@@ -81,9 +82,9 @@ public sealed class FindImplementationsToolTests(SharedSandboxFixture fixture, I
 
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
-        result.Symbol!.Name.Is("DelayAsync");
+        result.Symbol!.Display.Contains("DelayAsync", StringComparison.Ordinal).IsTrue();
         result.Symbol.Kind.Is("Method");
-        result.Symbol.ContainingType.Is("global::ProjectCore.OperationBase<TInput>");
+        result.Symbol.Owner.Is("global::ProjectCore.OperationBase<TInput>");
         result.Implementations.ShouldMatchImplementations(("DelayAsync", "Method", Path.Combine("ProjectImpl", "WorkItemOperations.cs"), 48, "global::ProjectImpl.SafeWorkItemOperation"));
     }
 
@@ -95,25 +96,25 @@ public sealed class FindImplementationsToolTests(SharedSandboxFixture fixture, I
         var traceTool = Context.GetRequiredService<TraceCallFlowTool>();
 
         var implementations = await Sut.ExecuteAsync(CancellationToken.None, interfaceMethodSymbolId);
-        var trace = await traceTool.ExecuteAsync(CancellationToken.None, symbolId: appOrchestratorExecuteFlowAsync, direction: "downstream", depth: 1);
+        var trace = await traceTool.ExecuteAsync(CancellationToken.None, symbolId: appOrchestratorExecuteFlowAsync, direction: "downstream", depth: 1, includePossibleTargets: true);
 
         implementations.Error.ShouldBeNone();
         trace.Error.ShouldBeNone();
 
-        var dispatchEdge = trace.Edges.Single(edge => edge.Uncertainties is not null && edge.Uncertainties.Any(uncertainty => uncertainty.Category == FlowUncertaintyCategories.InterfaceDispatch));
-        dispatchEdge.PossibleTargets.IsNotNull();
+        var dispatchEdge = trace.Edges.Single(edge => edge.UncertaintyCategories is not null && edge.UncertaintyCategories.Contains(FlowUncertaintyCategories.InterfaceDispatch, StringComparer.Ordinal));
+        trace.PossibleTargetEdges.IsNotNull();
 
-        var implementationHandles = implementations.Implementations
-            .Select(static implementation => implementation.Reference!.Handle)
-            .OrderBy(static handle => handle, StringComparer.Ordinal)
+        var implementationIds = implementations.Implementations
+            .Select(static implementation => implementation.SymbolId)
+            .OrderBy(static value => value, StringComparer.Ordinal)
             .ToArray();
 
-        var possibleTargetHandles = dispatchEdge.PossibleTargets!
-            .Select(static target => target.Handle)
-            .OrderBy(static handle => handle, StringComparer.Ordinal)
+        var possibleTargetIds = trace.PossibleTargetEdges!
+            .Select(static edge => edge.To)
+            .OrderBy(static value => value, StringComparer.Ordinal)
             .ToArray();
 
-        implementationHandles.Is(possibleTargetHandles);
+        implementationIds.Is(possibleTargetIds);
     }
 
     [Fact]
@@ -152,7 +153,7 @@ public sealed class FindImplementationsToolTests(SharedSandboxFixture fixture, I
 
 file static class AssertionExtensions
 {
-    extension(IReadOnlyList<SymbolDescriptor> actual)
+    extension(IReadOnlyList<CompactSymbolSummary> actual)
     {
         internal void ShouldMatchImplementations(params (string Name, string Kind, string FileName, int Line, string? ContainingType)[] expected)
         {
@@ -160,11 +161,13 @@ file static class AssertionExtensions
 
             for (var i = 0; i < expected.Length; i++)
             {
-                actual[i].Name.Is(expected[i].Name);
+                actual[i].Display.Contains(expected[i].Name, StringComparison.Ordinal).IsTrue();
                 actual[i].Kind.Is(expected[i].Kind);
-                actual[i].ContainingType.Is(expected[i].ContainingType);
-                actual[i].DeclarationLocation.FilePath.ShouldEndWithPathSuffix(expected[i].FileName);
-                actual[i].DeclarationLocation.Line.Is(expected[i].Line);
+                if (expected[i].ContainingType != null)
+                    actual[i].Owner.Is(expected[i].ContainingType);
+                actual[i].Location.IsNotNull();
+                actual[i].Location!.FilePath.ShouldEndWithPathSuffix(expected[i].FileName);
+                actual[i].Location.Line.Is(expected[i].Line);
             }
         }
     }

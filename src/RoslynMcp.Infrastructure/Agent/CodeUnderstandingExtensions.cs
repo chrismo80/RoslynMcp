@@ -123,20 +123,16 @@ public static partial class CodeUnderstandingExtensions
             }
 
             var (filePath, line, column) = member.GetDeclarationPosition();
-            var reference = member.ToSymbolReference();
             return new MemberListEntry(
                 member.Kind == SymbolKind.Method && member is IMethodSymbol { MethodKind: MethodKind.Constructor } constructor
                     ? constructor.ContainingType.Name
                     : member.Name,
-                reference.SymbolId,
+                member.CreateId().ToExternal(),
                 memberKind,
                 member.ToDisplayString(Microsoft.CodeAnalysis.SymbolDisplayFormat.MinimallyQualifiedFormat),
-                filePath,
-                line,
-                column,
+                CreateOptionalSourceLocation(filePath, line, column),
                 accessibility,
-                member.IsStatic,
-                reference);
+                member.IsStatic);
         }
 
         public string? ToLightweightMemberEntry()
@@ -419,19 +415,27 @@ public static partial class CodeUnderstandingExtensions
                 _ => symbol.Kind.ToString().ToLowerInvariant()
             };
 
-        public ResolvedSymbolSummary ToResolvedSymbol()
+        public ResolvedSymbolSummary ToResolvedSymbol(bool includeQualifiedDisplayName = false)
         {
             var (filePath, line, column) = symbol.GetDeclarationPosition();
-            var reference = symbol.ToSymbolReference();
             return new ResolvedSymbolSummary(
-                reference.SymbolId,
+                symbol.CreateId().ToExternal(),
                 symbol.ToDisplayString(Microsoft.CodeAnalysis.SymbolDisplayFormat.MinimallyQualifiedFormat),
                 symbol.Kind.ToString(),
-                filePath,
-                line,
-                column,
-                reference.QualifiedDisplayName,
-                reference);
+                CreateOptionalSourceLocation(filePath, line, column),
+                includeQualifiedDisplayName ? symbol.ToQualifiedDisplayName() : null);
+        }
+
+        public CompactSymbolSummary ToCompactSummary()
+        {
+            var (filePath, line, column) = symbol.GetDeclarationPosition();
+            return new CompactSymbolSummary(
+                symbol.CreateId().ToExternal(),
+                symbol.ToDisplayString(Microsoft.CodeAnalysis.SymbolDisplayFormat.MinimallyQualifiedFormat),
+                symbol.Kind.ToString(),
+                CreateOptionalSourceLocation(filePath, line, column),
+                symbol.ContainingType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                ?? symbol.ContainingNamespace.NormalizeNamespace().NormalizeOptional());
         }
     }
 

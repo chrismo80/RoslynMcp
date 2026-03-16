@@ -1,5 +1,7 @@
 using Is.Assertions;
+using Microsoft.Extensions.DependencyInjection;
 using RoslynMcp.Core;
+using RoslynMcp.Core.Models;
 using RoslynMcp.Features.Tools;
 using RoslynMcp.Features.Tools.Inspections;
 using Xunit;
@@ -14,36 +16,39 @@ public sealed class ListDependenciesToolTests(SharedSandboxFixture fixture, ITes
     public async Task ListDependenciesAsync_WithOutgoingDirection_ReturnsOutgoingDependencies()
     {
         var project = Context.GetProject("ProjectApp");
+        var projectId = await GetProjectIdAsync("ProjectApp");
         var result = await Sut.ExecuteAsync(CancellationToken.None, projectPath: project.Path, direction: "outgoing");
 
         result.Error.ShouldBeNone();
         result.TotalCount.Is(2);
         result.Dependencies.Select(static dependency => dependency.ProjectName).Is("ProjectCore", "ProjectImpl");
-        result.Edges!.Select(static edge => $"{edge.Source.ProjectName}->{edge.Target.ProjectName}").Is("ProjectApp->ProjectCore", "ProjectApp->ProjectImpl");
+        result.Edges!.Select(edge => edge.ToDisplay(result.Dependencies, projectId, project.Name)).OrderBy(static value => value, StringComparer.Ordinal).Is("ProjectApp->ProjectCore", "ProjectApp->ProjectImpl");
     }
 
     [Fact]
     public async Task ListDependenciesAsync_WithIncomingDirection_ReturnsIncomingDependencies()
     {
         var project = Context.GetProject("ProjectCore");
+        var projectId = await GetProjectIdAsync("ProjectCore");
         var result = await Sut.ExecuteAsync(CancellationToken.None, projectName: project.Name, direction: "incoming");
 
         result.Error.ShouldBeNone();
         result.TotalCount.Is(2);
         result.Dependencies.Select(dependency => dependency.ProjectName).Is("ProjectApp", "ProjectImpl");
-        result.Edges!.Select(static edge => $"{edge.Source.ProjectName}->{edge.Target.ProjectName}").Is("ProjectApp->ProjectCore", "ProjectImpl->ProjectCore");
+        result.Edges!.Select(edge => edge.ToDisplay(result.Dependencies, projectId, project.Name)).OrderBy(static value => value, StringComparer.Ordinal).Is("ProjectApp->ProjectCore", "ProjectImpl->ProjectCore");
     }
 
     [Fact]
     public async Task ListDependenciesAsync_WithBothDirection_ReturnsOutgoingAndIncomingDependencies()
     {
         var project = Context.GetProject("ProjectImpl");
+        var projectId = await GetProjectIdAsync("ProjectImpl");
         var result = await Sut.ExecuteAsync(CancellationToken.None, projectName: project.Name, direction: "both");
 
         result.Error.ShouldBeNone();
         result.TotalCount.Is(2);
         result.Dependencies.Select(dependency => dependency.ProjectName).Is("ProjectApp", "ProjectCore");
-        result.Edges!.Select(static edge => $"{edge.Source.ProjectName}->{edge.Target.ProjectName}").Is("ProjectApp->ProjectImpl", "ProjectImpl->ProjectCore");
+        result.Edges!.Select(edge => edge.ToDisplay(result.Dependencies, projectId, project.Name)).OrderBy(static value => value, StringComparer.Ordinal).Is("ProjectApp->ProjectImpl", "ProjectImpl->ProjectCore");
     }
 
     [Fact]
@@ -69,5 +74,31 @@ public sealed class ListDependenciesToolTests(SharedSandboxFixture fixture, ITes
         var result = await Sut.ExecuteAsync(CancellationToken.None, projectId: Guid.NewGuid().ToString());
 
         result.Error.ShouldHaveCode(ErrorCodes.InvalidInput);
+    }
+
+    private async Task<string> GetProjectIdAsync(string projectName)
+    {
+        var accessor = Context.GetRequiredService<RoslynMcp.Infrastructure.Workspace.IRoslynSolutionAccessor>();
+        var (solution, error) = await accessor.GetCurrentSolutionAsync(CancellationToken.None);
+
+        error.ShouldBeNone();
+        solution.IsNotNull();
+        return solution!.Projects.Single(project => project.Name == projectName).Id.Id.ToString();
+    }
+}
+
+file static class AssertionExtensions
+{
+    extension(ProjectDependencyEdge edge)
+    {
+        internal string ToDisplay(IReadOnlyList<ProjectDependency> dependencies, string rootProjectId, string rootProjectName)
+        {
+            var namesById = dependencies.ToDictionary(static dependency => dependency.ProjectId, static dependency => dependency.ProjectName, StringComparer.Ordinal);
+            namesById.TryAdd(rootProjectId, rootProjectName);
+            return $"{ResolveName(edge.FromProjectId, namesById, rootProjectName)}->{ResolveName(edge.ToProjectId, namesById, rootProjectName)}";
+        }
+
+        private static string ResolveName(string projectId, IReadOnlyDictionary<string, string> namesById, string rootProjectName)
+            => namesById.TryGetValue(projectId, out var name) ? name : rootProjectName;
     }
 }

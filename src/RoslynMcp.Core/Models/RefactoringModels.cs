@@ -2,10 +2,14 @@ namespace RoslynMcp.Core.Models;
 
 public sealed record RenameSymbolRequest(string SymbolId, string NewName);
 
+public sealed record AffectedFileLocations(
+    string FilePath,
+    IReadOnlyList<ReferencePosition> Locations);
+
 public sealed record RenameSymbolResult(
     string? RenamedSymbolId,
     int ChangedDocumentCount,
-    IReadOnlyList<SourceLocation> AffectedLocations,
+    IReadOnlyList<AffectedFileLocations> AffectedLocationFiles,
     IReadOnlyList<string> ChangedFiles,
     ErrorInfo? Error = null);
 

@@ -29,7 +29,7 @@ public sealed class CodeSmellFindingService(IRoslynSolutionAccessor solutionAcce
         Array.Empty<string>(),
         Array.Empty<string>());
 
-    private static readonly CodeSmellsSummary EmptySummary = new(0, 0, 0, 0);
+    private static readonly CodeSmellsSummary EmptySummary = new(0, 0);
 
     private readonly IRoslynSolutionAccessor _solutionAccessor = solutionAccessor ?? throw new ArgumentNullException(nameof(solutionAccessor));
     private readonly IRefactoringService _refactoringService = refactoringService ?? throw new ArgumentNullException(nameof(refactoringService));
@@ -51,8 +51,8 @@ public sealed class CodeSmellFindingService(IRoslynSolutionAccessor solutionAcce
         {
             return new FindCodeSmellsResult(
                 EmptySummary,
-                Array.Empty<CodeSmellRiskBucket>(),
-                Array.Empty<string>(),
+                Array.Empty<CodeSmellFindingEntry>(),
+                null,
                 UnknownContext,
                 AgentErrorInfo.Normalize(solutionError,
                     "Call load_solution first to select a solution before finding code smells."));
@@ -72,7 +72,7 @@ public sealed class CodeSmellFindingService(IRoslynSolutionAccessor solutionAcce
                 "Use a source document path that exists in the loaded solution.",
                 ("field", "path"),
                 ("provided", path));
-            return new FindCodeSmellsResult(EmptySummary, Array.Empty<CodeSmellRiskBucket>(), Array.Empty<string>(), UnknownContext, error);
+            return new FindCodeSmellsResult(EmptySummary, Array.Empty<CodeSmellFindingEntry>(), null, UnknownContext, error);
         }
 
         if (matchingDocuments.Length > 1)
@@ -83,7 +83,7 @@ public sealed class CodeSmellFindingService(IRoslynSolutionAccessor solutionAcce
                 "Provide a unique source document path from the loaded solution.",
                 ("field", "path"),
                 ("provided", path));
-            return new FindCodeSmellsResult(EmptySummary, Array.Empty<CodeSmellRiskBucket>(), Array.Empty<string>(), UnknownContext, error);
+            return new FindCodeSmellsResult(EmptySummary, Array.Empty<CodeSmellFindingEntry>(), null, UnknownContext, error);
         }
 
         var document = matchingDocuments[0];
@@ -165,7 +165,11 @@ public sealed class CodeSmellFindingService(IRoslynSolutionAccessor solutionAcce
 
         var aggregatedResult = AggregateMatches(limitedMatches);
 
-        return new FindCodeSmellsResult(aggregatedResult.Summary, aggregatedResult.RiskBuckets, warnings, CreateContext(document.FilePath, warnings));
+        return new FindCodeSmellsResult(
+            aggregatedResult.Summary,
+            aggregatedResult.Findings,
+            warnings.Count == 0 ? null : warnings,
+            CreateContext(document.FilePath, warnings));
     }
 
     private async Task<IReadOnlyList<AnchorPosition>> CollectAnchorsAsync(Document document, List<string> warnings, CancellationToken ct)
@@ -325,7 +329,7 @@ public sealed class CodeSmellFindingService(IRoslynSolutionAccessor solutionAcce
     }
 
     private static FindCodeSmellsResult CreateInvalidInputResult(string message, params (string Key, string? Value)[] details)
-        => new(EmptySummary, Array.Empty<CodeSmellRiskBucket>(), Array.Empty<string>(), UnknownContext, AgentErrorInfo.Create(ErrorCodes.InvalidInput, message, "Adjust input and retry find_codesmells.", details));
+        => new(EmptySummary, Array.Empty<CodeSmellFindingEntry>(), null, UnknownContext, AgentErrorInfo.Create(ErrorCodes.InvalidInput, message, "Adjust input and retry find_codesmells.", details));
 
     private static (FindCodeSmellFilters? Filters, FindCodeSmellsResult? Error) ValidateRequest(FindCodeSmellsRequest request)
     {
@@ -679,79 +683,48 @@ public sealed class CodeSmellFindingService(IRoslynSolutionAccessor solutionAcce
     {
         if (matches.Count == 0)
         {
-            return new AggregatedCodeSmellsResult(EmptySummary, Array.Empty<CodeSmellRiskBucket>());
+            return new AggregatedCodeSmellsResult(EmptySummary, Array.Empty<CodeSmellFindingEntry>());
         }
 
-        var riskBuckets = matches
-            .GroupBy(static match => match.RiskLevel, StringComparer.Ordinal)
-            .OrderBy(static group => GetRiskSortOrder(group.Key))
-            .ThenBy(static group => group.Key, StringComparer.Ordinal)
-            .Select(static riskGroup => CreateRiskBucket(riskGroup.Key, riskGroup))
-            .ToArray();
-
-        var summary = new CodeSmellsSummary(
-            riskBuckets.Sum(static bucket => bucket.FindingCount),
-            riskBuckets.Sum(static bucket => bucket.OccurrenceCount),
-            riskBuckets.Length,
-            riskBuckets.Sum(static bucket => bucket.Categories.Count));
-
-        return new AggregatedCodeSmellsResult(summary, riskBuckets);
-    }
-
-    private static CodeSmellRiskBucket CreateRiskBucket(string riskLevel, IEnumerable<CodeSmellMatch> matches)
-    {
-        var categories = matches
-            .GroupBy(static match => match.Category, StringComparer.Ordinal)
-            .OrderBy(static group => GetCategorySortOrder(group.Key))
-            .ThenBy(static group => group.Key, StringComparer.Ordinal)
-            .Select(static categoryGroup => CreateCategoryBucket(categoryGroup.Key, categoryGroup))
-            .ToArray();
-
-        return new CodeSmellRiskBucket(
-            riskLevel,
-            categories.Sum(static category => category.FindingCount),
-            categories.Sum(static category => category.OccurrenceCount),
-            categories);
-    }
-
-    private static CodeSmellCategoryBucket CreateCategoryBucket(string category, IEnumerable<CodeSmellMatch> matches)
-    {
         var findings = matches
             .GroupBy(CreateFindingIdentityKey, StringComparer.Ordinal)
             .Select(static group => CreateFindingEntry(group.ToArray()))
             .OrderBy(static finding => GetRiskSortOrder(finding.RiskLevel))
+            .ThenBy(static finding => GetCategorySortOrder(finding.Category))
             .ThenBy(static finding => GetReviewKindPriority(finding.ReviewKind))
             .ThenByDescending(static finding => finding.OccurrenceCount)
             .ThenBy(static finding => finding.Title, StringComparer.Ordinal)
-            .ThenBy(static finding => finding.Origin, StringComparer.Ordinal)
             .ToArray();
 
-        return new CodeSmellCategoryBucket(
-            category,
+        var summary = new CodeSmellsSummary(
             findings.Length,
-            findings.Sum(static finding => finding.OccurrenceCount),
-            findings);
+            findings.Sum(static finding => finding.OccurrenceCount));
+
+        return new AggregatedCodeSmellsResult(summary, findings);
     }
 
     private static CodeSmellFindingEntry CreateFindingEntry(IReadOnlyList<CodeSmellMatch> matches)
     {
         var exemplar = matches[0];
-        var occurrences = matches
+        var occurrenceFiles = matches
             .Select(static match => match.Location)
             .OrderBy(static location => location.FilePath, StringComparer.Ordinal)
             .ThenBy(static location => location.Line)
             .ThenBy(static location => location.Column)
+            .GroupBy(static location => location.FilePath, StringComparer.Ordinal)
+            .Select(group => new CodeSmellOccurrenceFile(
+                group.Key,
+                group.Select(static location => new ReferencePosition(location.Line, location.Column)).ToArray()))
             .ToArray();
 
         return new CodeSmellFindingEntry(
             CreateFindingFingerprint(exemplar),
             exemplar.Title,
-            exemplar.Origin,
             exemplar.RiskLevel,
             exemplar.Category,
             exemplar.ReviewKind,
-            occurrences.Length,
-            occurrences);
+            matches.Count,
+            occurrenceFiles);
     }
 
     private static string CreateFindingIdentityKey(CodeSmellMatch match)
@@ -915,7 +888,7 @@ public sealed class CodeSmellFindingService(IRoslynSolutionAccessor solutionAcce
 
     private sealed record AggregatedCodeSmellsResult(
         CodeSmellsSummary Summary,
-        IReadOnlyList<CodeSmellRiskBucket> RiskBuckets);
+        IReadOnlyList<CodeSmellFindingEntry> Findings);
 
     private sealed record AnchorPosition(string FilePath, int Line, int Column, string AnchorKind, bool IsDiagnostic);
 

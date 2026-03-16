@@ -3,6 +3,8 @@ using RoslynMcp.Core;
 using RoslynMcp.Core.Models;
 using RoslynMcp.Features.Tools;
 using RoslynMcp.Features.Tools.Inspections;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -22,17 +24,15 @@ public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestO
         result.Error.ShouldBeNone();
         result.Summary.TotalFindings.Is(findings.Count);
         result.Summary.TotalOccurrences.Is(findings.Sum(static finding => finding.OccurrenceCount));
-        result.Summary.RiskBucketCount.Is(result.RiskBuckets.Count);
-        result.Summary.CategoryBucketCount.Is(result.RiskBuckets.Sum(static bucket => bucket.Categories.Count));
-        result.RiskBuckets.IsNotEmpty();
+        result.Findings.IsNotEmpty();
         findings.All(static finding => finding.RiskLevel is "low" or "review_required" or "high" or "info").IsTrue();
         findings.All(static finding => finding.Category is "analyzer" or "correctness" or "design" or "maintainability" or "performance" or "style").IsTrue();
         findings.All(static finding => finding.ReviewKind is "style_suggestion" or "code_fix_hint" or "review_concern").IsTrue();
         findings.All(static finding => !string.IsNullOrWhiteSpace(finding.FindingKey)).IsTrue();
-        result.Warnings.Any(static warning => warning.Contains("Deduplicated", StringComparison.Ordinal)).IsTrue();
+        result.Warnings!.Any(static warning => warning.Contains("Deduplicated", StringComparison.Ordinal)).IsTrue();
         result.Context.SourceBias.Is(SourceBiases.Handwritten);
         result.Context.ResultCompleteness.Is(ResultCompletenessStates.Complete);
-        result.Warnings.Any(static warning => warning.Contains("reviewMode=conservative", StringComparison.Ordinal)).IsFalse();
+        (result.Warnings?.Any(static warning => warning.Contains("reviewMode=conservative", StringComparison.Ordinal)) ?? false).IsFalse();
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestO
         var result = await Sut.ExecuteAsync(CancellationToken.None, CodeSmellsPath);
 
         result.Error.ShouldBeNone();
-        IsCanonicalRiskOrder(result.RiskBuckets.Select(static bucket => bucket.RiskLevel)).IsTrue();
+        IsCanonicalRiskOrder(result.Findings.Select(static finding => finding.RiskLevel).Distinct()).IsTrue();
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestO
         var result = await Sut.ExecuteAsync(CancellationToken.None, CodeSmellsPath);
 
         result.Error.ShouldBeNone();
-        result.RiskBuckets.All(static bucket => IsCanonicalCategoryOrder(bucket.Categories.Select(static category => category.Category))).IsTrue();
+        IsCanonicalCategoryOrder(result.Findings.Select(static finding => finding.Category).Distinct()).IsTrue();
     }
 
     [Fact]
@@ -69,9 +69,9 @@ public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestO
         finding.RiskLevel.Is("info");
         finding.ReviewKind.Is(CodeSmellReviewKinds.CodeFixHint);
         finding.OccurrenceCount.Is(3);
-        finding.Occurrences.Count.Is(3);
-        finding.Occurrences.Select(static occurrence => occurrence.Line).ToArray().SequenceEqual([8, 14, 20]).IsTrue();
-        IsOccurrenceOrderCanonical(finding.Occurrences).IsTrue();
+        finding.OccurrenceFiles.Single().Locations.Count.Is(3);
+        finding.OccurrenceFiles.Single().Locations.Select(static occurrence => occurrence.Line).ToArray().SequenceEqual([8, 14, 20]).IsTrue();
+        IsOccurrenceOrderCanonical(finding.OccurrenceFiles);
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestO
         conservativeResult.Summary.TotalOccurrences.IsGreaterThan(0);
         (conservativeResult.Summary.TotalOccurrences < defaultResult.Summary.TotalOccurrences).IsTrue();
         GetAllFindings(conservativeResult).All(static finding => finding.ReviewKind != CodeSmellReviewKinds.StyleSuggestion).IsTrue();
-        conservativeResult.Warnings.Any(static warning => warning.Contains("reviewMode=conservative", StringComparison.Ordinal)).IsTrue();
+        conservativeResult.Warnings!.Any(static warning => warning.Contains("reviewMode=conservative", StringComparison.Ordinal)).IsTrue();
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestO
         var findings = GetAllFindings(result);
 
         result.Error.ShouldBeNone();
-        result.RiskBuckets.Select(static bucket => bucket.RiskLevel).ToArray().SequenceEqual(["info"]).IsTrue();
+        findings.Select(static finding => finding.RiskLevel).Distinct().ToArray().SequenceEqual(["info"]).IsTrue();
         findings.Count.Is(AnalyzerFindings.Length);
         findings.All(static finding => finding.Category == "analyzer").IsTrue();
         findings.All(static finding => finding.ReviewKind == CodeSmellReviewKinds.CodeFixHint).IsTrue();
@@ -112,8 +112,8 @@ public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestO
             actual.RiskLevel.Is(expected.RiskLevel);
             actual.ReviewKind.Is(expected.ReviewKind);
             actual.OccurrenceCount.Is(1);
-            actual.Occurrences[0].Line.Is(expected.Line);
-            actual.Occurrences[0].Column.Is(expected.Column);
+            actual.OccurrenceFiles.Single().Locations[0].Line.Is(expected.Line);
+            actual.OccurrenceFiles.Single().Locations[0].Column.Is(expected.Column);
         }
     }
 
@@ -133,7 +133,7 @@ public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestO
         var findings = GetAllFindings(result);
 
         result.Error.ShouldBeNone();
-        result.RiskBuckets.Select(static bucket => bucket.RiskLevel).ToArray().SequenceEqual(["high"]).IsTrue();
+        findings.Select(static finding => finding.RiskLevel).Distinct().ToArray().SequenceEqual(["high"]).IsTrue();
         findings.Count.IsGreaterThan(0);
         findings.All(static finding => finding.RiskLevel == "high").IsTrue();
     }
@@ -143,7 +143,8 @@ public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestO
     {
         typeof(FindCodeSmellsResult).GetProperty("Actions").IsNull();
         typeof(FindCodeSmellsResult).GetProperty("Groups").IsNull();
-        typeof(CodeSmellFindingEntry).GetProperty("GroupId").IsNull();
+        typeof(FindCodeSmellsResult).GetProperty("RiskBuckets").IsNull();
+        typeof(CodeSmellFindingEntry).GetProperty("Occurrences").IsNull();
     }
 
     [Fact]
@@ -178,6 +179,24 @@ public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestO
         result.Error.ShouldHaveCode(ErrorCodes.InvalidInput);
     }
 
+    [Fact]
+    public async Task FindCodeSmellsAsync_Serialization_UsesFlatFindingsContract()
+    {
+        var result = await Sut.ExecuteAsync(CancellationToken.None, CodeSmellsPath);
+
+        result.Error.ShouldBeNone();
+
+        var json = JsonSerializer.Serialize(result, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        });
+
+        json.Contains("riskBuckets", StringComparison.Ordinal).IsFalse();
+        json.Contains("occurrences", StringComparison.Ordinal).IsFalse();
+        json.Contains("occurrenceFiles", StringComparison.Ordinal).IsTrue();
+    }
+
     private static readonly ExpectedCodeSmellFinding[] AnalyzerFindings =
     [
         new("Diagnostic: RCS1163", "analyzer", "info", CodeSmellReviewKinds.CodeFixHint, 29, 29),
@@ -185,10 +204,7 @@ public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestO
     ];
 
     private static List<CodeSmellFindingEntry> GetAllFindings(FindCodeSmellsResult result)
-        => result.RiskBuckets
-            .SelectMany(static bucket => bucket.Categories)
-            .SelectMany(static category => category.Findings)
-            .ToList();
+        => result.Findings.ToList();
 
     private static bool IsCanonicalRiskOrder(IEnumerable<string> values)
     {
@@ -202,15 +218,18 @@ public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestO
         return ordered.SequenceEqual(ordered.OrderBy(GetCategoryOrder).ThenBy(static value => value, StringComparer.Ordinal));
     }
 
-    private static bool IsOccurrenceOrderCanonical(IReadOnlyList<SourceLocation> occurrences)
+    private static bool IsOccurrenceOrderCanonical(IReadOnlyList<CodeSmellOccurrenceFile> occurrenceFiles)
     {
-        var ordered = occurrences
+        var flattened = occurrenceFiles
+            .SelectMany(static file => file.Locations.Select(position => new SourceLocation(file.FilePath, position.Line, position.Column)))
+            .ToArray();
+        var ordered = flattened
             .OrderBy(static occurrence => occurrence.FilePath, StringComparer.Ordinal)
             .ThenBy(static occurrence => occurrence.Line)
             .ThenBy(static occurrence => occurrence.Column)
             .ToArray();
 
-        return occurrences.SequenceEqual(ordered);
+        return flattened.SequenceEqual(ordered);
     }
 
     private static int GetRiskOrder(string riskLevel)

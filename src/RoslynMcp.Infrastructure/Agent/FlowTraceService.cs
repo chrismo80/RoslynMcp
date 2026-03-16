@@ -25,20 +25,20 @@ public sealed class FlowTraceService(INavigationService navigationService, IRosl
         
         var (direction, error) = request.Direction.NormalizeFlowDirection();
         if (error != null)
-            return new TraceFlowResult(null, direction, Math.Max(request.Depth ?? 2, 1), [], [], [], [], error);
+            return new TraceFlowResult(null, null, direction, Math.Max(request.Depth ?? 2, 1), null, [], null, null, null, error);
 
         var depth = Math.Max(request.Depth ?? 2, 1);
 
         var root = await ResolveRootSymbolAsync(request, ct).ConfigureAwait(false);
         if (root.Symbol == null)
-            return new TraceFlowResult(null, direction, depth, [], [], [], [], AgentErrorInfo.Normalize(root.Error, "Call trace_flow with a resolvable symbolId or source position."));
+            return new TraceFlowResult(null, null, direction, depth, null, [], null, null, null, AgentErrorInfo.Normalize(root.Error, "Call trace_flow with a resolvable symbolId or source position."));
 
         IReadOnlyList<CallEdge> edges;
         if (string.Equals(direction, "upstream", StringComparison.Ordinal))
         {
             var callers = await _navigationService.GetCallersAsync(new GetCallersRequest(root.Symbol.SymbolId, depth), ct).ConfigureAwait(false);
             if (callers.Error != null)
-                return new TraceFlowResult(root.Symbol, direction, depth, [], [], [], [], AgentErrorInfo.Normalize(callers.Error, "Retry trace_flow with a resolvable symbol and supported upstream traversal depth."));
+                return CreateErrorResult(root.Symbol, direction, depth, callers.Error, "Retry trace_flow with a resolvable symbol and supported upstream traversal depth.");
 
             edges = callers.Callers;
         }
@@ -46,7 +46,7 @@ public sealed class FlowTraceService(INavigationService navigationService, IRosl
         {
             var callees = await _navigationService.GetCalleesAsync(new GetCalleesRequest(root.Symbol.SymbolId, depth), ct).ConfigureAwait(false);
             if (callees.Error != null)
-                return new TraceFlowResult(root.Symbol, direction, depth, [], [], [], [], AgentErrorInfo.Normalize(callees.Error, "Retry trace_flow with a resolvable symbol and supported downstream traversal depth."));
+                return CreateErrorResult(root.Symbol, direction, depth, callees.Error, "Retry trace_flow with a resolvable symbol and supported downstream traversal depth.");
 
             edges = callees.Callees;
         }
@@ -54,19 +54,20 @@ public sealed class FlowTraceService(INavigationService navigationService, IRosl
         {
             var graph = await _navigationService.GetCallGraphAsync(new GetCallGraphRequest(root.Symbol.SymbolId, "both", depth), ct).ConfigureAwait(false);
             if (graph.Error != null)
-                return new TraceFlowResult(root.Symbol, direction, depth, [], [], [], [], AgentErrorInfo.Normalize(graph.Error, "Retry trace_flow with a resolvable symbol and supported traversal depth."));
+                return CreateErrorResult(root.Symbol, direction, depth, graph.Error, "Retry trace_flow with a resolvable symbol and supported traversal depth.");
 
             edges = graph.Edges;
         }
 
         var filteredEdges = edges.Where(static edge => SourceVisibility.ShouldIncludeInInteractiveTrace(edge.Location.FilePath)).ToArray();
         Dictionary<string, string>? symbolProjects = null;
-        var resultUncertainties = new List<FlowUncertainty>();
+        var rootUncertaintyCategories = new HashSet<string>(StringComparer.Ordinal);
 
         var (solution, _) = await _solutionAccessor.GetCurrentSolutionAsync(ct).ConfigureAwait(false);
         if (solution != null)
         {
-            resultUncertainties.AddRange(await DetectRootBlindspotsAsync(solution, root.Symbol, ct).ConfigureAwait(false));
+            foreach (var category in await DetectRootBlindspotsAsync(solution, root.Symbol, ct).ConfigureAwait(false))
+                rootUncertaintyCategories.Add(category);
 
             var symbolFacts = await ResolveSymbolFactsAsync(solution, filteredEdges, ct).ConfigureAwait(false);
             filteredEdges = filteredEdges.Where(edge => ShouldIncludeEdge(edge, symbolFacts)).ToArray();
@@ -86,7 +87,17 @@ public sealed class FlowTraceService(INavigationService navigationService, IRosl
 
         var possibleTargetEdges = request.IncludePossibleTargets ? BuildPossibleTargetEdges(filteredEdges) : [];
 
-        return new TraceFlowResult(root.Symbol, direction, depth, filteredEdges, possibleTargetEdges, transitions, resultUncertainties);
+        var symbols = BuildSymbolTable(root.Symbol, filteredEdges, possibleTargetEdges);
+        return new TraceFlowResult(
+            root.Symbol.SymbolId,
+            new TraceRootSummary(root.Symbol.Name, root.Symbol.Kind, root.Symbol.ContainingType ?? NormalizeOwner(root.Symbol.ContainingNamespace), root.Symbol.DeclarationLocation),
+            direction,
+            depth,
+            symbols,
+            filteredEdges.Select(ToTraceFlowEdge).ToArray(),
+            request.IncludePossibleTargets && possibleTargetEdges.Count > 0 ? possibleTargetEdges.Select(ToTraceFlowEdge).ToArray() : null,
+            transitions.Length == 0 ? null : transitions,
+            rootUncertaintyCategories.Count == 0 ? null : rootUncertaintyCategories.OrderBy(static category => category, StringComparer.Ordinal).ToArray());
     }
 
     private static IReadOnlyList<CallEdge> BuildPossibleTargetEdges(IReadOnlyList<CallEdge> edges)
@@ -188,33 +199,24 @@ public sealed class FlowTraceService(INavigationService navigationService, IRosl
         return enriched;
     }
 
-    private static async Task<IReadOnlyList<FlowUncertainty>> DetectRootBlindspotsAsync(Solution solution, SymbolDescriptor root, CancellationToken ct)
+    private static async Task<IReadOnlyList<string>> DetectRootBlindspotsAsync(Solution solution, SymbolDescriptor root, CancellationToken ct)
     {
         var symbol = await ResolveSymbolAsync(solution, root.SymbolId, cache: null, ct).ConfigureAwait(false);
         if (symbol == null)
         {
-            return Array.Empty<FlowUncertainty>();
+            return Array.Empty<string>();
         }
 
-        var uncertainties = new List<FlowUncertainty>();
-        var declarationReference = symbol.ToSymbolReference();
+        var uncertainties = new List<string>();
 
         if (await UsesReflectionAsync(symbol, solution, ct).ConfigureAwait(false))
         {
-            uncertainties.Add(new FlowUncertainty(
-                FlowUncertaintyCategories.ReflectionBlindspot,
-                "Reflection-based target selection may hide downstream runtime targets from static flow analysis.",
-                declarationReference.DeclarationLocation,
-                declarationReference));
+            uncertainties.Add(FlowUncertaintyCategories.ReflectionBlindspot);
         }
 
         if (await UsesDynamicAsync(symbol, solution, ct).ConfigureAwait(false))
         {
-            uncertainties.Add(new FlowUncertainty(
-                FlowUncertaintyCategories.DynamicUnresolved,
-                "Dynamic binding may hide runtime call targets from static flow analysis.",
-                declarationReference.DeclarationLocation,
-                declarationReference));
+            uncertainties.Add(FlowUncertaintyCategories.DynamicUnresolved);
         }
 
         return uncertainties;
@@ -469,4 +471,67 @@ public sealed class FlowTraceService(INavigationService navigationService, IRosl
     }
 
     private sealed record SymbolFlowFacts(string ProjectName, string? DeclarationPath);
+
+    private static TraceFlowResult CreateErrorResult(SymbolDescriptor root, string direction, int depth, ErrorInfo? error, string nextAction)
+        => new(root.SymbolId,
+            new TraceRootSummary(root.Name, root.Kind, root.ContainingType ?? NormalizeOwner(root.ContainingNamespace), root.DeclarationLocation),
+            direction,
+            depth,
+            null,
+            [],
+            null,
+            null,
+            null,
+            AgentErrorInfo.Normalize(error, nextAction));
+
+    private static IReadOnlyDictionary<string, TraceSymbolEntry> BuildSymbolTable(SymbolDescriptor root, IReadOnlyList<CallEdge> edges, IReadOnlyList<CallEdge> possibleTargetEdges)
+    {
+        var symbols = new Dictionary<string, TraceSymbolEntry>(StringComparer.Ordinal)
+        {
+            [root.SymbolId] = new TraceSymbolEntry(BuildRootDisplay(root), root.DeclarationLocation)
+        };
+
+        foreach (var edge in edges.Concat(possibleTargetEdges))
+        {
+            AddSymbol(symbols, edge.FromSymbolId, edge.FromReference);
+            AddSymbol(symbols, edge.ToSymbolId, edge.ToReference);
+        }
+
+        return symbols;
+    }
+
+    private static void AddSymbol(IDictionary<string, TraceSymbolEntry> symbols, string symbolId, SymbolReference? reference)
+    {
+        if (symbols.ContainsKey(symbolId))
+            return;
+
+        var display = reference?.QualifiedDisplayName;
+        if (string.IsNullOrWhiteSpace(display))
+            return;
+
+        symbols[symbolId] = new TraceSymbolEntry(display, reference?.DeclarationLocation);
+    }
+
+    private static TraceFlowEdge ToTraceFlowEdge(CallEdge edge)
+        => new(
+            edge.FromSymbolId,
+            edge.ToSymbolId,
+            edge.Location,
+            edge.EvidenceKind,
+            edge.Uncertainties is { Count: > 0 }
+                ? edge.Uncertainties.Select(static uncertainty => uncertainty.Category).Distinct(StringComparer.Ordinal).OrderBy(static category => category, StringComparer.Ordinal).ToArray()
+                : null,
+            edge.Uncertainties is { Count: > 0 }
+                ? edge.Uncertainties.Where(static uncertainty => uncertainty.RelatedSymbol != null).Select(static uncertainty => uncertainty.RelatedSymbol!.SymbolId).Distinct(StringComparer.Ordinal).ToArray()
+                : null);
+
+    private static string BuildRootDisplay(SymbolDescriptor root)
+        => string.IsNullOrWhiteSpace(root.ContainingType)
+            ? root.Name
+            : $"{root.ContainingType}.{root.Name}";
+
+    private static string? NormalizeOwner(string? owner)
+        => string.IsNullOrWhiteSpace(owner) || string.Equals(owner, "<global namespace>", StringComparison.Ordinal)
+            ? null
+            : owner;
 }

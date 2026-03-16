@@ -96,7 +96,7 @@ internal sealed class CodeUnderstandingQueryService(
 
             var symbol = await symbolLookupService.ResolveSymbolAsync(metric.SymbolId, solution, ct).ConfigureAwait(false);
             var displayName = symbol?.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat) ?? metric.SymbolId;
-            var (filePath, startLine, _, endLine, _) = symbol.GetSourceSpan();
+            var (filePath, startLine, startColumn, _, _) = symbol.GetSourceSpan();
             if (!SourceVisibility.ShouldIncludeInHumanResults(filePath))
             {
                 continue;
@@ -109,15 +109,11 @@ internal sealed class CodeUnderstandingQueryService(
             }
 
             hotspots.Add(new HotspotSummary(
-                Label: displayName,
-                Path: filePath,
+                Display: displayName,
                 Reason: reason,
                 Score: score,
                 SymbolId: metric.SymbolId,
-                DisplayName: displayName,
-                FilePath: filePath,
-                StartLine: startLine,
-                EndLine: endLine,
+                Location: CreateOptionalSourceLocation(filePath, startLine, startColumn),
                 Complexity: complexity,
                 LineCount: lineCount));
         }
@@ -155,6 +151,11 @@ internal sealed class CodeUnderstandingQueryService(
                 "Provide symbolId or path/line/column.",
                 "Call explain_symbol with a symbolId or source position."));
     }
+
+    private static SourceLocation? CreateOptionalSourceLocation(string filePath, int? line, int? column)
+        => string.IsNullOrWhiteSpace(filePath) || !line.HasValue || !column.HasValue
+            ? null
+            : new SourceLocation(filePath, line.Value, column.Value);
 
     public async Task<(INamedTypeSymbol? Symbol, ErrorInfo? Error)> ResolveTypeSymbolAsync(
         ListMembersRequest request,

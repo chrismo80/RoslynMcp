@@ -52,13 +52,18 @@ public static partial class AssertionsExtensions
         symbol.IsNotNull();
         symbol!.DisplayName.Is(expectedDisplayName);
         symbol.Kind.Is(expectedKind);
-        symbol.FilePath.ShouldEndWithPathSuffix(expectedFileName);
+        symbol.Location.IsNotNull();
+        symbol.Location!.FilePath.ShouldEndWithPathSuffix(expectedFileName);
         symbol.SymbolId.ShouldBeExternalSymbolId();
     }
 
-    internal static void ShouldMatchReferences(this IReadOnlyList<SourceLocation> references, params (string FileName, int Line)[] expected)
+    internal static void ShouldMatchReferences(this IReadOnlyList<ReferenceFileGroup> referenceFiles, params (string FileName, int Line)[] expected)
     {
-        references.Count.Is(expected.Length);
+        var references = referenceFiles
+            .SelectMany(static file => file.References.Select(position => new SourceLocation(file.FilePath, position.Line, position.Column)))
+            .ToArray();
+
+        references.Length.Is(expected.Length);
 
         for (var i = 0; i < expected.Length; i++)
         {
@@ -66,6 +71,12 @@ public static partial class AssertionsExtensions
             references[i].Line.Is(expected[i].Line);
         }
     }
+
+    internal static string FilePathOrEmpty(this SourceLocation? location)
+        => location?.FilePath ?? string.Empty;
+
+    internal static int? LineOrNull(this SourceLocation? location)
+        => location?.Line;
 
     private static string NormalizePathSeparators(string path)
     {

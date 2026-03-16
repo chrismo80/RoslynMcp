@@ -101,6 +101,7 @@ internal sealed class ResolveSymbolHandler(CodeUnderstandingQueryService queries
 
         if (candidates.Length > 1)
         {
+            candidates = QualifyCandidatesForDisambiguation(candidates);
             return new ResolveSymbolResult(
                 null,
                 true,
@@ -116,8 +117,13 @@ internal sealed class ResolveSymbolHandler(CodeUnderstandingQueryService queries
 
         var selected = candidates[0];
         return new ResolveSymbolResult(
-            new ResolvedSymbolSummary(selected.SymbolId, selected.DisplayName, selected.Kind, selected.FilePath, selected.Line, selected.Column, selected.QualifiedDisplayName, selected.Reference),
+            new ResolvedSymbolSummary(selected.SymbolId, selected.DisplayName, selected.Kind, selected.Location),
             false, []);
 
     }
+
+    private static ResolveSymbolCandidate[] QualifyCandidatesForDisambiguation(IReadOnlyList<ResolveSymbolCandidate> candidates)
+        => candidates
+            .Select(candidate => candidate with { QualifiedDisplayName = candidate.QualifiedDisplayName ?? candidate.DisplayName })
+            .ToArray();
 }

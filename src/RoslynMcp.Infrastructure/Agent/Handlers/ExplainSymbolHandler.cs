@@ -42,8 +42,15 @@ internal sealed class ExplainSymbolHandler(
         var references = await navigationService.FindReferencesAsync(new FindReferencesRequest(symbolResult.Symbol.SymbolId), ct).ConfigureAwait(false);
 
         var keyReferences = references.References
-            .Take(5)
-            .Select(static r => $"{r.FilePath}:{r.Line}:{r.Column}")
+            .GroupBy(static reference => reference.FilePath, StringComparer.Ordinal)
+            .OrderByDescending(static group => group.Count())
+            .ThenBy(static group => group.Key, StringComparer.Ordinal)
+            .Take(3)
+            .Select(group => new ReferenceFileGroup(
+                group.Key,
+                group.Take(3)
+                    .Select(static reference => new ReferencePosition(reference.Line, reference.Column))
+                    .ToArray()))
             .ToArray();
 
         var impactHints = references.References
@@ -59,10 +66,10 @@ internal sealed class ExplainSymbolHandler(
         var documentation = symbol is null ? null : MapDocumentation(symbolDocumentationProvider.GetDocumentation(symbol));
 
         return new ExplainSymbolResult(
-            symbolResult.Symbol,
+            ToCompactSummary(symbolResult.Symbol),
             roleSummary,
             signature.Signature,
-            keyReferences,
+            keyReferences.Length == 0 ? null : keyReferences,
             impactHints,
             documentation,
             AgentErrorInfo.Normalize(signature.Error ?? outline.Error ?? references.Error,
@@ -123,6 +130,14 @@ internal sealed class ExplainSymbolHandler(
 
         return new SymbolDocumentationInfo(documentation.Summary, documentation.Returns, parameters);
     }
+
+    private static CompactSymbolSummary ToCompactSummary(SymbolDescriptor symbol)
+        => new(
+            symbol.SymbolId,
+            symbol.Name,
+            symbol.Kind,
+            symbol.DeclarationLocation,
+            symbol.ContainingType ?? NormalizeNamespaceValue(symbol.ContainingNamespace));
 
     private static string BuildTypeSummary(INamedTypeSymbol symbol, GetSymbolOutlineResult outline, FindReferencesResult references)
     {
@@ -216,4 +231,9 @@ internal sealed class ExplainSymbolHandler(
 
     private static string NormalizeNamespace(INamespaceSymbol? symbol)
         => symbol?.IsGlobalNamespace != false ? "the global namespace" : symbol.ToDisplayString();
+
+    private static string? NormalizeNamespaceValue(string? value)
+        => string.IsNullOrWhiteSpace(value) || string.Equals(value, "<global namespace>", StringComparison.Ordinal)
+            ? null
+            : value;
 }

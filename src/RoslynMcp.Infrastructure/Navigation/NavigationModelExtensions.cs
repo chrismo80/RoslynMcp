@@ -10,16 +10,34 @@ internal static class NavigationModelExtensions
     {
         var location = symbol.Locations.FirstOrDefault(static l => l.IsInSource);
         var sourceLocation = location != null ? location.ToSourceLocation() : new SourceLocation(string.Empty, 1, 1);
-        var reference = symbol.ToSymbolReference();
         return new SymbolDescriptor(
-            reference.SymbolId,
+            symbol.CreateId().ToExternal(),
             symbol.Name,
             symbol.Kind.ToString(),
             symbol.ContainingType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
             symbol.ContainingNamespace?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-            sourceLocation,
-            reference);
+            sourceLocation);
     }
+
+    public static CompactSymbolSummary ToCompactSymbolSummary(this ISymbol symbol)
+    {
+        var (filePath, line, column) = symbol.GetDeclarationPosition();
+        return new CompactSymbolSummary(
+            symbol.CreateId().ToExternal(),
+            symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+            symbol.Kind.ToString(),
+            CreateOptionalSourceLocation(filePath, line, column),
+            symbol.ContainingType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+            ?? NormalizeOptional(symbol.ContainingNamespace.NormalizeNamespace()));
+    }
+
+    private static SourceLocation? CreateOptionalSourceLocation(string filePath, int? line, int? column)
+        => string.IsNullOrWhiteSpace(filePath) || !line.HasValue || !column.HasValue
+            ? null
+            : new SourceLocation(filePath, line.Value, column.Value);
+
+    private static string? NormalizeOptional(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     public static SourceLocation ToSourceLocation(this Location location)
     {

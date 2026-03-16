@@ -33,8 +33,7 @@ public sealed class ResolveSymbolsToolTests(SharedSandboxFixture fixture, ITestO
         result.Results[0].Label.Is("type");
         result.Results[0].Symbol.IsNotNull();
         var firstSymbol = result.Results[0].Symbol!;
-        firstSymbol.Reference.IsNotNull();
-        firstSymbol.Reference!.Handle.Is("type:ProjectApp.AppOrchestrator");
+        firstSymbol.QualifiedDisplayName.IsNull();
 
         result.Results[1].Index.Is(1);
         result.Results[1].Label.Is("method");
@@ -44,7 +43,7 @@ public sealed class ResolveSymbolsToolTests(SharedSandboxFixture fixture, ITestO
         result.Results[2].Index.Is(2);
         result.Results[2].Label.Is("generic");
         result.Results[2].Symbol.IsNotNull();
-        result.Results[2].Symbol!.QualifiedDisplayName.Is("ProjectCore.OperationBase<TInput>");
+        result.Results[2].Symbol!.QualifiedDisplayName.IsNull();
     }
 
     [Fact]
@@ -69,7 +68,7 @@ public sealed class ResolveSymbolsToolTests(SharedSandboxFixture fixture, ITestO
         ambiguous.IsAmbiguous.IsTrue();
         ambiguous.Error.ShouldHaveCode(ErrorCodes.AmbiguousSymbol);
         ambiguous.Candidates.Count.Is(3);
-        ambiguous.Candidates.All(static candidate => candidate.Reference is not null).IsTrue();
+        ambiguous.Candidates.All(static candidate => candidate.QualifiedDisplayName is not null).IsTrue();
 
         var missing = result.Results[1];
         missing.Label.Is("missing");

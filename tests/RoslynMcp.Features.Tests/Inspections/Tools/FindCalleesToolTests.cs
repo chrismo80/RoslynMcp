@@ -24,12 +24,12 @@ public sealed class FindCalleesToolTests(SharedSandboxFixture fixture, ITestOutp
         var result = await Sut.ExecuteAsync(CancellationToken.None, symbolId: runAsync.SymbolId);
 
         result.Error.ShouldBeNone();
-        result.RootSymbol.IsNotNull();
-        result.RootSymbol!.Name.Is("RunAsync");
+        result.Root.IsNotNull();
+        result.Root!.Name.Is("RunAsync");
         result.Direction.Is("downstream");
         result.Depth.Is(1);
         result.Edges.Count.Is(5);
-        result.Edges.All(candidate => candidate.FromSymbolId == runAsync.SymbolId).IsTrue();
+        result.Edges.All(candidate => candidate.From == runAsync.SymbolId).IsTrue();
 
         result.Edges.AssertEdge(runAsync.SymbolId, startAsync.SymbolId, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 20);
         result.Edges.AssertEdge(runAsync.SymbolId, executeFlowAsync.SymbolId, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 23);
@@ -37,17 +37,11 @@ public sealed class FindCalleesToolTests(SharedSandboxFixture fixture, ITestOutp
         result.Edges.AssertEdge(runAsync.SymbolId, stop.SymbolId, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 27);
 
         var directEdge = result.Edges.GetEdge(runAsync.SymbolId, startAsync.SymbolId, Path.Combine("ProjectApp", "AppOrchestrator.cs"), 20);
-        directEdge.EvidenceKind.Is(FlowEvidenceKinds.DirectStatic);
-        directEdge.Uncertainties.IsNotNull();
-        var uncertainties = directEdge.Uncertainties!;
-        uncertainties.IsEmpty();
-        directEdge.PossibleTargets.IsNotNull();
-        var possibleTargets = directEdge.PossibleTargets!;
-        possibleTargets.IsEmpty();
-        directEdge.FromReference.IsNotNull();
-        directEdge.ToReference.IsNotNull();
+        directEdge.Kind.Is(FlowEvidenceKinds.DirectStatic);
+        directEdge.UncertaintyCategories.IsNull();
+        result.PossibleTargetEdges.IsNull();
 
-        result.Edges.Any(candidate => candidate.ToSymbolId == changeState.SymbolId).IsFalse();
+        result.Edges.Any(candidate => candidate.To == changeState.SymbolId).IsFalse();
     }
 
     [Fact]
@@ -56,7 +50,7 @@ public sealed class FindCalleesToolTests(SharedSandboxFixture fixture, ITestOutp
         var result = await Sut.ExecuteAsync(CancellationToken.None);
 
         result.Error.ShouldHaveCode(ErrorCodes.InvalidInput);
-        result.RootSymbol.IsNull();
+        result.Root.IsNull();
         result.Edges.IsEmpty();
     }
 
@@ -85,22 +79,22 @@ public sealed class FindCalleesToolTests(SharedSandboxFixture fixture, ITestOutp
 
 file static class AssertionExtensions
 {
-    extension(IReadOnlyList<CallEdge> edges)
+    extension(IReadOnlyList<TraceFlowEdge> edges)
     {
         internal void AssertEdge(string fromSymbolId, string toSymbolId, string expectedFileSuffix, int expectedLine)
         {
             edges.Any(edge =>
-                edge.FromSymbolId == fromSymbolId &&
-                edge.ToSymbolId == toSymbolId &&
-                edge.Location.FilePath.HasPathSuffix(expectedFileSuffix) &&
-                edge.Location.Line == expectedLine).IsTrue();
+                edge.From == fromSymbolId &&
+                edge.To == toSymbolId &&
+                edge.Site.FilePath.HasPathSuffix(expectedFileSuffix) &&
+                edge.Site.Line == expectedLine).IsTrue();
         }
 
-        internal CallEdge GetEdge(string fromSymbolId, string toSymbolId, string expectedFileSuffix, int expectedLine)
+        internal TraceFlowEdge GetEdge(string fromSymbolId, string toSymbolId, string expectedFileSuffix, int expectedLine)
             => edges.Single(edge =>
-                edge.FromSymbolId == fromSymbolId &&
-                edge.ToSymbolId == toSymbolId &&
-                edge.Location.FilePath.HasPathSuffix(expectedFileSuffix) &&
-                edge.Location.Line == expectedLine);
+                edge.From == fromSymbolId &&
+                edge.To == toSymbolId &&
+                edge.Site.FilePath.HasPathSuffix(expectedFileSuffix) &&
+                edge.Site.Line == expectedLine);
     }
 }

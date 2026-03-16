@@ -17,7 +17,7 @@ public sealed class ExplainSymbolToolTests(SharedSandboxFixture fixture, ITestOu
 
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
-        result.Symbol!.Name.Is("MixedReferences");
+        result.Symbol!.Display.Is("MixedReferences");
         result.Documentation.IsNotNull();
         result.Documentation!.Summary.Is("Method with both x and System.String references.");
         result.Documentation.Returns.Is("The string representation.");
@@ -34,7 +34,7 @@ public sealed class ExplainSymbolToolTests(SharedSandboxFixture fixture, ITestOu
 
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
-        result.Symbol!.Name.Is("NoDocumentation");
+        result.Symbol!.Display.Is("NoDocumentation");
         result.Documentation.IsNull();
     }
 
@@ -45,7 +45,7 @@ public sealed class ExplainSymbolToolTests(SharedSandboxFixture fixture, ITestOu
 
         result.Error.ShouldBeNone();
         result.Symbol.IsNotNull();
-        result.Symbol!.Name.Is("AppOrchestrator");
+        result.Symbol!.Display.Is("AppOrchestrator");
 
         result.RoleSummary.ShouldNotBeEmpty();
         result.RoleSummary.Contains("Key collaborators:", StringComparison.Ordinal).IsTrue();

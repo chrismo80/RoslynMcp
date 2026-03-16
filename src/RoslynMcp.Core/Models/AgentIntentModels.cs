@@ -62,7 +62,7 @@ public sealed record ModuleSummary(string Name, string? Path, int OutgoingDepend
 
 public sealed record ProjectDependency(string ProjectName, string ProjectId);
 
-public sealed record ProjectDependencyEdge(ProjectDependency Source, ProjectDependency Target);
+public sealed record ProjectDependencyEdge(string FromProjectId, string ToProjectId);
 
 public sealed record ListDependenciesRequest(
     string? ProjectPath = null,
@@ -77,15 +77,11 @@ public sealed record ListDependenciesResult(
     IReadOnlyList<ProjectDependencyEdge>? Edges = null);
 
 public sealed record HotspotSummary(
-    string Label,
-    string Path,
+    string Display,
     string Reason,
     int Score,
     string SymbolId,
-    string DisplayName,
-    string FilePath,
-    int? StartLine,
-    int? EndLine,
+    SourceLocation? Location,
     int Complexity,
     int LineCount);
 
@@ -104,14 +100,11 @@ public sealed record ListTypesRequest(
 public sealed record TypeListEntry(
     string DisplayName,
     string SymbolId,
-    string FilePath,
-    int? Line,
-    int? Column,
+    SourceLocation? Location,
     string Kind,
     bool IsPartial,
     int? Arity,
     string? Summary = null,
-    SymbolReference? Reference = null,
     IReadOnlyList<string>? Members = null);
 
 public sealed record ListTypesResult(
@@ -137,12 +130,9 @@ public sealed record MemberListEntry(
     string SymbolId,
     string Kind,
     string Signature,
-    string FilePath,
-    int? Line,
-    int? Column,
+    SourceLocation? Location,
     string Accessibility,
-    bool IsStatic,
-    SymbolReference? Reference = null);
+    bool IsStatic);
 
 public sealed record ListMembersResult(
     IReadOnlyList<MemberListEntry> Members,
@@ -175,22 +165,16 @@ public sealed record ResolvedSymbolSummary(
     string SymbolId,
     string DisplayName,
     string Kind,
-    string FilePath,
-    int? Line,
-    int? Column,
-    string? QualifiedDisplayName = null,
-    SymbolReference? Reference = null);
+    SourceLocation? Location,
+    string? QualifiedDisplayName = null);
 
 public sealed record ResolveSymbolCandidate(
     string SymbolId,
     string DisplayName,
     string Kind,
-    string FilePath,
-    int? Line,
-    int? Column,
+    SourceLocation? Location,
     string ProjectName,
-    string? QualifiedDisplayName = null,
-    SymbolReference? Reference = null);
+    string? QualifiedDisplayName = null);
 
 public sealed record ResolveSymbolResult(
     ResolvedSymbolSummary? Symbol,
@@ -236,10 +220,10 @@ public sealed record SymbolDocumentationInfo(
     IReadOnlyList<SymbolDocumentationParameter>? Parameters = null);
 
 public sealed record ExplainSymbolResult(
-    SymbolDescriptor? Symbol,
+    CompactSymbolSummary? Symbol,
     string RoleSummary,
     string Signature,
-    IReadOnlyList<string> KeyReferences,
+    IReadOnlyList<ReferenceFileGroup>? KeyReferences,
     IReadOnlyList<ImpactHint> ImpactHints,
     SymbolDocumentationInfo? Documentation = null,
     ErrorInfo? Error = null);
@@ -266,6 +250,24 @@ public static class FlowUncertaintyCategories
     public const string ProjectInferenceDegraded = "project_inference_degraded";
 }
 
+public sealed record TraceRootSummary(
+    string Name,
+    string Kind,
+    string? Owner,
+    SourceLocation? Location);
+
+public sealed record TraceSymbolEntry(
+    string Display,
+    SourceLocation? Location);
+
+public sealed record TraceFlowEdge(
+    string From,
+    string To,
+    SourceLocation Site,
+    string Kind,
+    IReadOnlyList<string>? UncertaintyCategories = null,
+    IReadOnlyList<string>? RelatedSymbolIds = null);
+
 public sealed record FlowUncertainty(
     string Category,
     string Message,
@@ -282,13 +284,15 @@ public sealed record TraceFlowRequest(
     bool IncludePossibleTargets = false);
 
 public sealed record TraceFlowResult(
-    SymbolDescriptor? RootSymbol,
+    string? RootSymbolId,
+    TraceRootSummary? Root,
     string Direction,
     int Depth,
-    IReadOnlyList<CallEdge> Edges,
-    IReadOnlyList<CallEdge>? PossibleTargetEdges,
-    IReadOnlyList<FlowTransition> Transitions,
-    IReadOnlyList<FlowUncertainty>? Uncertainties = null,
+    IReadOnlyDictionary<string, TraceSymbolEntry>? Symbols,
+    IReadOnlyList<TraceFlowEdge> Edges,
+    IReadOnlyList<TraceFlowEdge>? PossibleTargetEdges = null,
+    IReadOnlyList<FlowTransition>? Transitions = null,
+    IReadOnlyList<string>? RootUncertaintyCategories = null,
     ErrorInfo? Error = null);
 
 public sealed record FindCodeSmellsRequest(
@@ -313,35 +317,24 @@ public static class CodeSmellReviewKinds
 
 public sealed record CodeSmellsSummary(
     int TotalFindings,
-    int TotalOccurrences,
-    int RiskBucketCount,
-    int CategoryBucketCount);
+    int TotalOccurrences);
 
-public sealed record CodeSmellRiskBucket(
-    string RiskLevel,
-    int FindingCount,
-    int OccurrenceCount,
-    IReadOnlyList<CodeSmellCategoryBucket> Categories);
-
-public sealed record CodeSmellCategoryBucket(
-    string Category,
-    int FindingCount,
-    int OccurrenceCount,
-    IReadOnlyList<CodeSmellFindingEntry> Findings);
+public sealed record CodeSmellOccurrenceFile(
+    string FilePath,
+    IReadOnlyList<ReferencePosition> Locations);
 
 public sealed record CodeSmellFindingEntry(
     string FindingKey,
     string Title,
-    string Origin,
     string RiskLevel,
     string Category,
     string ReviewKind,
     int OccurrenceCount,
-    IReadOnlyList<SourceLocation> Occurrences);
+    IReadOnlyList<CodeSmellOccurrenceFile> OccurrenceFiles);
 
 public sealed record FindCodeSmellsResult(
     CodeSmellsSummary Summary,
-    IReadOnlyList<CodeSmellRiskBucket> RiskBuckets,
-    IReadOnlyList<string> Warnings,
+    IReadOnlyList<CodeSmellFindingEntry> Findings,
+    IReadOnlyList<string>? Warnings,
     ResultContextMetadata Context,
     ErrorInfo? Error = null);

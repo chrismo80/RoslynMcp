@@ -22,29 +22,23 @@ public sealed class FindCallersToolTests(SharedSandboxFixture fixture, ITestOutp
         var result = await Sut.ExecuteAsync(CancellationToken.None, symbolId: executeFlowAsync.SymbolId);
 
         result.Error.ShouldBeNone();
-        result.RootSymbol.IsNotNull();
-        result.RootSymbol!.Name.Is("ExecuteFlowAsync");
+        result.Root.IsNotNull();
+        result.Root!.Name.Is("ExecuteFlowAsync");
         result.Direction.Is("upstream");
         result.Depth.Is(1);
         result.Edges.Count.Is(1);
 
         var edge = result.Edges[0];
-        edge.FromSymbolId.Is(runAsync.SymbolId);
-        edge.ToSymbolId.Is(executeFlowAsync.SymbolId);
-        edge.Location.FilePath.ShouldEndWithPathSuffix(Path.Combine("ProjectApp", "AppOrchestrator.cs"));
-        edge.Location.Line.Is(23);
-        edge.EvidenceKind.Is(FlowEvidenceKinds.DirectStatic);
-        edge.Uncertainties.IsNotNull();
-        var uncertainties = edge.Uncertainties!;
-        uncertainties.IsEmpty();
-        edge.PossibleTargets.IsNotNull();
-        var possibleTargets = edge.PossibleTargets!;
-        possibleTargets.IsEmpty();
-        edge.FromReference.IsNotNull();
-        edge.ToReference.IsNotNull();
+        edge.From.Is(runAsync.SymbolId);
+        edge.To.Is(executeFlowAsync.SymbolId);
+        edge.Site.FilePath.ShouldEndWithPathSuffix(Path.Combine("ProjectApp", "AppOrchestrator.cs"));
+        edge.Site.Line.Is(23);
+        edge.Kind.Is(FlowEvidenceKinds.DirectStatic);
+        edge.UncertaintyCategories.IsNull();
+        result.PossibleTargetEdges.IsNull();
 
-        result.Edges.Any(candidate => candidate.FromSymbolId == runFastAsync.SymbolId).IsFalse();
-        result.Edges.Any(candidate => candidate.FromSymbolId == runSafeAsync.SymbolId).IsFalse();
+        result.Edges.Any(candidate => candidate.From == runFastAsync.SymbolId).IsFalse();
+        result.Edges.Any(candidate => candidate.From == runSafeAsync.SymbolId).IsFalse();
     }
 
     [Fact]
@@ -53,7 +47,7 @@ public sealed class FindCallersToolTests(SharedSandboxFixture fixture, ITestOutp
         var result = await Sut.ExecuteAsync(CancellationToken.None);
 
         result.Error.ShouldHaveCode(ErrorCodes.InvalidInput);
-        result.RootSymbol.IsNull();
+        result.Root.IsNull();
         result.Edges.IsEmpty();
     }
 

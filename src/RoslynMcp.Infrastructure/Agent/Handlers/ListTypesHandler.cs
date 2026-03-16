@@ -111,18 +111,14 @@ internal sealed class ListTypesHandler(
                     continue;
 
                 var (filePath, line, column) = type.GetDeclarationPosition();
-                var reference = type.ToSymbolReference();
                 var entry = new TypeListEntry(
                     type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
-                    reference.SymbolId,
-                    filePath,
-                    line,
-                    column,
+                    type.CreateId().ToExternal(),
+                    CreateOptionalSourceLocation(filePath, line, column),
                     kind,
                     type.IsPartial(),
                     type.Arity > 0 ? type.Arity : null,
-                    null,
-                    reference);
+                    null);
                 var candidate = new TypeDiscoveryEntry(entry, type);
 
                 if (!SourceVisibility.ShouldIncludeInHumanResults(filePath))
@@ -160,7 +156,7 @@ internal sealed class ListTypesHandler(
 
         var selectedVisibility = SourceVisibility.AssessPaths(selectedProjectDocumentPaths);
         var returnedSourceBias = ordered.Length > 0
-            ? SourceVisibility.DetermineResultSourceBias(ordered.Select(static entry => entry.Entry.FilePath))
+            ? SourceVisibility.DetermineResultSourceBias(ordered.Select(static entry => entry.Entry.Location?.FilePath ?? string.Empty))
             : selectedVisibility.Visibility;
 
         if (ordered.Length == 0 && degradedReasons.Contains("missing_artifacts"))
@@ -253,4 +249,9 @@ internal sealed class ListTypesHandler(
     }
 
     private sealed record TypeDiscoveryEntry(TypeListEntry Entry, INamedTypeSymbol Symbol);
+
+    private static SourceLocation? CreateOptionalSourceLocation(string filePath, int? line, int? column)
+        => string.IsNullOrWhiteSpace(filePath) || !line.HasValue || !column.HasValue
+            ? null
+            : new SourceLocation(filePath, line.Value, column.Value);
 }

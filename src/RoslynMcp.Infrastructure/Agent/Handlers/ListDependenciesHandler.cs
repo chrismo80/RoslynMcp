@@ -121,10 +121,8 @@ internal sealed class ListDependenciesHandler(CodeUnderstandingQueryService quer
         }
 
         var orderedEdges = edgeByKey.Values
-            .OrderBy(static edge => edge.Source.ProjectName, StringComparer.Ordinal)
-            .ThenBy(static edge => edge.Source.ProjectId, StringComparer.Ordinal)
-            .ThenBy(static edge => edge.Target.ProjectName, StringComparer.Ordinal)
-            .ThenBy(static edge => edge.Target.ProjectId, StringComparer.Ordinal)
+            .OrderBy(static edge => edge.FromProjectId, StringComparer.Ordinal)
+            .ThenBy(static edge => edge.ToProjectId, StringComparer.Ordinal)
             .ToArray();
 
         var dependencies = dependencyById.Values
@@ -145,7 +143,7 @@ internal sealed class ListDependenciesHandler(CodeUnderstandingQueryService quer
         var sourceDependency = ToProjectDependency(source);
         var targetDependency = ToProjectDependency(target);
         var edgeKey = $"{sourceDependency.ProjectId}->{targetDependency.ProjectId}";
-        edgeByKey[edgeKey] = new ProjectDependencyEdge(sourceDependency, targetDependency);
+        edgeByKey[edgeKey] = new ProjectDependencyEdge(sourceDependency.ProjectId, targetDependency.ProjectId);
 
         var counterpartDependency = ToProjectDependency(counterpart);
         dependencyById[counterpartDependency.ProjectId] = counterpartDependency;

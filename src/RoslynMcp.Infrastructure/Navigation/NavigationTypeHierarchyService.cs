@@ -55,9 +55,9 @@ internal sealed class NavigationTypeHierarchyService(
             if (typeSymbol == null)
             {
                 return new GetTypeHierarchyResult(null,
-                    Array.Empty<SymbolDescriptor>(),
-                    Array.Empty<SymbolDescriptor>(),
-                    Array.Empty<SymbolDescriptor>(),
+                    Array.Empty<CompactSymbolSummary>(),
+                    Array.Empty<CompactSymbolSummary>(),
+                    Array.Empty<CompactSymbolSummary>(),
                     NavigationErrorFactory.CreateError(ErrorCodes.InvalidRequest,
                         "symbolId must resolve to a type or a member declared on a type.",
                         ("parameter", "symbolId"),
@@ -73,10 +73,10 @@ internal sealed class NavigationTypeHierarchyService(
                 .ConfigureAwait(false);
 
             return new GetTypeHierarchyResult(
-                typeSymbol.ToSymbolDescriptor(),
-                baseTypes,
-                interfaces,
-                derived);
+                typeSymbol.ToCompactSymbolSummary(),
+                baseTypes.Select(MapCompactSummary).ToArray(),
+                interfaces.Select(MapCompactSummary).ToArray(),
+                derived.Select(MapCompactSummary).ToArray());
         }
         catch (OperationCanceledException)
         {
@@ -86,15 +86,23 @@ internal sealed class NavigationTypeHierarchyService(
         {
             _logger.LogError(ex, "GetTypeHierarchy failed for {SymbolId}", request.SymbolId);
             return new GetTypeHierarchyResult(null,
-                Array.Empty<SymbolDescriptor>(),
-                Array.Empty<SymbolDescriptor>(),
-                Array.Empty<SymbolDescriptor>(),
+                Array.Empty<CompactSymbolSummary>(),
+                Array.Empty<CompactSymbolSummary>(),
+                Array.Empty<CompactSymbolSummary>(),
                 NavigationErrorFactory.CreateError(ErrorCodes.InternalError,
                     $"Failed to compute type hierarchy '{request.SymbolId}': {ex.Message}",
                     ("symbolId", request.SymbolId),
                     ("operation", "get-type-hierarchy")));
         }
     }
+
+    private static CompactSymbolSummary MapCompactSummary(SymbolDescriptor symbol)
+        => new(
+            symbol.SymbolId,
+            symbol.Name,
+            symbol.Kind,
+            symbol.DeclarationLocation,
+            symbol.ContainingType ?? symbol.ContainingNamespace);
 
     public async Task<GetSymbolOutlineResult> GetSymbolOutlineAsync(GetSymbolOutlineRequest request, CancellationToken ct)
     {

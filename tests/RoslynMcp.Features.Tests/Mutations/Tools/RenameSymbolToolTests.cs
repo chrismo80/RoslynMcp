@@ -43,9 +43,9 @@ public sealed class RenameSymbolToolTests(ITestOutputHelper output)
         result.ChangedFiles[1].ShouldEndWithPathSuffix(Path.Combine("ProjectCore", "Contracts.cs"));
         result.ChangedFiles[2].ShouldEndWithPathSuffix(Path.Combine("ProjectImpl", "WorkItemOperations.cs"));
 
-        result.AffectedLocations.ShouldContainAffectedLocation(Path.Combine("ProjectCore", "Contracts.cs"), 31);
-        result.AffectedLocations.ShouldContainAffectedLocation(Path.Combine("ProjectApp", "AppOrchestrator.cs"), 6);
-        result.AffectedLocations.ShouldContainAffectedLocation(Path.Combine("ProjectImpl", "WorkItemOperations.cs"), 15);
+        result.AffectedLocationFiles.ShouldContainAffectedLocation(Path.Combine("ProjectCore", "Contracts.cs"), 31);
+        result.AffectedLocationFiles.ShouldContainAffectedLocation(Path.Combine("ProjectApp", "AppOrchestrator.cs"), 6);
+        result.AffectedLocationFiles.ShouldContainAffectedLocation(Path.Combine("ProjectImpl", "WorkItemOperations.cs"), 15);
 
         var renamed = await resolver.ExecuteAsync(CancellationToken.None,
             qualifiedName: "ProjectCore.IRenamedWorkItemOperation",
@@ -95,7 +95,7 @@ public sealed class RenameSymbolToolTests(ITestOutputHelper output)
         result.Error.ShouldHaveCode(ErrorCodes.SymbolNotFound);
         result.RenamedSymbolId.IsNull();
         result.ChangedDocumentCount.Is(0);
-        result.AffectedLocations.IsEmpty();
+        result.AffectedLocationFiles.IsEmpty();
         result.ChangedFiles.IsEmpty();
     }
 
@@ -117,7 +117,7 @@ public sealed class RenameSymbolToolTests(ITestOutputHelper output)
         result.Error.ShouldHaveCode(ErrorCodes.RenameConflict);
         result.RenamedSymbolId.IsNull();
         result.ChangedDocumentCount.Is(0);
-        result.AffectedLocations.IsEmpty();
+        result.AffectedLocationFiles.IsEmpty();
         result.ChangedFiles.IsEmpty();
 
         var contractsText = await File.ReadAllTextAsync(contractsPath);
@@ -192,11 +192,11 @@ public sealed class RenameSymbolToolTests(ITestOutputHelper output)
 
 file static class AssertionExtensions
 {
-    extension(IReadOnlyList<SourceLocation> locations)
+    extension(IReadOnlyList<AffectedFileLocations> locations)
     {
         internal void ShouldContainAffectedLocation(string expectedFileName, int expectedLine)
         {
-            locations.Any(location => location.FilePath.HasPathSuffix(expectedFileName) && location.Line == expectedLine).IsTrue();
+            locations.Any(location => location.FilePath.HasPathSuffix(expectedFileName) && location.Locations.Any(position => position.Line == expectedLine)).IsTrue();
         }
     }
 }

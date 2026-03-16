@@ -112,39 +112,25 @@ public sealed class ListMembersToolTests(SharedSandboxFixture fixture, ITestOutp
         withInherited.Members.Count(static member => member.DisplayName == "StepCompleted").Is(2);
         withInherited.Members.All(static member => member is { Kind: "event", Accessibility: "public", IsStatic: false }).IsTrue();
         withInherited.Members
-            .Select(static member => $"{member.DisplayName}@{member.Line}")
+            .Select(static member => $"{member.DisplayName}@{member.Location!.Line}")
             .OrderBy(static member => member, StringComparer.Ordinal)
             .ToArray()
             .Is("Logged@39", "StepCompleted@23", "StepCompleted@37");
     }
 
     [Fact]
-    public async Task ListMembersAsync_ExposesReadableReference_ConsistentWithResolveSymbol()
+    public async Task ListMembersAsync_UsesCompactLocationBasedEntries()
     {
         var appOrchestratorSymbolId = await GetTypeSymbolIdAsync("ProjectApp", "AppOrchestrator");
-        var resolver = Context.GetRequiredService<ResolveSymbolTool>();
-
-        var resolved = await resolver.ExecuteAsync(
-            CancellationToken.None,
-            qualifiedName: "ProjectApp.AppOrchestrator.RunReflectionPathAsync(CancellationToken)",
-            projectName: "ProjectApp");
-
-        resolved.Error.ShouldBeNone();
-        resolved.Symbol.IsNotNull();
-        resolved.Symbol!.Reference.IsNotNull();
 
         var members = await Sut.ExecuteAsync(CancellationToken.None, typeSymbolId: appOrchestratorSymbolId, kind: "method");
 
         members.Error.ShouldBeNone();
 
         var listed = members.Members.Single(member => member.DisplayName == "RunReflectionPathAsync");
-        listed.Reference.IsNotNull();
-        listed.Reference!.SymbolId.Is(resolved.Symbol.Reference!.SymbolId);
-        listed.Reference.Handle.Is(resolved.Symbol.Reference.Handle);
-        listed.Reference.QualifiedDisplayName.Is(resolved.Symbol.Reference.QualifiedDisplayName);
-        listed.Reference.DeclarationLocation.IsNotNull();
-        listed.Reference.DeclarationLocation!.FilePath.ShouldEndWithPathSuffix(Path.Combine("ProjectApp", "AppOrchestrator.cs"));
-        listed.Reference.DeclarationLocation.Line.Is(34);
+        listed.Location.IsNotNull();
+        listed.Location!.FilePath.ShouldEndWithPathSuffix(Path.Combine("ProjectApp", "AppOrchestrator.cs"));
+        listed.Location.Line.Is(34);
     }
 
     [Fact]
@@ -216,11 +202,10 @@ file static class AssertionExtensions
                 actual[i].Kind.Is(expected[i].Kind);
                 actual[i].Accessibility.Is(expected[i].Accessibility);
                 actual[i].IsStatic.Is(expected[i].IsStatic);
-                actual[i].FilePath.ShouldEndWithPathSuffix(expected[i].FileName);
-                actual[i].Line.Is(expected[i].Line);
+                actual[i].Location.IsNotNull();
+                actual[i].Location!.FilePath.ShouldEndWithPathSuffix(expected[i].FileName);
+                actual[i].Location.Line.Is(expected[i].Line);
                 actual[i].SymbolId.ShouldBeExternalSymbolId();
-                actual[i].Reference.IsNotNull();
-                actual[i].Reference!.SymbolId.Is(actual[i].SymbolId);
             }
         }
     }

@@ -31,7 +31,14 @@ internal sealed class NavigationReferenceQueryService(
             operation: "find-references",
             ct).ConfigureAwait(false);
 
-        return new FindReferencesResult(scopedResult.Symbol, scopedResult.References, scopedResult.Error);
+        return new FindReferencesResult(
+            scopedResult.Symbol == null
+                ? null
+                : new SymbolDescriptor(scopedResult.Symbol.SymbolId, scopedResult.Symbol.Display, scopedResult.Symbol.Kind, null, null, scopedResult.Symbol.Location ?? new SourceLocation(string.Empty, 1, 1)),
+            scopedResult.ReferenceFiles
+                .SelectMany(static file => file.References.Select(position => new SourceLocation(file.FilePath, position.Line, position.Column)))
+                .ToArray(),
+            scopedResult.Error);
     }
 
     public async Task<FindReferencesScopedResult> FindReferencesScopedAsync(FindReferencesScopedRequest request, CancellationToken ct)
@@ -77,7 +84,7 @@ internal sealed class NavigationReferenceQueryService(
             }
 
             var implementations = await _referenceSearchService.FindImplementationsAsync(symbol, solution, ct).ConfigureAwait(false);
-            return new FindImplementationsResult(symbol.ToSymbolDescriptor(), implementations);
+            return new FindImplementationsResult(symbol.ToCompactSymbolSummary(), implementations.Select(MapCompactSymbolSummary).ToArray());
         }
         catch (OperationCanceledException)
         {
@@ -87,7 +94,7 @@ internal sealed class NavigationReferenceQueryService(
         {
             _logger.LogError(ex, "FindImplementations failed for {SymbolId}", request.SymbolId);
             return new FindImplementationsResult(null,
-                Array.Empty<SymbolDescriptor>(),
+                Array.Empty<CompactSymbolSummary>(),
                 NavigationErrorFactory.CreateError(ErrorCodes.InternalError,
                     $"Failed to find implementations '{request.SymbolId}': {ex.Message}",
                     ("symbolId", request.SymbolId),
@@ -105,7 +112,7 @@ internal sealed class NavigationReferenceQueryService(
         var invalidSymbolIdError = NavigationErrorFactory.TryCreateInvalidSymbolIdError(symbolId, operation);
         if (invalidSymbolIdError != null)
         {
-            return new FindReferencesScopedResult(null, Array.Empty<SourceLocation>(), 0, invalidSymbolIdError);
+            return new FindReferencesScopedResult(null, Array.Empty<ReferenceFileGroup>(), 0, invalidSymbolIdError);
         }
 
         if (!_referenceSearchService.IsValidScope(scope))
@@ -160,8 +167,12 @@ internal sealed class NavigationReferenceQueryService(
                 .ConfigureAwait(false);
 
             return new FindReferencesScopedResult(
-                symbol.ToSymbolDescriptor(),
-                references,
+                new UsageSymbolSummary(
+                    symbol.ToSymbolDescriptor().SymbolId,
+                    symbol.ToDisplayString(Microsoft.CodeAnalysis.SymbolDisplayFormat.MinimallyQualifiedFormat),
+                    symbol.Kind.ToString(),
+                    CreateOptionalSourceLocation(symbol)),
+                GroupReferencesByFile(references),
                 references.Count);
         }
         catch (OperationCanceledException)
@@ -178,4 +189,27 @@ internal sealed class NavigationReferenceQueryService(
                     ("operation", operation)));
         }
     }
+
+    private static IReadOnlyList<ReferenceFileGroup> GroupReferencesByFile(IReadOnlyList<SourceLocation> references)
+        => references
+            .GroupBy(static reference => reference.FilePath, StringComparer.Ordinal)
+            .OrderBy(static group => group.Key, StringComparer.Ordinal)
+            .Select(group => new ReferenceFileGroup(
+                group.Key,
+                group.Select(static reference => new ReferencePosition(reference.Line, reference.Column)).ToArray()))
+            .ToArray();
+
+    private static SourceLocation? CreateOptionalSourceLocation(Microsoft.CodeAnalysis.ISymbol symbol)
+    {
+        var location = symbol.Locations.FirstOrDefault(static entry => entry.IsInSource);
+        return location?.ToSourceLocation();
+    }
+
+    private static CompactSymbolSummary MapCompactSymbolSummary(SymbolDescriptor symbol)
+        => new(
+            symbol.SymbolId,
+            symbol.Name,
+            symbol.Kind,
+            symbol.DeclarationLocation,
+            symbol.ContainingType ?? symbol.ContainingNamespace);
 }
