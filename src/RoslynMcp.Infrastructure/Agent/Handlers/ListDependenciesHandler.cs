@@ -93,7 +93,7 @@ internal sealed class ListDependenciesHandler(CodeUnderstandingQueryService quer
 
         var targetProject = selectedProjects[0];
         var edgeByKey = new Dictionary<string, ProjectDependencyEdge>(StringComparer.Ordinal);
-        var dependencyById = new Dictionary<string, ProjectDependency>(StringComparer.Ordinal);
+        var dependencyByPath = new Dictionary<string, ProjectDependency>(StringComparer.OrdinalIgnoreCase);
 
         if (direction == "outgoing" || direction == "both")
         {
@@ -105,7 +105,7 @@ internal sealed class ListDependenciesHandler(CodeUnderstandingQueryService quer
                     continue;
                 }
 
-                AddDependencyEdge(targetProject, dependencyProject, edgeByKey, dependencyById, counterpart: dependencyProject);
+                AddDependencyEdge(targetProject, dependencyProject, edgeByKey, dependencyByPath, counterpart: dependencyProject);
             }
         }
 
@@ -115,19 +115,19 @@ internal sealed class ListDependenciesHandler(CodeUnderstandingQueryService quer
             {
                 if (project.ProjectReferences.Any(r => r.ProjectId == targetProject.Id))
                 {
-                    AddDependencyEdge(project, targetProject, edgeByKey, dependencyById, counterpart: project);
+                    AddDependencyEdge(project, targetProject, edgeByKey, dependencyByPath, counterpart: project);
                 }
             }
         }
 
         var orderedEdges = edgeByKey.Values
-            .OrderBy(static edge => edge.FromProjectId, StringComparer.Ordinal)
-            .ThenBy(static edge => edge.ToProjectId, StringComparer.Ordinal)
+            .OrderBy(static edge => edge.FromProjectPath, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static edge => edge.ToProjectPath, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        var dependencies = dependencyById.Values
-            .OrderBy(static dependency => dependency.ProjectName, StringComparer.Ordinal)
-            .ThenBy(static dependency => dependency.ProjectId, StringComparer.Ordinal)
+        var dependencies = dependencyByPath.Values
+            .OrderBy(static dependency => dependency.ProjectName ?? string.Empty, StringComparer.Ordinal)
+            .ThenBy(static dependency => dependency.ProjectPath, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         return new ListDependenciesResult(dependencies, dependencies.Length, null, orderedEdges);
@@ -137,18 +137,18 @@ internal sealed class ListDependenciesHandler(CodeUnderstandingQueryService quer
         Project source,
         Project target,
         IDictionary<string, ProjectDependencyEdge> edgeByKey,
-        IDictionary<string, ProjectDependency> dependencyById,
+        IDictionary<string, ProjectDependency> dependencyByPath,
         Project counterpart)
     {
         var sourceDependency = ToProjectDependency(source);
         var targetDependency = ToProjectDependency(target);
-        var edgeKey = $"{sourceDependency.ProjectId}->{targetDependency.ProjectId}";
-        edgeByKey[edgeKey] = new ProjectDependencyEdge(sourceDependency.ProjectId, targetDependency.ProjectId);
+        var edgeKey = $"{sourceDependency.ProjectPath}->{targetDependency.ProjectPath}";
+        edgeByKey[edgeKey] = new ProjectDependencyEdge(sourceDependency.ProjectPath, targetDependency.ProjectPath);
 
         var counterpartDependency = ToProjectDependency(counterpart);
-        dependencyById[counterpartDependency.ProjectId] = counterpartDependency;
+        dependencyByPath[counterpartDependency.ProjectPath] = counterpartDependency;
     }
 
     private static ProjectDependency ToProjectDependency(Project project)
-        => new(project.Name, project.Id.Id.ToString());
+        => new(project.FilePath ?? string.Empty, project.Name);
 }

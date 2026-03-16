@@ -60,9 +60,9 @@ public sealed record UnderstandCodebaseRequest(string? Profile = null);
 
 public sealed record ModuleSummary(string Name, string? Path, int OutgoingDependencies, int IncomingDependencies);
 
-public sealed record ProjectDependency(string ProjectName, string ProjectId);
+public sealed record ProjectDependency(string ProjectPath, string? ProjectName = null);
 
-public sealed record ProjectDependencyEdge(string FromProjectId, string ToProjectId);
+public sealed record ProjectDependencyEdge(string FromProjectPath, string ToProjectPath);
 
 public sealed record ListDependenciesRequest(
     string? ProjectPath = null,

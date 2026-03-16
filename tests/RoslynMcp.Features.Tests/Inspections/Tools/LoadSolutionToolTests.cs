@@ -22,6 +22,7 @@ public sealed class LoadSolutionToolTests(SharedSandboxFixture fixture, ITestOut
         result.Readiness.State.Is(WorkspaceReadinessStates.Ready);
 
         var projectNames = result.Projects.Select(static project => project.Name).ToArray();
+        result.Projects.All(static project => !string.IsNullOrWhiteSpace(project.Path)).IsTrue();
 
         projectNames.IsContaining("ProjectApp");
         projectNames.IsContaining("ProjectCore");
