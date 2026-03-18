@@ -3,24 +3,32 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Xml.Linq;
 using ModelContextProtocol.Server;
+using RoslynMcp.Infrastructure.Workspace;
 
 namespace RoslynMcp.Features.Tools.Tests;
 
-public sealed class RunTestsTool : Tool
+public sealed class RunTestsTool(IRoslynSolutionAccessor accessor) : Tool
 {
     [McpServerTool(Name = "run_tests", Title = "Run Tests", ReadOnly = true, Idempotent = true)]
     [Description("Use this tool when you need to run all tests.")]
-    public Task<IReadOnlyList<TestResult>?> ExecuteAsync()
+    public async Task<IReadOnlyList<TestResult>?> ExecuteAsync(CancellationToken token)
     {
-        const string trxFile = "FailureReport.trx";
-        const string jsonFile = "FailureReport.json";
-        
         var dir = Directory.GetCurrentDirectory();
+
+        var solution = await accessor.GetCurrentSolutionAsync(token);
+        
+        if(solution.Solution?.FilePath is { } path)
+            dir = Path.GetDirectoryName(path);
+        
+        var trxFile = Path.Combine(dir, "FailureReport.trx");
+                
+        if(File.Exists(trxFile))
+            File.Delete(trxFile);
         
         var startInfo = new ProcessStartInfo
         {
             FileName = "dotnet",
-            Arguments = $"test {dir} --logger \"trx;LogFileName={trxFile}\" --results-directory \"{dir}\"",
+            Arguments = $"test \"{dir}\" --logger \"trx;LogFileName={trxFile}\" --results-directory \"{dir}\"",
             WorkingDirectory = dir,
             RedirectStandardOutput = false,
             RedirectStandardError = false,
@@ -32,13 +40,13 @@ public sealed class RunTestsTool : Tool
         
         process.StartInfo = startInfo;
         process.Start();
-        
-        process.WaitForExit();
 
-        if(Directory.GetFiles(dir, "*" + jsonFile, SearchOption.AllDirectories).FirstOrDefault() is { } file)
-            return Task.FromResult(ParseJsonFile(file));
+        await process.WaitForExitAsync(token);
+
+        if (Directory.GetFiles(dir, "FailureReport.json", SearchOption.AllDirectories).FirstOrDefault() is { } json)
+            return ParseJsonFile(json);
         
-        return Task.FromResult(ParseTrxFile(trxFile));
+        return ParseTrxFile(trxFile);
     }
 
     private static IReadOnlyList<TestResult>? ParseTrxFile(string file)
@@ -65,6 +73,8 @@ public sealed class RunTestsTool : Tool
             })
             .ToList();
 
+        File.Delete(file);
+        
         return fails.ConvertAll(f => new TestResult { Message = f.ErrorMessage });
     }
 
@@ -77,6 +87,8 @@ public sealed class RunTestsTool : Tool
         
         var results = JsonSerializer.Deserialize<List<TestResult>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
+        File.Delete(file);
+        
         return results;
     }
     
