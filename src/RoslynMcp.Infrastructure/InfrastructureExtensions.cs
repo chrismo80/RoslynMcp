@@ -4,6 +4,7 @@ using RoslynMcp.Infrastructure.Documentation;
 using RoslynMcp.Infrastructure.Analysis;
 using RoslynMcp.Infrastructure.Navigation;
 using RoslynMcp.Infrastructure.Refactoring;
+using RoslynMcp.Infrastructure.Testing;
 using RoslynMcp.Infrastructure.Workspace;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -40,7 +41,10 @@ public static class InfrastructureExtensions
 		    .AddSingleton<IWorkspaceBootstrapService, WorkspaceBootstrapService>()
 		    .AddSingleton<ICodeUnderstandingService, CodeUnderstandingService>()
 		    .AddSingleton<IFlowTraceService, FlowTraceService>()
-		    .AddSingleton<ICodeSmellFindingService, CodeSmellFindingService>();
+		    .AddSingleton<ICodeSmellFindingService, CodeSmellFindingService>()
+		    .AddSingleton<ITestProcessRunner, TestProcessRunner>()
+		    .AddSingleton<ITestResultInterpreter, TestResultInterpreter>()
+		    .AddSingleton<ITestInspectionService, TestInspectionService>();
 
 	    public IServiceCollection AddInterfacesOf<T>() where T : class
 	    {

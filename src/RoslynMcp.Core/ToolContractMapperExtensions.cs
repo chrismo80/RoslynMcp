@@ -114,6 +114,11 @@ public static class ToolContractMapperExtensions
                 NormalizeOptionalStrings(categories),
                 NormalizeOptionalString(reviewMode)?.ToLowerInvariant());
 
+        public RunTestsRequest ToRunTestsRequest(string? filter)
+            => new(
+                NormalizeOptionalString(solutionHintPath),
+                NormalizeOptionalString(filter));
+
         public FindReferencesScopedRequest ToFindReferencesScopedRequest(string? scope, string? path)
             => new(NormalizeSymbolId(solutionHintPath), NormalizeScope(scope), NormalizeOptionalString(path));
 
