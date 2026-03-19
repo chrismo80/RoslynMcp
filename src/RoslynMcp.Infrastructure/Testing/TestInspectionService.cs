@@ -196,9 +196,14 @@ internal sealed class TestInspectionService(
 
     private static bool IsPathWithinRoot(string rootDirectory, string path)
     {
-        var normalizedRoot = EnsureTrailingSeparator(Path.GetFullPath(rootDirectory));
         var normalizedPath = Path.GetFullPath(path);
-        return normalizedPath.StartsWith(normalizedRoot, GetPathStringComparison());
+        var normalizedRoot = Path.GetFullPath(rootDirectory);
+        if (string.Equals(normalizedPath, normalizedRoot, GetPathStringComparison()))
+        {
+            return true;
+        }
+
+        return normalizedPath.StartsWith(EnsureTrailingSeparator(normalizedRoot), GetPathStringComparison());
     }
 
     private static StringComparer GetPathStringComparer()
