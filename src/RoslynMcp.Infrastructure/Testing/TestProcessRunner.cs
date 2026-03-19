@@ -15,7 +15,7 @@ internal sealed class TestProcessRunner : ITestProcessRunner
         var startInfo = new ProcessStartInfo
         {
             FileName = "dotnet",
-            WorkingDirectory = Path.GetDirectoryName(targetPath) ?? Directory.GetCurrentDirectory(),
+            WorkingDirectory = GetWorkingDirectory(targetPath),
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -52,6 +52,16 @@ internal sealed class TestProcessRunner : ITestProcessRunner
             await standardOutputTask.ConfigureAwait(false),
             await standardErrorTask.ConfigureAwait(false),
             string.IsNullOrWhiteSpace(filter) ? null : filter.Trim());
+    }
+
+    private static string GetWorkingDirectory(string targetPath)
+    {
+        if (Directory.Exists(targetPath))
+        {
+            return targetPath;
+        }
+
+        return Path.GetDirectoryName(targetPath) ?? Directory.GetCurrentDirectory();
     }
 
     private static void AddArguments(Collection<string> argumentList, string targetPath, string resultsDirectory, string? filter)
