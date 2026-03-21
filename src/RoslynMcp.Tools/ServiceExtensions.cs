@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using RoslynMcp.Tools.Infrastructure.Services;
 using RoslynMcp.Tools.Inspection.LoadSolution;
 using RoslynMcp.Tools.Inspection.UnderstandProjects;
-using WorkspaceService = RoslynMcp.Tools.Workspace.Service;
 
 namespace RoslynMcp.Tools;
 
@@ -14,7 +14,7 @@ public static class ServiceExtensions
             .AddTools();
 
         private IServiceCollection AddInfrastructure() => services
-            .AddSingleton<WorkspaceService>();
+            .AddSingleton<Workspace>();
 
         private IServiceCollection AddTools() => services
             .AddLoadSolutionTool()

@@ -1,11 +1,12 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using RoslynMcp.Tools.Workspace;
+using RoslynMcp.Tools.Infrastructure;
+using WorkspaceService = RoslynMcp.Tools.Infrastructure.Services.Workspace;
 
 namespace RoslynMcp.Tools.Inspection.UnderstandProjects;
 
-public sealed class Service(Workspace.Service workspace)
+public sealed class Service(WorkspaceService workspace)
 {
 	private const int DeepHotspotCount = 10;
 

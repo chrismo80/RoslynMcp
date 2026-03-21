@@ -2,9 +2,9 @@ using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
 
-namespace RoslynMcp.Tools.Workspace;
+namespace RoslynMcp.Tools.Infrastructure.Services;
 
-public sealed class Service : IAsyncDisposable
+public sealed class Workspace : IAsyncDisposable
 {
 	private static readonly SemaphoreSlim Gate = new(1, 1);
 	private static readonly object RegistrationLock = new();
@@ -13,7 +13,7 @@ public sealed class Service : IAsyncDisposable
 	private Session? _current;
 	private int _version;
 
-	public async Task<(Session? Session, string SnapshotId, string WorkspaceId, string WorkspaceRoot)> LoadAsync(string solutionPath, CancellationToken cancellationToken)
+	internal async Task<(Session? Session, string SnapshotId, string WorkspaceId, string WorkspaceRoot)> LoadAsync(string solutionPath, CancellationToken cancellationToken)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(solutionPath);
 
@@ -49,7 +49,7 @@ public sealed class Service : IAsyncDisposable
 		}
 	}
 
-	public async Task<Session?> GetCurrentAsync(CancellationToken cancellationToken)
+	internal async Task<Session?> GetCurrentAsync(CancellationToken cancellationToken)
 	{
 		await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
 		try
@@ -92,14 +92,4 @@ public sealed class Service : IAsyncDisposable
 			_msbuildRegistered = true;
 		}
 	}
-}
-
-public sealed class Session(string workspaceRoot, string selectedSolutionPath, MSBuildWorkspace workspace, Solution solution) : IDisposable
-{
-	public string WorkspaceRoot { get; } = workspaceRoot;
-	public string SelectedSolutionPath { get; } = selectedSolutionPath;
-	public MSBuildWorkspace Workspace { get; } = workspace;
-	public Solution Solution { get; } = solution;
-
-	public void Dispose() => Workspace.Dispose();
 }

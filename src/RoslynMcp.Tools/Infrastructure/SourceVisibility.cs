@@ -1,4 +1,4 @@
-namespace RoslynMcp.Tools.Workspace;
+namespace RoslynMcp.Tools.Infrastructure;
 
 internal static class SourceVisibility
 {

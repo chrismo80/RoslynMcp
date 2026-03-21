@@ -5,15 +5,15 @@ namespace RoslynMcp.Tools.Inspection.LoadSolution;
 
 internal static class Extensions
 {
-    internal static bool IsExplicitSolutionPath(this string? path) => !string.IsNullOrWhiteSpace(path) &&
-        (path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase));
-
     extension(IServiceCollection services)
     {
         public IServiceCollection AddLoadSolutionTool() => services
             .AddSingleton<Service>()
             .AddSingleton<Tool>();
     }
+
+    internal static bool IsExplicitSolutionPath(this string? path) => !string.IsNullOrWhiteSpace(path) &&
+        (path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase));
 
     extension(string? solutionHintPath)
     {

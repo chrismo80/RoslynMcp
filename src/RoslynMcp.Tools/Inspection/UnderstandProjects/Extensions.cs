@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using RoslynMcp.Tools.Workspace;
+using RoslynMcp.Tools.Infrastructure;
 
 namespace RoslynMcp.Tools.Inspection.UnderstandProjects;
 
