@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using RoslynMcp.Core.Models;
+using Microsoft.CodeAnalysis;
 
 namespace RoslynMcp.Tools.Inspection.LoadSolution;
 
@@ -14,7 +14,7 @@ internal static class Extensions
 
     extension(string? solutionHintPath)
     {
-        public Request ToRequest() => new(solutionHintPath?.NormalizeOptional());
+        public Request ToRequest() => new(solutionHintPath.NormalizeOptional());
 
         public string ToWorkspaceAbsolutePath(string workspaceRoot)
         {
@@ -57,6 +57,12 @@ internal static class Extensions
                 return absolutePath;
             }
         }
+    }
+
+    extension(string? input)
+    {
+        private string? NormalizeOptional() =>
+            string.IsNullOrWhiteSpace(input) ? null : input.Trim();
     }
 
     extension(ProjectSummary project)
@@ -102,41 +108,13 @@ internal static class Extensions
             };
     }
 
-    extension(IReadOnlyList<DiagnosticItem> diagnostics)
+    extension(IReadOnlyList<Diagnostic> diagnostics)
     {
         public DiagnosticsSummary ToDiagnosticsSummary() => new(
-            diagnostics.Count(static diagnostic => string.Equals(diagnostic.Severity, "error", StringComparison.OrdinalIgnoreCase)),
-            diagnostics.Count(static diagnostic => string.Equals(diagnostic.Severity, "warning", StringComparison.OrdinalIgnoreCase)),
-            diagnostics.Count(static diagnostic => string.Equals(diagnostic.Severity, "info", StringComparison.OrdinalIgnoreCase)),
+            diagnostics.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error),
+            diagnostics.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Warning),
+            diagnostics.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Info || diagnostic.Severity == DiagnosticSeverity.Hidden),
             diagnostics.Count);
-    }
-
-    extension(RoslynMcp.Core.Models.ErrorInfo? error)
-    {
-        public ErrorInfo? ToLocalError(string? nextAction = null)
-        {
-            if (error is null)
-                return null;
-
-            if (string.IsNullOrWhiteSpace(nextAction))
-                return new ErrorInfo(error.Code, error.Message, error.Details);
-
-            if (error.Details is not null && error.Details.TryGetValue("nextAction", out var existing) && !string.IsNullOrWhiteSpace(existing))
-                return new ErrorInfo(error.Code, error.Message, error.Details);
-
-            var details = new Dictionary<string, string>(StringComparer.Ordinal);
-            if (error.Details is not null)
-            {
-                foreach (var pair in error.Details)
-                {
-                    if (!string.IsNullOrWhiteSpace(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value))
-                        details[pair.Key] = pair.Value;
-                }
-            }
-
-            details["nextAction"] = nextAction;
-            return new ErrorInfo(error.Code, error.Message, details);
-        }
     }
 
     private static readonly HashSet<string> PathDetailKeys =

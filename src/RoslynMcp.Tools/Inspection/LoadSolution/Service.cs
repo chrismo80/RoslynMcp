@@ -1,97 +1,168 @@
+using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
-using RoslynMcp.Core;
-using RoslynMcp.Core.Contracts;
-using RoslynMcp.Core.Models;
-using RoslynMcp.Infrastructure.Workspace;
+using Microsoft.CodeAnalysis.MSBuild;
 
 namespace RoslynMcp.Tools.Inspection.LoadSolution;
 
-public sealed class Service(
-	ISolutionSessionService solutionSessionService,
-	IAnalysisService analysisService,
-	IRoslynSolutionAccessor solutionAccessor,
-	ICurrentWorkspaceRootProvider currentWorkspaceRootProvider)
+public sealed class Service : IAsyncDisposable
 {
 	private static readonly WorkspaceReadiness DefaultReadiness = new(ReadinessStates.Ready, Array.Empty<string>());
-    private readonly string _workspaceRoot = currentWorkspaceRootProvider?.WorkspaceRoot ?? throw new ArgumentNullException(nameof(currentWorkspaceRootProvider));
+	private static readonly SemaphoreSlim Gate = new(1, 1);
+	private static readonly object RegistrationLock = new();
+	private static bool s_msbuildRegistered;
+
+	private Session? _current;
+	private int _workspaceVersion;
 
 	public async Task<Result> LoadAsync(Request request, CancellationToken cancellationToken)
 	{
 		ArgumentNullException.ThrowIfNull(request);
 		cancellationToken.ThrowIfCancellationRequested();
 
-		var hint = request.SolutionHintPath?.ToWorkspaceAbsolutePath(_workspaceRoot)?.Trim();
-		var (solutionPath, discoveryError) = await ResolveSolutionPathAsync(hint, solutionSessionService, cancellationToken).ConfigureAwait(false);
+		var workspaceRoot = GetWorkspaceRoot();
+		var hint = request.SolutionHintPath?.ToWorkspaceAbsolutePath(workspaceRoot)?.Trim();
+		var (solutionPath, error) = await ResolveSolutionPathAsync(hint, workspaceRoot, cancellationToken).ConfigureAwait(false);
 		if (solutionPath is null)
-		{
-			return Failure(
-				DefaultReadiness,
-				discoveryError.ToLocalError("Provide a valid solution path or run load_solution from a folder containing a .sln or .slnx file."));
-		}
+			return Failure(workspaceRoot, DefaultReadiness, error);
 
-		var select = await solutionSessionService.SelectSolutionAsync(new SelectSolutionRequest(solutionPath), cancellationToken).ConfigureAwait(false);
-		if (select.Error is not null)
-		{
-			return Failure(
-				DefaultReadiness,
-				select.Error.ToLocalError("Provide a valid .sln or .slnx path and retry load_solution."));
-		}
+		var loaded = await TryLoadSessionAsync(solutionPath, workspaceRoot, cancellationToken).ConfigureAwait(false);
+		if (loaded.Error is not null)
+			return Failure(workspaceRoot, DefaultReadiness, loaded.Error);
 
-		var (solution, currentError) = await solutionAccessor.GetCurrentSolutionAsync(cancellationToken).ConfigureAwait(false);
-		if (solution is null)
-		{
-			return new Result(
-				select.SelectedSolutionPath,
-				string.Empty,
-				string.Empty,
-				Array.Empty<ProjectSummary>(),
-				new DiagnosticsSummary(0, 0, 0, 0),
-				DefaultReadiness,
-				currentError.ToLocalError("Retry load_solution after the workspace/session is available."))
-				.WithWorkspaceRelativePaths(_workspaceRoot);
-		}
+		await ReplaceCurrentSessionAsync(loaded.Session!, cancellationToken).ConfigureAwait(false);
 
-		var projects = solution.Projects
+		var projects = loaded.Session!.Solution.Projects
 			.OrderBy(static project => project.Name, StringComparer.Ordinal)
 			.Select(static project => new ProjectSummary(project.Name, project.FilePath))
 			.ToArray();
 
-		var baseline = await analysisService.AnalyzeScopeAsync(new AnalyzeScopeRequest(AnalysisScopes.Solution), cancellationToken).ConfigureAwait(false);
-		var diagnostics = baseline.Diagnostics.ToDiagnosticsSummary();
-		var readiness = AssessReadiness(solution, baseline.Diagnostics);
+		var diagnostics = await CollectBaselineDiagnosticsAsync(loaded.Session.Solution, cancellationToken).ConfigureAwait(false);
+		var readiness = AssessReadiness(loaded.Session.Solution, diagnostics);
+		var snapshotId = _workspaceVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-		var (workspaceVersion, versionError) = await solutionAccessor.GetWorkspaceVersionAsync(cancellationToken).ConfigureAwait(false);
-		if (versionError is not null)
-		{
-			return new Result(
-				select.SelectedSolutionPath,
-				string.Empty,
-				string.Empty,
-				projects,
-				diagnostics,
-				readiness,
-				versionError.ToLocalError("Retry load_solution to refresh workspace snapshot metadata."))
-				.WithWorkspaceRelativePaths(_workspaceRoot);
-		}
-
-		var workspaceId = select.SelectedSolutionPath ?? string.Empty;
-		var snapshotId = workspaceVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
-		return new Result(select.SelectedSolutionPath, workspaceId, snapshotId, projects, diagnostics, readiness)
-			.WithWorkspaceRelativePaths(_workspaceRoot);
+		return new Result(loaded.Session.SelectedSolutionPath, loaded.Session.SelectedSolutionPath, snapshotId, projects, diagnostics.ToDiagnosticsSummary(), readiness)
+			.WithWorkspaceRelativePaths(workspaceRoot);
 	}
 
-	private Result Failure(WorkspaceReadiness readiness, ErrorInfo? error)
-		=> new Result(
-			null,
-			string.Empty,
-			string.Empty,
-			Array.Empty<ProjectSummary>(),
-			new DiagnosticsSummary(0, 0, 0, 0),
-			readiness,
-			error)
-			.WithWorkspaceRelativePaths(_workspaceRoot);
+	public async ValueTask DisposeAsync()
+	{
+		await Gate.WaitAsync().ConfigureAwait(false);
+		try
+		{
+			_current?.Dispose();
+			_current = null;
+		}
+		finally
+		{
+			Gate.Release();
+		}
+	}
 
-	private static WorkspaceReadiness AssessReadiness(Solution solution, IReadOnlyList<DiagnosticItem> diagnostics)
+	private static string GetWorkspaceRoot() => Path.GetFullPath(Directory.GetCurrentDirectory());
+
+	private static async Task<(string? SolutionPath, ErrorInfo? Error)> ResolveSolutionPathAsync(
+		string? hint,
+		string workspaceRoot,
+		CancellationToken cancellationToken)
+	{
+		if (IsExplicitSolutionPath(hint))
+		{
+			if (!File.Exists(hint))
+			{
+				return (null, Error(
+					Codes.SolutionNotFound,
+					$"Solution '{hint}' does not exist.",
+					("solutionPath", hint),
+					("nextAction", "Provide a valid .sln or .slnx path and retry load_solution.")));
+			}
+
+			return (hint, null);
+		}
+
+		var root = string.IsNullOrWhiteSpace(hint) ? workspaceRoot : hint;
+		var normalizedRoot = NormalizeDirectory(root);
+		if (normalizedRoot.Error is not null)
+			return (null, normalizedRoot.Error);
+
+		var discovered = await DiscoverSolutionsAsync(normalizedRoot.Path!, cancellationToken).ConfigureAwait(false);
+		if (discovered.Error is not null)
+			return (null, discovered.Error);
+
+		if (discovered.SolutionPaths.Count == 0)
+		{
+			return (null, Error(
+				Codes.SolutionNotFound,
+				"No solution files were discovered.",
+				("workspaceRoot", normalizedRoot.Path),
+				("nextAction", "Provide a solution hint path or run load_solution from a workspace that contains a .sln or .slnx file.")));
+		}
+
+		return (discovered.SolutionPaths[0], null);
+	}
+
+	private static async Task<(Session? Session, ErrorInfo? Error)> TryLoadSessionAsync(
+		string solutionPath,
+		string workspaceRoot,
+		CancellationToken cancellationToken)
+	{
+		EnsureMsBuildRegistered();
+
+		MSBuildWorkspace? workspace = null;
+		try
+		{
+			workspace = MSBuildWorkspace.Create();
+			var solution = await workspace.OpenSolutionAsync(solutionPath, progress: null, cancellationToken: cancellationToken).ConfigureAwait(false);
+			return (new Session(workspaceRoot, solutionPath, workspace, solution), null);
+		}
+		catch (OperationCanceledException)
+		{
+			workspace?.Dispose();
+			throw;
+		}
+		catch (Exception ex)
+		{
+			workspace?.Dispose();
+			return (null, Error(
+				Codes.InternalError,
+				$"Failed to load solution '{solutionPath}': {ex.Message}",
+				("solutionPath", solutionPath)));
+		}
+	}
+
+	private async Task ReplaceCurrentSessionAsync(Session session, CancellationToken cancellationToken)
+	{
+		await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+		try
+		{
+			var previous = _current;
+			_current = session;
+			_workspaceVersion++;
+			previous?.Dispose();
+		}
+		finally
+		{
+			Gate.Release();
+		}
+	}
+
+	private static async Task<IReadOnlyList<Diagnostic>> CollectBaselineDiagnosticsAsync(Solution solution, CancellationToken cancellationToken)
+	{
+		var diagnostics = new List<Diagnostic>();
+
+		foreach (var project in solution.Projects)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			var compilation = await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false);
+			if (compilation is null)
+				continue;
+
+			diagnostics.AddRange(compilation.GetDiagnostics(cancellationToken: cancellationToken));
+		}
+
+		return diagnostics;
+	}
+
+	private static WorkspaceReadiness AssessReadiness(Solution solution, IReadOnlyList<Diagnostic> diagnostics)
 	{
 		var missingDocuments = solution.Projects
 			.SelectMany(static project => project.Documents)
@@ -120,8 +191,9 @@ public sealed class Service(
 		}
 
 		var generatedDiagnostics = diagnostics.Count(static diagnostic =>
-			IsGeneratedLike(diagnostic.Location.FilePath)
-			&& !string.Equals(diagnostic.Severity, "info", StringComparison.OrdinalIgnoreCase));
+			IsGeneratedLike(diagnostic.Location.GetLineSpan().Path)
+			&& diagnostic.Severity != DiagnosticSeverity.Hidden
+			&& diagnostic.Severity != DiagnosticSeverity.Info);
 
 		if (generatedDiagnostics > 0)
 		{
@@ -134,37 +206,73 @@ public sealed class Service(
 		return DefaultReadiness;
 	}
 
-	private static async Task<(string? SolutionPath, RoslynMcp.Core.Models.ErrorInfo? Error)> ResolveSolutionPathAsync(
-		string? hint,
-		ISolutionSessionService solutionSessionService,
-		CancellationToken cancellationToken)
+	private static (string? Path, ErrorInfo? Error) NormalizeDirectory(string? path)
 	{
-		if (IsExplicitSolutionPath(hint))
-			return (hint, null);
-
-		var root = string.IsNullOrWhiteSpace(hint) ? Directory.GetCurrentDirectory() : hint;
-		var discovered = await solutionSessionService.DiscoverSolutionsAsync(new DiscoverSolutionsRequest(root), cancellationToken).ConfigureAwait(false);
-		if (discovered.Error is not null)
-			return (null, discovered.Error);
-
-		if (discovered.SolutionPaths.Count == 0)
+		var root = path?.Trim();
+		if (string.IsNullOrWhiteSpace(root))
 		{
-			return (null, new RoslynMcp.Core.Models.ErrorInfo(
-				ErrorCodes.SolutionNotFound,
-				"No solution files were discovered.",
-				new Dictionary<string, string>(StringComparer.Ordinal)
-				{
-					["nextAction"] = "Provide a solution hint path or run load_solution from a workspace that contains a .sln or .slnx file."
-				}));
+			return (null, Error(
+				Codes.InvalidPath,
+				"Workspace root must be provided.",
+				("field", "workspaceRoot")));
 		}
 
-		return (discovered.SolutionPaths[0], null);
+		try
+		{
+			var normalized = Path.GetFullPath(root);
+			if (!Directory.Exists(normalized))
+			{
+				return (null, Error(
+					Codes.InvalidPath,
+					$"Workspace root '{normalized}' could not be found.",
+					("workspaceRoot", normalized)));
+			}
+
+			return (normalized, null);
+		}
+		catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+		{
+			return (null, Error(
+				Codes.InvalidPath,
+				$"Workspace root '{root}' is invalid: {ex.Message}",
+				("workspaceRoot", root)));
+		}
 	}
 
-	private static bool IsExplicitSolutionPath(string? hint)
-		=> !string.IsNullOrWhiteSpace(hint)
-		   && (hint.EndsWith(".sln", StringComparison.OrdinalIgnoreCase)
-		       || hint.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase));
+	private static Task<(IReadOnlyList<string> SolutionPaths, ErrorInfo? Error)> DiscoverSolutionsAsync(string normalizedRoot, CancellationToken cancellationToken)
+	{
+		var solutions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		try
+		{
+			foreach (var pattern in new[] { "*.sln", "*.slnx" })
+			{
+				foreach (var solutionPath in Directory.EnumerateFiles(normalizedRoot, pattern, SearchOption.AllDirectories))
+				{
+					cancellationToken.ThrowIfCancellationRequested();
+					solutions.Add(Path.GetFullPath(solutionPath));
+				}
+			}
+		}
+		catch (OperationCanceledException)
+		{
+			throw;
+		}
+		catch (Exception ex)
+		{
+			return Task.FromResult(((IReadOnlyList<string>)Array.Empty<string>(), (ErrorInfo?)Error(
+				Codes.InvalidPath,
+				$"Failed to read workspace '{normalizedRoot}': {ex.Message}",
+				("workspaceRoot", normalizedRoot))));
+		}
+
+		var ordered = solutions.OrderBy(static path => path, StringComparer.OrdinalIgnoreCase).ToArray();
+		return Task.FromResult(((IReadOnlyList<string>)ordered, (ErrorInfo?)null));
+	}
+
+	private static bool IsExplicitSolutionPath(string? path)
+		=> !string.IsNullOrWhiteSpace(path)
+		   && (path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase)
+		       || path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase));
 
 	private static bool IsGeneratedLike(string? path)
 	{
@@ -186,5 +294,62 @@ public sealed class Service(
 			|| fileName.EndsWith(".designer.cs", StringComparison.OrdinalIgnoreCase)
 			|| fileName.EndsWith(".AssemblyAttributes.cs", StringComparison.OrdinalIgnoreCase)
 			|| fileName.EndsWith(".AssemblyInfo.cs", StringComparison.OrdinalIgnoreCase);
+	}
+
+	private static void EnsureMsBuildRegistered()
+	{
+		if (s_msbuildRegistered)
+			return;
+
+		lock (RegistrationLock)
+		{
+			if (s_msbuildRegistered)
+				return;
+
+			if (!MSBuildLocator.IsRegistered)
+				MSBuildLocator.RegisterDefaults();
+
+			s_msbuildRegistered = true;
+		}
+	}
+
+	private static ErrorInfo Error(string code, string message, params (string Key, string? Value)[] details)
+	{
+		var map = new Dictionary<string, string>(StringComparer.Ordinal);
+		foreach (var (key, value) in details)
+		{
+			if (!string.IsNullOrWhiteSpace(key) && !string.IsNullOrWhiteSpace(value))
+				map[key] = value;
+		}
+
+		return new ErrorInfo(code, message, map.Count == 0 ? null : map);
+	}
+
+	private Result Failure(string workspaceRoot, WorkspaceReadiness readiness, ErrorInfo? error)
+		=> new Result(
+			null,
+			string.Empty,
+			string.Empty,
+			Array.Empty<ProjectSummary>(),
+			new DiagnosticsSummary(0, 0, 0, 0),
+			readiness,
+			error)
+			.WithWorkspaceRelativePaths(workspaceRoot);
+
+	private sealed class Session(string workspaceRoot, string selectedSolutionPath, MSBuildWorkspace workspace, Solution solution) : IDisposable
+	{
+		public string WorkspaceRoot { get; } = workspaceRoot;
+		public string SelectedSolutionPath { get; } = selectedSolutionPath;
+		public MSBuildWorkspace Workspace { get; } = workspace;
+		public Solution Solution { get; } = solution;
+
+		public void Dispose() => Workspace.Dispose();
+	}
+
+	private static class Codes
+	{
+		public const string InvalidPath = "invalid_path";
+		public const string SolutionNotFound = "solution_not_found";
+		public const string InternalError = "internal_error";
 	}
 }
