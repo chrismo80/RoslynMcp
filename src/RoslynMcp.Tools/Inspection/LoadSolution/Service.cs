@@ -1,11 +1,9 @@
 using Microsoft.CodeAnalysis;
 using RoslynMcp.Tools.Infrastructure;
-using WorkspaceSession = RoslynMcp.Tools.Infrastructure.Services.Session;
-using WorkspaceService = RoslynMcp.Tools.Infrastructure.Services.Workspace;
 
 namespace RoslynMcp.Tools.Inspection.LoadSolution;
 
-public sealed class Service(WorkspaceService workspace) : IAsyncDisposable
+public sealed class Service(Infrastructure.Services.Workspace workspace) : IAsyncDisposable
 {
 	private static readonly WorkspaceReadiness DefaultReadiness = new(ReadinessStates.Ready, []);
 
@@ -22,7 +20,7 @@ public sealed class Service(WorkspaceService workspace) : IAsyncDisposable
 		if (solutionPath is null)
 			return Failure(workspaceRoot, DefaultReadiness, error);
 
-		WorkspaceSession loaded;
+		Session loaded;
 		string snapshotId;
 		string workspaceId;
 		try

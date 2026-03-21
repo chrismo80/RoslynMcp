@@ -1,7 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
 
-namespace RoslynMcp.Tools.Infrastructure.Services;
+namespace RoslynMcp.Tools.Infrastructure;
 
 internal sealed class Session(string workspaceRoot, string selectedSolutionPath, MSBuildWorkspace workspace, Solution solution) : IDisposable
 {
