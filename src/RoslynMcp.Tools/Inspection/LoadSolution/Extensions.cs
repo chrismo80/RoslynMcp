@@ -22,13 +22,13 @@ internal static class Extensions
 
     extension(ProjectSummary project)
     {
-        public ProjectSummary WithWorkspaceRelativePaths(string workspaceRoot)
-            => project with { Path = project.Path?.ToWorkspaceRelativePathIfPossible(workspaceRoot) };
+        public ProjectSummary WithWorkspaceRelativePaths()
+            => project with { Path = project.Path?.ToWorkspaceRelativePathIfPossible() };
     }
 
     extension(ErrorInfo? error)
     {
-        public ErrorInfo? WithWorkspaceRelativePaths(string workspaceRoot)
+        public ErrorInfo? WithWorkspaceRelativePaths()
         {
             if (error?.Details is null || error.Details.Count == 0)
                 return error;
@@ -39,7 +39,7 @@ internal static class Extensions
                 if (!ShouldRewritePathDetail(pair.Key, error.Details))
                     continue;
 
-                var outwardPath = pair.Value.ToWorkspaceRelativePathIfPossible(workspaceRoot);
+                var outwardPath = pair.Value.ToWorkspaceRelativePathIfPossible();
                 if (string.Equals(outwardPath, pair.Value, StringComparison.Ordinal))
                     continue;
 
@@ -53,13 +53,13 @@ internal static class Extensions
 
     extension(Result result)
     {
-        public Result WithWorkspaceRelativePaths(string workspaceRoot)
+        public Result WithWorkspaceRelativePaths()
             => result with
             {
-                SelectedSolutionPath = result.SelectedSolutionPath?.ToWorkspaceRelativePathIfPossible(workspaceRoot),
-                WorkspaceId = result.WorkspaceId.ToWorkspaceRelativePathIfPossible(workspaceRoot),
-                Projects = result.Projects.Select(project => project.WithWorkspaceRelativePaths(workspaceRoot)).ToArray(),
-                Error = result.Error.WithWorkspaceRelativePaths(workspaceRoot)
+                SelectedSolutionPath = result.SelectedSolutionPath?.ToWorkspaceRelativePathIfPossible(),
+                WorkspaceId = result.WorkspaceId.ToWorkspaceRelativePathIfPossible(),
+                Projects = result.Projects.Select(project => project.WithWorkspaceRelativePaths()).ToArray(),
+                Error = result.Error.WithWorkspaceRelativePaths()
             };
     }
 

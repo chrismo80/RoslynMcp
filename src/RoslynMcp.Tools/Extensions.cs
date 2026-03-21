@@ -2,6 +2,8 @@ namespace RoslynMcp.Tools;
 
 internal static class Extensions
 {
+	internal static string WorkspaceRoot { get; } = Path.GetFullPath(Directory.GetCurrentDirectory());
+
     extension(string? input)
 	{
 		internal string? NormalizeOptional() =>
@@ -22,7 +24,7 @@ internal static class Extensions
 
 	extension(string? path)
 	{
-		public string ToWorkspaceAbsolutePath(string workspaceRoot)
+		public string ToWorkspaceAbsolutePath()
 		{
 			if (string.IsNullOrWhiteSpace(path))
 				return path!;
@@ -32,7 +34,7 @@ internal static class Extensions
 			{
 				return Path.IsPathRooted(trimmedPath)
 					? Path.GetFullPath(trimmedPath)
-					: Path.GetFullPath(trimmedPath, workspaceRoot);
+					: Path.GetFullPath(trimmedPath, WorkspaceRoot);
 			}
 			catch
 			{
@@ -40,23 +42,23 @@ internal static class Extensions
 			}
 		}
 
-		public string ToWorkspaceRelativePathIfPossible(string workspaceRoot)
+		public string ToWorkspaceRelativePathIfPossible()
 		{
 			if (string.IsNullOrWhiteSpace(path))
 				return path!;
 
-			var absolutePath = path.ToWorkspaceAbsolutePath(workspaceRoot);
+			var absolutePath = path.ToWorkspaceAbsolutePath();
 			if (!Path.IsPathRooted(absolutePath))
 				return absolutePath;
 
 			try
 			{
-				var normalizedWorkspaceRoot = workspaceRoot.EnsureTrailingDirectorySeparator();
+				var normalizedWorkspaceRoot = WorkspaceRoot.EnsureTrailingDirectorySeparator();
 				var normalizedAbsolutePath = Path.GetFullPath(absolutePath);
 				if (!normalizedAbsolutePath.StartsWith(normalizedWorkspaceRoot, StringComparison.OrdinalIgnoreCase))
 					return normalizedAbsolutePath;
 
-				return Path.GetRelativePath(workspaceRoot, normalizedAbsolutePath);
+				return Path.GetRelativePath(WorkspaceRoot, normalizedAbsolutePath);
 			}
 			catch
 			{

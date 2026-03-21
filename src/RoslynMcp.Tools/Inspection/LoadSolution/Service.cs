@@ -20,7 +20,7 @@ public sealed class Service : IAsyncDisposable
 		cancellationToken.ThrowIfCancellationRequested();
 
 		var workspaceRoot = GetWorkspaceRoot();
-		var hint = request.SolutionHintPath?.ToWorkspaceAbsolutePath(workspaceRoot)?.Trim();
+		var hint = request.SolutionHintPath?.ToWorkspaceAbsolutePath()?.Trim();
 
 		var (solutionPath, error) = await ResolveSolutionPathAsync(hint, workspaceRoot, cancellationToken).ConfigureAwait(false);
 
@@ -44,7 +44,7 @@ public sealed class Service : IAsyncDisposable
 		var snapshotId = _workspaceVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
 		return new Result(loaded.Session.SelectedSolutionPath, loaded.Session.SelectedSolutionPath, snapshotId, projects, diagnostics.ToDiagnosticsSummary(), readiness)
-			.WithWorkspaceRelativePaths(workspaceRoot);
+			.WithWorkspaceRelativePaths();
 	}
 
 	public async ValueTask DisposeAsync()
@@ -216,8 +216,7 @@ public sealed class Service : IAsyncDisposable
 
 		if (string.IsNullOrWhiteSpace(root))
 		{
-			return (null, Error(
-				Codes.InvalidPath,
+			return (null, Error(Codes.InvalidPath,
 				"Workspace root must be provided.",
 				("field", "workspaceRoot")));
 		}
@@ -264,8 +263,7 @@ public sealed class Service : IAsyncDisposable
 		}
 		catch (Exception ex)
 		{
-			return Task.FromResult(((IReadOnlyList<string>)Array.Empty<string>(), (ErrorInfo?)Error(
-				Codes.InvalidPath,
+			return Task.FromResult(((IReadOnlyList<string>)[], (ErrorInfo?)Error(Codes.InvalidPath,
 				$"Failed to read workspace '{normalizedRoot}': {ex.Message}",
 				("workspaceRoot", normalizedRoot))));
 		}
@@ -329,7 +327,8 @@ public sealed class Service : IAsyncDisposable
 	}
 
 	private static Result Failure(string workspaceRoot, WorkspaceReadiness readiness, ErrorInfo? error) =>
-		new Result(null, string.Empty, string.Empty, [], new DiagnosticsSummary(0, 0, 0, 0), readiness, error);
+		new Result(null, string.Empty, string.Empty, [], new DiagnosticsSummary(0, 0, 0, 0), readiness, error)
+			.WithWorkspaceRelativePaths();
 
 	private sealed class Session(string workspaceRoot, string selectedSolutionPath, MSBuildWorkspace workspace, Solution solution) : IDisposable
 	{
