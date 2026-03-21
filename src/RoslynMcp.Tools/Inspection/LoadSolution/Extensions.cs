@@ -1,9 +1,17 @@
+using Microsoft.Extensions.DependencyInjection;
 using RoslynMcp.Core.Models;
 
 namespace RoslynMcp.Tools.Inspection.LoadSolution;
 
 internal static class Extensions
 {
+    extension(IServiceCollection services)
+    {
+        public IServiceCollection AddLoadSolutionTool() => services
+            .AddSingleton<Service>()
+            .AddSingleton<Tool>();
+    }
+
     extension(string? solutionHintPath)
     {
         public Request ToRequest() => new(solutionHintPath?.NormalizeOptional());
