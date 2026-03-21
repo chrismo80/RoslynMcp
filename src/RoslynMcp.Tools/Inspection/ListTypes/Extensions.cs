@@ -42,55 +42,58 @@ internal static partial class Extensions
 				offset);
 	}
 
-	public static bool TryNormalizeTypeKind(this string? kind, out string? normalized)
+	internal static bool TryNormalizeTypeKind(this string? kind, out string? normalized)
 	{
 		normalized = kind.NormalizeOptional()?.ToLowerInvariant();
-		if (normalized is null)
-			return true;
 
-		if (normalized is "class" or "record" or "interface" or "enum" or "struct")
-			return true;
-
-		normalized = null;
-		return false;
+		switch (normalized)
+		{
+			case null:
+			case "class" or "record" or "interface" or "enum" or "struct":
+				return true;
+			default:
+				normalized = null;
+				return false;
+		}
 	}
 
-	public static bool TryNormalizeAccessibility(this string? accessibility, out string? normalized)
+	internal static bool TryNormalizeAccessibility(this string? accessibility, out string? normalized)
 	{
 		normalized = accessibility.NormalizeOptional()?.Replace('-', '_').ToLowerInvariant();
-		if (normalized is null)
-			return true;
 
-		if (normalized is "public" or "internal" or "protected" or "private" or "protected_internal" or "private_protected")
-			return true;
-
-		normalized = null;
-		return false;
+		switch (normalized)
+		{
+			case null:
+			case "public" or "internal" or "protected" or "private" or "protected_internal" or "private_protected":
+				return true;
+			default:
+				normalized = null;
+				return false;
+		}
 	}
 
-	public static (int Offset, int Limit) NormalizePaging(this int? offset, int? limit)
+	internal static (int Offset, int Limit) NormalizePaging(this int? offset, int? limit)
 	{
 		var normalizedOffset = Math.Max(offset ?? 0, 0);
 		var normalizedLimit = limit.HasValue ? Math.Clamp(limit.Value, 0, 500) : 100;
 		return (normalizedOffset, normalizedLimit);
 	}
 
-	public static string NormalizeAccessibility(this Accessibility accessibility)
-		=> accessibility switch
-		{
-			Accessibility.Public => "public",
-			Accessibility.Internal => "internal",
-			Accessibility.Protected => "protected",
-			Accessibility.Private => "private",
-			Accessibility.ProtectedAndInternal => "private_protected",
-			Accessibility.ProtectedOrInternal => "protected_internal",
-			_ => "not_applicable"
-		};
+	internal static string NormalizeAccessibility(this Accessibility accessibility) => accessibility switch
+	{
+		Accessibility.Public => "public",
+		Accessibility.Internal => "internal",
+		Accessibility.Protected => "protected",
+		Accessibility.Private => "private",
+		Accessibility.ProtectedAndInternal => "private_protected",
+		Accessibility.ProtectedOrInternal => "protected_internal",
+		_ => "not_applicable"
+	};
 
-	public static string NormalizeNamespace(this INamespaceSymbol? ns)
+	internal static string NormalizeNamespace(this INamespaceSymbol? ns)
 		=> ns?.IsGlobalNamespace != false ? string.Empty : ns.ToDisplayString();
 
-	public static string? ToTypeKind(this INamedTypeSymbol symbol)
+	internal static string? ToTypeKind(this INamedTypeSymbol symbol)
 	{
 		if (symbol.IsRecord)
 			return "record";
@@ -105,21 +108,26 @@ internal static partial class Extensions
 		};
 	}
 
-	public static (string FilePath, int? Line, int? Column) GetDeclarationPosition(this ISymbol symbol)
+	extension(ISymbol symbol)
 	{
-		var location = symbol.Locations.FirstOrDefault(static location => location.IsInSource);
-		if (location is null)
-			return (string.Empty, null, null);
+		public (string FilePath, int? Line, int? Column) GetDeclarationPosition()
+		{
+			var location = symbol.Locations.FirstOrDefault(static location => location.IsInSource);
 
-		var span = location.GetLineSpan();
-		var start = span.StartLinePosition;
-		return (span.Path ?? string.Empty, start.Line + 1, start.Character + 1);
+			if (location is null)
+				return (string.Empty, null, null);
+
+			var span = location.GetLineSpan();
+			var start = span.StartLinePosition;
+
+			return (span.Path ?? string.Empty, start.Line + 1, start.Character + 1);
+		}
+
+		public string ToStableId() =>
+			$"{symbol.Kind}:{symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)}";
 	}
 
-	public static string ToStableId(this ISymbol symbol)
-		=> $"{symbol.Kind}:{symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)}";
-
-	public static Entry Enrich(this Discovery discovery, bool includeSummary, bool includeMembers)
+	internal static Entry Enrich(this Discovery discovery, bool includeSummary, bool includeMembers)
 	{
 		var summary = includeSummary ? discovery.Symbol.GetDocumentation()?.Summary : discovery.Entry.Summary;
 		var members = includeMembers ? discovery.Symbol.GetDeclaredLightweightMembers() : discovery.Entry.Members;
@@ -127,7 +135,7 @@ internal static partial class Extensions
 		return discovery.Entry with { Summary = summary, Members = members };
 	}
 
-	public static IReadOnlyList<string> GetDeclaredLightweightMembers(this INamedTypeSymbol type)
+	internal static IReadOnlyList<string> GetDeclaredLightweightMembers(this INamedTypeSymbol type)
 		=> type.GetMembers()
 			.Where(member => member.DeclaredAccessibility > Accessibility.Private)
 			.Select(member => new
@@ -148,30 +156,33 @@ internal static partial class Extensions
 			.Select(static item => item.Entry!)
 			.ToArray();
 
-	public static string? ToMemberKind(this ISymbol member)
-		=> member switch
-		{
-			IMethodSymbol { MethodKind: MethodKind.Constructor or MethodKind.StaticConstructor } => "ctor",
-			IMethodSymbol method when method.MethodKind == MethodKind.Ordinary || method.MethodKind == MethodKind.UserDefinedOperator || method.MethodKind == MethodKind.Conversion || method.MethodKind == MethodKind.ReducedExtension || method.MethodKind == MethodKind.DelegateInvoke => "method",
-			IPropertySymbol => "property",
-			IFieldSymbol field when !field.IsImplicitlyDeclared => "field",
-			IEventSymbol => "event",
-			_ => null
-		};
+	extension(ISymbol member)
+	{
+		private string? ToMemberKind()
+			=> member switch
+			{
+				IMethodSymbol { MethodKind: MethodKind.Constructor or MethodKind.StaticConstructor } => "ctor",
+				IMethodSymbol method when method.MethodKind == MethodKind.Ordinary || method.MethodKind == MethodKind.UserDefinedOperator || method.MethodKind == MethodKind.Conversion || method.MethodKind == MethodKind.ReducedExtension || method.MethodKind == MethodKind.DelegateInvoke => "method",
+				IPropertySymbol => "property",
+				IFieldSymbol field when !field.IsImplicitlyDeclared => "field",
+				IEventSymbol => "event",
+				_ => null
+			};
 
-	public static string? ToLightweightMemberEntry(this ISymbol member)
-		=> member.ToMemberKind() is null ? null : $"{member.ToStableId()}: {member.DeclaredAccessibility.NormalizeAccessibility()} {member.ToLightweightMemberSignature()}";
+		private string? ToLightweightMemberEntry()
+			=> member.ToMemberKind() is null ? null : $"{member.ToStableId()}: {member.DeclaredAccessibility.NormalizeAccessibility()} {member.ToLightweightMemberSignature()}";
 
-	public static string ToLightweightMemberSignature(this ISymbol member)
-		=> member switch
-		{
-			IMethodSymbol { MethodKind: MethodKind.Constructor or MethodKind.StaticConstructor } ctor => $"{ctor.ContainingType.Name}({string.Join(", ", ctor.Parameters.Select(FormatParameter))})",
-			IMethodSymbol method => $"{method.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {method.Name}({string.Join(", ", method.Parameters.Select(FormatParameter))})",
-			IPropertySymbol property => $"{property.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {property.Name} {{ {(property.GetMethod is null ? string.Empty : "get; ")}{(property.SetMethod is null ? string.Empty : property.SetMethod.IsInitOnly ? "init;" : "set;")} }}".Trim(),
-			IFieldSymbol field => $"{field.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {field.Name}",
-			IEventSymbol @event => $"event {@event.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {@event.Name}",
-			_ => member.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)
-		};
+		private string ToLightweightMemberSignature()
+			=> member switch
+			{
+				IMethodSymbol { MethodKind: MethodKind.Constructor or MethodKind.StaticConstructor } ctor => $"{ctor.ContainingType.Name}({string.Join(", ", ctor.Parameters.Select(FormatParameter))})",
+				IMethodSymbol method => $"{method.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {method.Name}({string.Join(", ", method.Parameters.Select(FormatParameter))})",
+				IPropertySymbol property => $"{property.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {property.Name} {{ {(property.GetMethod is null ? string.Empty : "get; ")}{(property.SetMethod is null ? string.Empty : property.SetMethod.IsInitOnly ? "init;" : "set;")} }}".Trim(),
+				IFieldSymbol field => $"{field.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {field.Name}",
+				IEventSymbol @event => $"event {@event.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {@event.Name}",
+				_ => member.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)
+			};
+	}
 
 	private static string FormatParameter(IParameterSymbol parameter)
 	{
@@ -187,15 +198,17 @@ internal static partial class Extensions
 		return $"{modifier}{parameter.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {parameter.Name}";
 	}
 
-	public static IEnumerable<INamedTypeSymbol> EnumerateTypes(this INamespaceSymbol root)
+	internal static IEnumerable<INamedTypeSymbol> EnumerateTypes(this INamespaceSymbol root)
 	{
 		var stack = new Stack<INamespaceOrTypeSymbol>();
+
 		foreach (var member in root.GetMembers().OrderBy(static member => member.Name, StringComparer.Ordinal))
 			stack.Push(member);
 
 		while (stack.Count > 0)
 		{
 			var current = stack.Pop();
+
 			switch (current)
 			{
 				case INamedTypeSymbol namedType:
@@ -211,39 +224,37 @@ internal static partial class Extensions
 		}
 	}
 
-	public static VisibilityAssessment AssessPaths(IEnumerable<string?> paths)
+	extension(IEnumerable<string?> paths)
 	{
-		var handwritten = 0;
-		var generated = 0;
-		var unknown = 0;
-
-		foreach (var path in paths)
+		internal VisibilityAssessment AssessPaths()
 		{
-			if (string.IsNullOrWhiteSpace(path))
+			var handwritten = 0;
+			var generated = 0;
+			var unknown = 0;
+
+			foreach (var path in paths)
 			{
-				unknown++;
-				continue;
+				if (string.IsNullOrWhiteSpace(path))
+				{
+					unknown++;
+					continue;
+				}
+
+				if (SourceVisibility.IsGeneratedLike(path))
+					generated++;
+				else
+					handwritten++;
 			}
 
-			if (SourceVisibility.IsGeneratedLike(path))
-				generated++;
-			else
-				handwritten++;
+			var visibility = handwritten > 0 && generated > 0 ? SourceBiases.Mixed : handwritten > 0 ? SourceBiases.Handwritten : generated > 0 ? SourceBiases.Generated : SourceBiases.Unknown;
+
+			return new VisibilityAssessment(visibility, handwritten, generated, unknown);
 		}
-
-		var visibility = handwritten > 0 && generated > 0 ? SourceBiases.Mixed : handwritten > 0 ? SourceBiases.Handwritten : generated > 0 ? SourceBiases.Generated : SourceBiases.Unknown;
-		return new VisibilityAssessment(visibility, handwritten, generated, unknown);
-	}
-
-	public static string DetermineResultSourceBias(IEnumerable<string?> paths)
-	{
-		var assessment = AssessPaths(paths);
-		return assessment.Visibility;
 	}
 
 	extension(Result result)
 	{
-		public Result WithWorkspaceRelativePaths()
+		internal Result WithWorkspaceRelativePaths()
 			=> result with
 			{
 				Types = result.Types.Select(type => type.WithWorkspaceRelativePaths()).ToArray(),
@@ -253,19 +264,19 @@ internal static partial class Extensions
 
 	extension(Entry entry)
 	{
-		public Entry WithWorkspaceRelativePaths()
+		private Entry WithWorkspaceRelativePaths()
 			=> entry with { Location = entry.Location.WithWorkspaceRelativePaths() };
 	}
 
 	extension(SourceLocation? location)
 	{
-		public SourceLocation? WithWorkspaceRelativePaths()
+		private SourceLocation? WithWorkspaceRelativePaths()
 			=> location is null ? null : location with { FilePath = location.FilePath.ToWorkspaceRelativePathIfPossible() };
 	}
 
 	extension(ErrorInfo? error)
 	{
-		public ErrorInfo? WithWorkspaceRelativePaths()
+		private ErrorInfo? WithWorkspaceRelativePaths()
 		{
 			if (error?.Details is null || error.Details.Count == 0)
 				return error;
@@ -288,7 +299,7 @@ internal static partial class Extensions
 		}
 	}
 
-	public static SymbolDocumentation? GetDocumentation(this ISymbol symbol)
+	internal static SymbolDocumentation? GetDocumentation(this ISymbol symbol)
 	{
 		var xml = symbol.GetDocumentationCommentXml(cancellationToken: CancellationToken.None);
 		if (string.IsNullOrWhiteSpace(xml))

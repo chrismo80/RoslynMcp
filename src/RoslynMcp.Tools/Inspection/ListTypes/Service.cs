@@ -118,9 +118,9 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
 		var (offset, limit) = request.Offset.NormalizePaging(request.Limit);
 		var returnedEntries = ordered.Skip(offset).Take(limit).Select(candidate => candidate.Enrich(request.IncludeSummary, request.IncludeMembers)).ToArray();
 
-		var selectedVisibility = Extensions.AssessPaths(selectedProjectDocumentPaths);
+		var selectedVisibility = selectedProjectDocumentPaths.AssessPaths();
 		var returnedSourceBias = ordered.Length > 0
-			? Extensions.DetermineResultSourceBias(ordered.Select(static entry => entry.Entry.Location?.FilePath ?? string.Empty))
+			? ordered.Select(static entry => entry.Entry.Location?.FilePath ?? string.Empty).AssessPaths().Visibility
 			: selectedVisibility.Visibility;
 
 		if (ordered.Length == 0 && degradedReasons.Contains("missing_artifacts"))
@@ -172,8 +172,7 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
 
 		if (matches.Length == 0)
 		{
-			error = new ErrorInfo(
-				"invalid_input",
+			error = new ErrorInfo("invalid_input",
 				normalizedId is null ? "Project selector did not match any loaded project." : "projectId did not match any project in the active workspace snapshot.",
 				new Dictionary<string, string>(StringComparer.Ordinal)
 				{
@@ -193,8 +192,7 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
 
 		if (matches.Length > 1)
 		{
-			error = new ErrorInfo(
-				"invalid_input",
+			error = new ErrorInfo("invalid_input",
 				"Project selector is ambiguous and matched multiple projects.",
 				new Dictionary<string, string>(StringComparer.Ordinal)
 				{
