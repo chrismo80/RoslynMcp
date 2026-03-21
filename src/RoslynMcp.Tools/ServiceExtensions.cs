@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using RoslynMcp.Tools.Inspection.LoadSolution;
 
 namespace RoslynMcp.Tools;
 
@@ -7,8 +8,9 @@ public static class ServiceExtensions
 {
     extension(IServiceCollection services)
     {
-        public IServiceCollection AddTools() =>
-            services.AddImplementations<BaseTool>();
+        public IServiceCollection AddTools() => services
+            .AddSingleton<Service>()
+            .AddImplementations<BaseTool>();
 
         private IServiceCollection AddImplementations<T>()
         {

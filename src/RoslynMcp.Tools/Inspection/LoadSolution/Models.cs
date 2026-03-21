@@ -27,6 +27,13 @@ public sealed record WorkspaceReadiness(
 	IReadOnlyList<string> DegradedReasons,
 	string? RecommendedNextStep = null);
 
+public static class ReadinessStates
+{
+	public const string Ready = "ready";
+	public const string DegradedMissingArtifacts = "degraded_missing_artifacts";
+	public const string DegradedRestoreRecommended = "degraded_restore_recommended";
+}
+
 public sealed record ErrorInfo(
 	string Code,
 	string Message,

@@ -1,5 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+    <ItemGroup>
+      <ProjectReference Include="..\RoslynMcp.Core\RoslynMcp.Core.csproj" />
+      <ProjectReference Include="..\RoslynMcp.Infrastructure\RoslynMcp.Infrastructure.csproj" />
+    </ItemGroup>
+
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
