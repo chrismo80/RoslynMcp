@@ -4,6 +4,7 @@
     <Project Path="src/RoslynMcp.Infrastructure/RoslynMcp.Infrastructure.csproj" />
     <Project Path="src/RoslynMcp.Features/RoslynMcp.Features.csproj" />
     <Project Path="src/RoslynMcp.Core/RoslynMcp.Core.csproj" />
+    <Project Path="src/RoslynMcp.Tools/RoslynMcp.Tools.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/RoslynMcp.Features.Tests/RoslynMcp.Features.Tests.csproj" />
