@@ -5,6 +5,9 @@ namespace RoslynMcp.Tools.Inspection.LoadSolution;
 
 internal static class Extensions
 {
+    internal static bool IsExplicitSolutionPath(this string? path) => !string.IsNullOrWhiteSpace(path) &&
+        (path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase));
+
     extension(IServiceCollection services)
     {
         public IServiceCollection AddLoadSolutionTool() => services
@@ -15,54 +18,6 @@ internal static class Extensions
     extension(string? solutionHintPath)
     {
         public Request ToRequest() => new(solutionHintPath.NormalizeOptional());
-
-        public string ToWorkspaceAbsolutePath(string workspaceRoot)
-        {
-            if (string.IsNullOrWhiteSpace(solutionHintPath))
-                return solutionHintPath!;
-
-            var trimmedPath = solutionHintPath.Trim();
-            try
-            {
-                return Path.IsPathRooted(trimmedPath)
-                    ? Path.GetFullPath(trimmedPath)
-                    : Path.GetFullPath(trimmedPath, workspaceRoot);
-            }
-            catch
-            {
-                return trimmedPath;
-            }
-        }
-
-        public string ToWorkspaceRelativePathIfPossible(string workspaceRoot)
-        {
-            if (string.IsNullOrWhiteSpace(solutionHintPath))
-                return solutionHintPath!;
-
-            var absolutePath = solutionHintPath.ToWorkspaceAbsolutePath(workspaceRoot);
-            if (!Path.IsPathRooted(absolutePath))
-                return absolutePath;
-
-            try
-            {
-                var normalizedWorkspaceRoot = workspaceRoot.EnsureTrailingDirectorySeparator();
-                var normalizedAbsolutePath = Path.GetFullPath(absolutePath);
-                if (!normalizedAbsolutePath.StartsWith(normalizedWorkspaceRoot, StringComparison.OrdinalIgnoreCase))
-                    return normalizedAbsolutePath;
-
-                return Path.GetRelativePath(workspaceRoot, normalizedAbsolutePath);
-            }
-            catch
-            {
-                return absolutePath;
-            }
-        }
-    }
-
-    extension(string? input)
-    {
-        private string? NormalizeOptional() =>
-            string.IsNullOrWhiteSpace(input) ? null : input.Trim();
     }
 
     extension(ProjectSummary project)
@@ -154,8 +109,4 @@ internal static class Extensions
             || details.TryGetValue("parameter", out var parameter) && PathFieldNames.Contains(parameter);
     }
 
-    private static string EnsureTrailingDirectorySeparator(this string path)
-        => path.EndsWith(Path.DirectorySeparatorChar) || path.EndsWith(Path.AltDirectorySeparatorChar)
-            ? path
-            : path + Path.DirectorySeparatorChar;
 }

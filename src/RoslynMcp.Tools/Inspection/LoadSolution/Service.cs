@@ -6,10 +6,10 @@ namespace RoslynMcp.Tools.Inspection.LoadSolution;
 
 public sealed class Service : IAsyncDisposable
 {
-	private static readonly WorkspaceReadiness DefaultReadiness = new(ReadinessStates.Ready, Array.Empty<string>());
+	private static readonly WorkspaceReadiness DefaultReadiness = new(ReadinessStates.Ready, []);
 	private static readonly SemaphoreSlim Gate = new(1, 1);
 	private static readonly object RegistrationLock = new();
-	private static bool s_msbuildRegistered;
+	private static bool _msbuildRegistered;
 
 	private Session? _current;
 	private int _workspaceVersion;
@@ -21,11 +21,14 @@ public sealed class Service : IAsyncDisposable
 
 		var workspaceRoot = GetWorkspaceRoot();
 		var hint = request.SolutionHintPath?.ToWorkspaceAbsolutePath(workspaceRoot)?.Trim();
+
 		var (solutionPath, error) = await ResolveSolutionPathAsync(hint, workspaceRoot, cancellationToken).ConfigureAwait(false);
+
 		if (solutionPath is null)
 			return Failure(workspaceRoot, DefaultReadiness, error);
 
 		var loaded = await TryLoadSessionAsync(solutionPath, workspaceRoot, cancellationToken).ConfigureAwait(false);
+
 		if (loaded.Error is not null)
 			return Failure(workspaceRoot, DefaultReadiness, loaded.Error);
 
@@ -47,6 +50,7 @@ public sealed class Service : IAsyncDisposable
 	public async ValueTask DisposeAsync()
 	{
 		await Gate.WaitAsync().ConfigureAwait(false);
+
 		try
 		{
 			_current?.Dispose();
@@ -61,16 +65,13 @@ public sealed class Service : IAsyncDisposable
 	private static string GetWorkspaceRoot() => Path.GetFullPath(Directory.GetCurrentDirectory());
 
 	private static async Task<(string? SolutionPath, ErrorInfo? Error)> ResolveSolutionPathAsync(
-		string? hint,
-		string workspaceRoot,
-		CancellationToken cancellationToken)
+		string? hint, string workspaceRoot, CancellationToken cancellationToken)
 	{
-		if (IsExplicitSolutionPath(hint))
+		if (hint.IsExplicitSolutionPath())
 		{
 			if (!File.Exists(hint))
 			{
-				return (null, Error(
-					Codes.SolutionNotFound,
+				return (null, Error(Codes.SolutionNotFound,
 					$"Solution '{hint}' does not exist.",
 					("solutionPath", hint),
 					("nextAction", "Provide a valid .sln or .slnx path and retry load_solution.")));
@@ -80,18 +81,20 @@ public sealed class Service : IAsyncDisposable
 		}
 
 		var root = string.IsNullOrWhiteSpace(hint) ? workspaceRoot : hint;
+
 		var normalizedRoot = NormalizeDirectory(root);
+
 		if (normalizedRoot.Error is not null)
 			return (null, normalizedRoot.Error);
 
 		var discovered = await DiscoverSolutionsAsync(normalizedRoot.Path!, cancellationToken).ConfigureAwait(false);
+
 		if (discovered.Error is not null)
 			return (null, discovered.Error);
 
 		if (discovered.SolutionPaths.Count == 0)
 		{
-			return (null, Error(
-				Codes.SolutionNotFound,
+			return (null, Error(Codes.SolutionNotFound,
 				"No solution files were discovered.",
 				("workspaceRoot", normalizedRoot.Path),
 				("nextAction", "Provide a solution hint path or run load_solution from a workspace that contains a .sln or .slnx file.")));
@@ -101,13 +104,12 @@ public sealed class Service : IAsyncDisposable
 	}
 
 	private static async Task<(Session? Session, ErrorInfo? Error)> TryLoadSessionAsync(
-		string solutionPath,
-		string workspaceRoot,
-		CancellationToken cancellationToken)
+		string solutionPath, string workspaceRoot, CancellationToken cancellationToken)
 	{
 		EnsureMsBuildRegistered();
 
 		MSBuildWorkspace? workspace = null;
+
 		try
 		{
 			workspace = MSBuildWorkspace.Create();
@@ -122,8 +124,8 @@ public sealed class Service : IAsyncDisposable
 		catch (Exception ex)
 		{
 			workspace?.Dispose();
-			return (null, Error(
-				Codes.InternalError,
+
+			return (null, Error(Codes.InternalError,
 				$"Failed to load solution '{solutionPath}': {ex.Message}",
 				("solutionPath", solutionPath)));
 		}
@@ -132,6 +134,7 @@ public sealed class Service : IAsyncDisposable
 	private async Task ReplaceCurrentSessionAsync(Session session, CancellationToken cancellationToken)
 	{
 		await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+
 		try
 		{
 			var previous = _current;
@@ -152,7 +155,9 @@ public sealed class Service : IAsyncDisposable
 		foreach (var project in solution.Projects)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
+
 			var compilation = await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false);
+
 			if (compilation is null)
 				continue;
 
@@ -197,8 +202,7 @@ public sealed class Service : IAsyncDisposable
 
 		if (generatedDiagnostics > 0)
 		{
-			return new WorkspaceReadiness(
-				ReadinessStates.DegradedRestoreRecommended,
+			return new WorkspaceReadiness(ReadinessStates.DegradedRestoreRecommended,
 				["generated_or_intermediate_diagnostics"],
 				"Navigation may still work, but running dotnet restore/build should improve workspace completeness.");
 		}
@@ -209,6 +213,7 @@ public sealed class Service : IAsyncDisposable
 	private static (string? Path, ErrorInfo? Error) NormalizeDirectory(string? path)
 	{
 		var root = path?.Trim();
+
 		if (string.IsNullOrWhiteSpace(root))
 		{
 			return (null, Error(
@@ -220,10 +225,10 @@ public sealed class Service : IAsyncDisposable
 		try
 		{
 			var normalized = Path.GetFullPath(root);
+
 			if (!Directory.Exists(normalized))
 			{
-				return (null, Error(
-					Codes.InvalidPath,
+				return (null, Error(Codes.InvalidPath,
 					$"Workspace root '{normalized}' could not be found.",
 					("workspaceRoot", normalized)));
 			}
@@ -232,8 +237,7 @@ public sealed class Service : IAsyncDisposable
 		}
 		catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
 		{
-			return (null, Error(
-				Codes.InvalidPath,
+			return (null, Error(Codes.InvalidPath,
 				$"Workspace root '{root}' is invalid: {ex.Message}",
 				("workspaceRoot", root)));
 		}
@@ -242,6 +246,7 @@ public sealed class Service : IAsyncDisposable
 	private static Task<(IReadOnlyList<string> SolutionPaths, ErrorInfo? Error)> DiscoverSolutionsAsync(string normalizedRoot, CancellationToken cancellationToken)
 	{
 		var solutions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
 		try
 		{
 			foreach (var pattern in new[] { "*.sln", "*.slnx" })
@@ -266,13 +271,9 @@ public sealed class Service : IAsyncDisposable
 		}
 
 		var ordered = solutions.OrderBy(static path => path, StringComparer.OrdinalIgnoreCase).ToArray();
+
 		return Task.FromResult(((IReadOnlyList<string>)ordered, (ErrorInfo?)null));
 	}
-
-	private static bool IsExplicitSolutionPath(string? path)
-		=> !string.IsNullOrWhiteSpace(path)
-		   && (path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase)
-		       || path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase));
 
 	private static bool IsGeneratedLike(string? path)
 	{
@@ -280,6 +281,7 @@ public sealed class Service : IAsyncDisposable
 			return false;
 
 		var normalized = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+
 		var fileName = Path.GetFileName(normalized);
 
 		if (normalized.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
@@ -298,24 +300,25 @@ public sealed class Service : IAsyncDisposable
 
 	private static void EnsureMsBuildRegistered()
 	{
-		if (s_msbuildRegistered)
+		if (_msbuildRegistered)
 			return;
 
 		lock (RegistrationLock)
 		{
-			if (s_msbuildRegistered)
+			if (_msbuildRegistered)
 				return;
 
 			if (!MSBuildLocator.IsRegistered)
 				MSBuildLocator.RegisterDefaults();
 
-			s_msbuildRegistered = true;
+			_msbuildRegistered = true;
 		}
 	}
 
 	private static ErrorInfo Error(string code, string message, params (string Key, string? Value)[] details)
 	{
 		var map = new Dictionary<string, string>(StringComparer.Ordinal);
+
 		foreach (var (key, value) in details)
 		{
 			if (!string.IsNullOrWhiteSpace(key) && !string.IsNullOrWhiteSpace(value))
@@ -325,16 +328,8 @@ public sealed class Service : IAsyncDisposable
 		return new ErrorInfo(code, message, map.Count == 0 ? null : map);
 	}
 
-	private Result Failure(string workspaceRoot, WorkspaceReadiness readiness, ErrorInfo? error)
-		=> new Result(
-			null,
-			string.Empty,
-			string.Empty,
-			Array.Empty<ProjectSummary>(),
-			new DiagnosticsSummary(0, 0, 0, 0),
-			readiness,
-			error)
-			.WithWorkspaceRelativePaths(workspaceRoot);
+	private static Result Failure(string workspaceRoot, WorkspaceReadiness readiness, ErrorInfo? error) =>
+		new Result(null, string.Empty, string.Empty, [], new DiagnosticsSummary(0, 0, 0, 0), readiness, error);
 
 	private sealed class Session(string workspaceRoot, string selectedSolutionPath, MSBuildWorkspace workspace, Solution solution) : IDisposable
 	{
