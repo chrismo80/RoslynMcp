@@ -27,12 +27,10 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
 		var projects = await ProjectSummaryBuilder.BuildAsync(session.Solution, includeTypes, cancellationToken).ConfigureAwait(false);
 
 		if (request.Profile != Extensions.Profiles.Deep)
-			return new Result(request.Profile!, projects, [])
-				.WithWorkspaceRelativePaths();
+			return new Result(request.Profile!, projects, []).WithWorkspaceRelativePaths();
 
 		var hotspots = await HotspotBuilder.BuildAsync(session.Solution, DeepHotspotCount, cancellationToken).ConfigureAwait(false);
 
-		return new Result(request.Profile!, projects, hotspots)
-			.WithWorkspaceRelativePaths();
+		return new Result(request.Profile!, projects, hotspots).WithWorkspaceRelativePaths();
 	}
 }

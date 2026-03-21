@@ -24,6 +24,7 @@ internal static class ProjectSummaryBuilder
 			foreach (var reference in project.ProjectReferences)
 			{
 				var dependency = solution.GetProject(reference.ProjectId);
+
 				if (dependency?.FilePath is null)
 					continue;
 
@@ -33,12 +34,11 @@ internal static class ProjectSummaryBuilder
 		}
 
 		var summaries = new List<ProjectSummary>();
+
 		foreach (var project in solution.Projects)
 		{
 			var projectPath = project.FilePath ?? string.Empty;
-			var types = includeTypes
-				? await BuildProjectTypesAsync(project, cancellationToken).ConfigureAwait(false)
-				: [];
+			var types = includeTypes ? await BuildProjectTypesAsync(project, cancellationToken).ConfigureAwait(false) : [];
 
 			summaries.Add(new ProjectSummary(
 				project.Name,
@@ -57,6 +57,7 @@ internal static class ProjectSummaryBuilder
 	private static async Task<IReadOnlyList<string>> BuildProjectTypesAsync(Project project, CancellationToken cancellationToken)
 	{
 		var compilation = await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false);
+
 		if (compilation is null)
 			return [];
 
@@ -81,6 +82,9 @@ internal static class ProjectSummaryBuilder
 		}
 
 		var selected = visibleTypes.Count > 0 ? visibleTypes : generatedFallbackTypes;
-		return selected.OrderBy(static type => type, StringComparer.Ordinal).ToArray();
+
+		return selected
+			.OrderBy(static type => type, StringComparer.Ordinal)
+			.ToArray();
 	}
 }
