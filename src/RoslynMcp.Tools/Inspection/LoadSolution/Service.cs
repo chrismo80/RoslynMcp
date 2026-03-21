@@ -20,13 +20,14 @@ public sealed class Service(Infrastructure.Services.Workspace workspace) : IAsyn
 		if (solutionPath is null)
 			return Failure(workspaceRoot, DefaultReadiness, error);
 
-		Session loaded;
+		Session session;
 		string snapshotId;
 		string workspaceId;
+
 		try
 		{
 			var sessionState = await workspace.LoadAsync(solutionPath, cancellationToken).ConfigureAwait(false);
-			loaded = sessionState.Session!;
+			session = sessionState.Session!;
 			snapshotId = sessionState.SnapshotId;
 			workspaceId = sessionState.WorkspaceId;
 		}
@@ -41,15 +42,15 @@ public sealed class Service(Infrastructure.Services.Workspace workspace) : IAsyn
 				("solutionPath", solutionPath)));
 		}
 
-		var projects = loaded.Solution.Projects
+		var projects = session.Solution.Projects
 			.OrderBy(static project => project.Name, StringComparer.Ordinal)
 			.Select(static project => new ProjectSummary(project.Name, project.FilePath))
 			.ToArray();
 
-		var diagnostics = await CollectBaselineDiagnosticsAsync(loaded.Solution, cancellationToken).ConfigureAwait(false);
-		var readiness = AssessReadiness(loaded.Solution, diagnostics);
+		var diagnostics = await CollectBaselineDiagnosticsAsync(session.Solution, cancellationToken).ConfigureAwait(false);
+		var readiness = AssessReadiness(session.Solution, diagnostics);
 
-		return new Result(loaded.SelectedSolutionPath, workspaceId, snapshotId, projects, diagnostics.ToDiagnosticsSummary(), readiness)
+		return new Result(session.SelectedSolutionPath, workspaceId, snapshotId, projects, diagnostics.ToDiagnosticsSummary(), readiness)
 			.WithWorkspaceRelativePaths();
 	}
 
