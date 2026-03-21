@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using RoslynMcp.Tools.Infrastructure.Services;
+using RoslynMcp.Tools.Inspection.ListTypes;
 using RoslynMcp.Tools.Inspection.LoadSolution;
 using RoslynMcp.Tools.Inspection.UnderstandProjects;
 
@@ -18,6 +19,7 @@ public static class ServiceExtensions
 
         private IServiceCollection AddTools() => services
             .AddLoadSolutionTool()
-            .AddUnderstandProjectsTool();
+            .AddUnderstandProjectsTool()
+            .AddListTypesTool();
     }
 }
