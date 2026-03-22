@@ -105,6 +105,11 @@ internal static class Extensions
 			$"{symbol.Kind}:{symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)}";
 	}
 
+	internal static string? NormalizeNamespace(this INamespaceSymbol? symbol)
+		=> symbol?.IsGlobalNamespace != false
+			? null
+			: symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", string.Empty, StringComparison.Ordinal);
+
 	private static string EnsureTrailingDirectorySeparator(this string path)
 		=> path.EndsWith(Path.DirectorySeparatorChar) || path.EndsWith(Path.AltDirectorySeparatorChar)
 			? path

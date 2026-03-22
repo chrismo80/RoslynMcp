@@ -131,9 +131,6 @@ internal static class Extensions
 		}
 	}
 
-	internal static string? NormalizeNamespace(this INamespaceSymbol? symbol)
-		=> symbol?.IsGlobalNamespace != false ? null : symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", string.Empty, StringComparison.Ordinal);
-
 	internal static Result WithWorkspaceRelativePaths(this Result result)
 		=> result with
 		{
@@ -176,5 +173,5 @@ internal static class Extensions
 	}
 
 	private static SourceLocation? CreateOptionalSourceLocation(string filePath, int? line, int? column)
-		=> string.IsNullOrWhiteSpace(filePath) || !line.HasValue || !column.HasValue ? null : new SourceLocation(filePath, line.Value, column.Value);
+		=> string.IsNullOrWhiteSpace(filePath) || !line.HasValue || !column.HasValue ? null : new(filePath, line.Value, column.Value);
 }

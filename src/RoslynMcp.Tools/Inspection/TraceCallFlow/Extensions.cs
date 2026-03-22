@@ -47,9 +47,6 @@ internal static class Extensions
 		}
 	}
 
-	internal static string? NormalizeNamespace(this INamespaceSymbol? symbol)
-		=> symbol?.IsGlobalNamespace != false ? null : symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", string.Empty, StringComparison.Ordinal);
-
 	internal static async Task<IReadOnlyList<(ISymbol From, ISymbol To, SourceLocation Location)>> GetCallersAsync(this ISymbol root, Solution solution, int maxDepth, CancellationToken cancellationToken)
 		=> await BuildCallGraphAsync(root, solution, maxDepth, callers: true, cancellationToken).ConfigureAwait(false);
 
@@ -162,7 +159,7 @@ internal static class Extensions
 		=> error;
 
 	private static SourceLocation? CreateOptionalSourceLocation(string filePath, int? line, int? column)
-		=> string.IsNullOrWhiteSpace(filePath) || !line.HasValue || !column.HasValue ? null : new SourceLocation(filePath, line.Value, column.Value);
+		=> string.IsNullOrWhiteSpace(filePath) || !line.HasValue || !column.HasValue ? null : new(filePath, line.Value, column.Value);
 
 	private sealed class CalleeCollector(SemanticModel semanticModel, CancellationToken cancellationToken) : CSharpSyntaxWalker(SyntaxWalkerDepth.Node)
 	{
