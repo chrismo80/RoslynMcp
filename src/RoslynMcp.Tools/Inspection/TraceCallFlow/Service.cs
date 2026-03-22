@@ -33,9 +33,22 @@ public sealed class Service(RoslynMcp.Tools.Infrastructure.Services.Workspace wo
             ]
         };
 
-        var edgeList = edges.Select(static edge => new TraceFlowEdge(edge.From.ToStableId(), edge.To.ToStableId(), edge.Location, FlowEvidenceKinds.DirectStatic)).ToArray();
+        var possibleTargetEdges = request.IncludePossibleTargets
+            ? await root.GetPossibleTargetsAsync(session.Solution, cancellationToken).ConfigureAwait(false)
+            : [];
+
+        var edgeList = edges.Select(static edge => new TraceFlowEdge(
+            edge.From.ToStableId(),
+            edge.To.ToStableId(),
+            edge.Location,
+            FlowEvidenceKinds.DirectStatic,
+            IsInterfaceDispatch(edge.To) ? [FlowUncertaintyCategories.InterfaceDispatch] : null)).ToArray();
+        var possibleTargetEdgeList = possibleTargetEdges
+            .Select(static edge => new TraceFlowEdge(edge.From.ToStableId(), edge.To.ToStableId(), edge.Location, FlowEvidenceKinds.PossibleTarget, [FlowUncertaintyCategories.InterfaceDispatch]))
+            .ToArray();
         var symbolTable = edges
             .SelectMany(static edge => new[] { edge.From, edge.To })
+            .Concat(possibleTargetEdges.SelectMany(static edge => new[] { edge.From, edge.To }))
             .Append(root)
             .GroupBy(static symbol => symbol.ToStableId(), StringComparer.Ordinal)
             .ToDictionary(static group => group.Key, static group => group.First().ToTraceSymbolEntry(), StringComparer.Ordinal);
@@ -46,8 +59,11 @@ public sealed class Service(RoslynMcp.Tools.Infrastructure.Services.Workspace wo
             .OrderByDescending(static group => group.Count)
             .ToArray();
 
-        return new Result(root.ToStableId(), root.ToRootSummary(), direction, depth, symbolTable, edgeList, null, transitions.Length == 0 ? null : transitions, null).WithWorkspaceRelativePaths();
+        return new Result(root.ToStableId(), root.ToRootSummary(), direction, depth, symbolTable, edgeList, possibleTargetEdgeList.Length == 0 ? null : possibleTargetEdgeList, transitions.Length == 0 ? null : transitions, null).WithWorkspaceRelativePaths();
     }
+
+    private static bool IsInterfaceDispatch(ISymbol symbol)
+        => symbol is IMethodSymbol { ContainingType.TypeKind: TypeKind.Interface };
 
     private async Task<ISymbol?> ResolveRootAsync(Request request, Solution solution, CancellationToken cancellationToken)
     {

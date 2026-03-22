@@ -54,7 +54,7 @@ internal static class Extensions
                 await AddAsync(overrides).ConfigureAwait(false);
             }
 
-            return [.. unique.Values.OrderBy(static candidate => candidate.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), StringComparer.Ordinal)];
+            return [.. unique.Values.OrderBy(static candidate => candidate, ImplementationSymbolComparer.Instance)];
         }
 
         private ISymbol NormalizeSearchRoot()
@@ -114,7 +114,7 @@ internal static class Extensions
         => symbol?.WithWorkspaceRelativePathValues();
 
     private static CompactSymbol WithWorkspaceRelativePathValues(this CompactSymbol symbol)
-        => symbol with { Location = symbol.Location.WithWorkspaceRelativePaths(), Owner = symbol.Owner?.Replace("global::", string.Empty, StringComparison.Ordinal) };
+        => symbol with { Location = symbol.Location.WithWorkspaceRelativePaths() };
 
     private static SourceLocation? WithWorkspaceRelativePaths(this SourceLocation? location)
         => location is null ? null : location with { FilePath = location.FilePath.ToWorkspaceRelativePathIfPossible() };
@@ -143,4 +143,58 @@ internal static class Extensions
 
     private static SourceLocation? CreateOptionalSourceLocation(string filePath, int? line, int? column)
         => string.IsNullOrWhiteSpace(filePath) || !line.HasValue || !column.HasValue ? null : new(filePath, line.Value, column.Value);
+
+    private sealed class ImplementationSymbolComparer : IComparer<ISymbol>
+    {
+        internal static readonly ImplementationSymbolComparer Instance = new();
+
+        public int Compare(ISymbol? x, ISymbol? y)
+        {
+            if (ReferenceEquals(x, y))
+                return 0;
+
+            if (x is null)
+                return -1;
+
+            if (y is null)
+                return 1;
+
+            var byNameIgnoreCase = StringComparer.OrdinalIgnoreCase.Compare(x.Name, y.Name);
+            if (byNameIgnoreCase != 0)
+                return byNameIgnoreCase;
+
+            var byName = StringComparer.Ordinal.Compare(x.Name, y.Name);
+            if (byName != 0)
+                return byName;
+
+            var byKind = StringComparer.Ordinal.Compare(x.Kind.ToString(), y.Kind.ToString());
+            if (byKind != 0)
+                return byKind;
+
+            var byNamespace = StringComparer.Ordinal.Compare(x.ContainingNamespace.NormalizeNamespace() ?? string.Empty, y.ContainingNamespace.NormalizeNamespace() ?? string.Empty);
+            if (byNamespace != 0)
+                return byNamespace;
+
+            var byType = StringComparer.Ordinal.Compare(x.ContainingType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? string.Empty, y.ContainingType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? string.Empty);
+            if (byType != 0)
+                return byType;
+
+            var (xPath, xLine, xColumn) = x.GetDeclarationPosition();
+            var (yPath, yLine, yColumn) = y.GetDeclarationPosition();
+
+            var byPath = StringComparer.Ordinal.Compare(xPath, yPath);
+            if (byPath != 0)
+                return byPath;
+
+            var byLine = Nullable.Compare(xLine, yLine);
+            if (byLine != 0)
+                return byLine;
+
+            var byColumn = Nullable.Compare(xColumn, yColumn);
+            if (byColumn != 0)
+                return byColumn;
+
+            return StringComparer.Ordinal.Compare(x.ToStableId(), y.ToStableId());
+        }
+    }
 }

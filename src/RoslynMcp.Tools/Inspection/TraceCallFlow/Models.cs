@@ -38,4 +38,10 @@ internal static class FlowDirections
 internal static class FlowEvidenceKinds
 {
     public const string DirectStatic = "direct_static";
+    public const string PossibleTarget = "possible_target";
+}
+
+internal static class FlowUncertaintyCategories
+{
+    public const string InterfaceDispatch = "interface_dispatch";
 }

@@ -144,7 +144,7 @@ internal static class Extensions
         }
 
         internal string ToStableId() =>
-            $"{symbol.Kind}:{symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)}";
+            $"{symbol.Kind}:{(symbol.OriginalDefinition ?? symbol).ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)}";
     }
 
     internal static string? NormalizeNamespace(this INamespaceSymbol? symbol)

@@ -30,7 +30,7 @@ public sealed class Service(Workspace workspace)
                 }));
         }
 
-        var symbol = await SymbolLookup.ResolveSymbolAsync(symbolId, session.Solution, cancellationToken).ConfigureAwait(false);
+        var (symbol, _) = await SymbolLookup.ResolveSymbolWithProjectAsync(symbolId, session.Solution, cancellationToken).ConfigureAwait(false);
         if (symbol is null)
         {
             return new Result(null, [], new ErrorInfo(

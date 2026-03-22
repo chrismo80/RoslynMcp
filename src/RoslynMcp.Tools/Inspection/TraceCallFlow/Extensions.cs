@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Immutable;
 
 namespace RoslynMcp.Tools.Inspection.TraceCallFlow;
 
@@ -52,6 +53,42 @@ internal static class Extensions
 
     internal static async Task<IReadOnlyList<(ISymbol From, ISymbol To, SourceLocation Location)>> GetCalleesAsync(this ISymbol root, Solution solution, int maxDepth, CancellationToken cancellationToken)
         => await BuildCallGraphAsync(root, solution, maxDepth, callers: false, cancellationToken).ConfigureAwait(false);
+
+    internal static async Task<IReadOnlyList<(ISymbol From, ISymbol To, SourceLocation Location)>> GetPossibleTargetsAsync(this ISymbol root, Solution solution, CancellationToken cancellationToken)
+    {
+        var collected = new Dictionary<string, (ISymbol From, ISymbol To, SourceLocation Location)>(StringComparer.Ordinal);
+
+        foreach (var reference in root.DeclaringSyntaxReferences)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var node = await reference.GetSyntaxAsync(cancellationToken).ConfigureAwait(false);
+            var document = solution.GetDocument(node.SyntaxTree);
+            if (document is null)
+                continue;
+
+            var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+            if (semanticModel is null)
+                continue;
+
+            foreach (var invocation in node.DescendantNodes().OfType<InvocationExpressionSyntax>())
+            {
+                var symbolInfo = semanticModel.GetSymbolInfo(invocation.Expression, cancellationToken);
+                var target = symbolInfo.Symbol as IMethodSymbol;
+                if (target is null || target.ContainingType.TypeKind != TypeKind.Interface)
+                    continue;
+
+                var implementations = await SymbolFinder.FindImplementationsAsync(target.OriginalDefinition, solution, solution.Projects.ToImmutableHashSet(), cancellationToken).ConfigureAwait(false);
+                var source = invocation.GetLocation().ToSourceLocation();
+                foreach (var implementation in implementations.OfType<IMethodSymbol>())
+                {
+                    var normalized = implementation.ConstructedFrom ?? implementation.OriginalDefinition ?? implementation;
+                    collected[$"{root.ToStableId()}->{normalized.ToStableId()}@{source.FilePath}:{source.Line}:{source.Column}"] = (root, normalized, source);
+                }
+            }
+        }
+
+        return [.. collected.Values.OrderBy(static edge => edge.Location.FilePath, StringComparer.Ordinal).ThenBy(static edge => edge.Location.Line).ThenBy(static edge => edge.Location.Column).ThenBy(static edge => edge.To.ToStableId(), StringComparer.Ordinal)];
+    }
 
     private static async Task<IReadOnlyList<(ISymbol From, ISymbol To, SourceLocation Location)>> BuildCallGraphAsync(ISymbol root, Solution solution, int maxDepth, bool callers, CancellationToken cancellationToken)
     {

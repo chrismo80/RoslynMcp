@@ -22,7 +22,8 @@ public sealed class SymbolLookup
 
             foreach (var symbol in EnumerateSymbols(compilation.Assembly.GlobalNamespace))
             {
-                if (string.Equals(symbol.ToStableId(), normalizedSymbolId, StringComparison.Ordinal))
+                if (string.Equals(symbol.ToStableId(), normalizedSymbolId, StringComparison.Ordinal)
+                    || string.Equals((symbol.OriginalDefinition ?? symbol).ToStableId(), normalizedSymbolId, StringComparison.Ordinal))
                     return symbol;
             }
         }
@@ -46,7 +47,8 @@ public sealed class SymbolLookup
 
             foreach (var symbol in EnumerateSymbols(compilation.Assembly.GlobalNamespace))
             {
-                if (string.Equals(symbol.ToStableId(), normalizedSymbolId, StringComparison.Ordinal))
+                if (string.Equals(symbol.ToStableId(), normalizedSymbolId, StringComparison.Ordinal)
+                    || string.Equals((symbol.OriginalDefinition ?? symbol).ToStableId(), normalizedSymbolId, StringComparison.Ordinal))
                     return (symbol, project);
             }
         }
