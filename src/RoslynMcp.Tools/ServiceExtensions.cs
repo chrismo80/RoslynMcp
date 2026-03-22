@@ -4,6 +4,7 @@ using RoslynMcp.Tools.Inspection.ListMembers;
 using RoslynMcp.Tools.Inspection.ListTypes;
 using RoslynMcp.Tools.Inspection.LoadSolution;
 using RoslynMcp.Tools.Inspection.ResolveSymbol;
+using RoslynMcp.Tools.Inspection.ResolveSymbols;
 using RoslynMcp.Tools.Inspection.UnderstandProjects;
 
 namespace RoslynMcp.Tools;
@@ -25,6 +26,7 @@ public static class ServiceExtensions
             .AddUnderstandProjectsTool()
             .AddListMembersTool()
             .AddResolveSymbolTool()
+            .AddResolveSymbolsTool()
             .AddListTypesTool();
     }
 }
