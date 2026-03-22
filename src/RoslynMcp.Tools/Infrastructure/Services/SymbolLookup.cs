@@ -30,6 +30,30 @@ public sealed class SymbolLookup
 		return null;
 	}
 
+	internal async Task<(ISymbol? Symbol, Project? OwnerProject)> ResolveSymbolWithProjectAsync(string symbolId, Solution solution, CancellationToken cancellationToken)
+	{
+		var normalizedSymbolId = symbolId.NormalizeOptional();
+		if (normalizedSymbolId is null)
+			return (null, null);
+
+		foreach (var project in solution.Projects)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+
+			var compilation = await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false);
+			if (compilation is null)
+				continue;
+
+			foreach (var symbol in EnumerateSymbols(compilation.Assembly.GlobalNamespace))
+			{
+				if (string.Equals(symbol.ToStableId(), normalizedSymbolId, StringComparison.Ordinal))
+					return (symbol, project);
+			}
+		}
+
+		return (null, null);
+	}
+
 	internal async Task<ISymbol?> GetSymbolAtPositionAsync(Solution solution, string path, int line, int column, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrWhiteSpace(path))
