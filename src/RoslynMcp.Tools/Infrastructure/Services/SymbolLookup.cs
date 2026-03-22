@@ -7,6 +7,7 @@ public sealed class SymbolLookup
 	internal async Task<ISymbol?> ResolveSymbolAsync(string symbolId, Solution solution, CancellationToken cancellationToken)
 	{
 		var normalizedSymbolId = symbolId.NormalizeOptional();
+
 		if (normalizedSymbolId is null)
 			return null;
 
@@ -15,6 +16,7 @@ public sealed class SymbolLookup
 			cancellationToken.ThrowIfCancellationRequested();
 
 			var compilation = await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false);
+
 			if (compilation is null)
 				continue;
 
@@ -43,16 +45,19 @@ public sealed class SymbolLookup
 
 		var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 		var model = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+
 		if (root is null || model is null)
 			return null;
 
 		var text = await document.GetTextAsync(cancellationToken).ConfigureAwait(false);
+
 		if (line <= 0 || column <= 0 || line > text.Lines.Count)
 			return null;
 
 		var textLine = text.Lines[line - 1];
 		var position = textLine.Start + Math.Min(column - 1, textLine.End - textLine.Start);
 		var token = root.FindToken(position);
+
 		if (token.RawKind == 0)
 			return null;
 

@@ -16,60 +16,65 @@ internal static class Extensions
 			.AddSingleton<Tool>();
 	}
 
-	internal static CompactSymbol ToCompactSymbol(this ISymbol symbol)
+	extension(ISymbol symbol)
 	{
-		var (filePath, line, column) = symbol.GetDeclarationPosition();
-		return new CompactSymbol(
-			symbol.ToStableId(),
-			symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
-			symbol.Kind.ToString(),
-			CreateOptionalSourceLocation(filePath, line, column),
-			symbol.ContainingType?.Name ?? symbol.ContainingNamespace.NormalizeOwner());
-	}
-
-	internal static async Task<IReadOnlyList<SourceLocation>> FindReferencesAsync(this ISymbol symbol, Solution solution, CancellationToken cancellationToken)
-	{
-		var references = await SymbolFinder.FindReferencesAsync(symbol, solution, cancellationToken).ConfigureAwait(false);
-		var unique = new HashSet<string>(StringComparer.Ordinal);
-		var locations = new List<SourceLocation>();
-
-		foreach (var reference in references)
+		internal CompactSymbol ToCompactSymbol()
 		{
-			cancellationToken.ThrowIfCancellationRequested();
+			var (filePath, line, column) = symbol.GetDeclarationPosition();
 
-			foreach (var location in reference.Locations)
-			{
-				if (!location.Location.IsInSource)
-					continue;
-
-				var source = location.Location.ToSourceLocation();
-				var key = $"{source.FilePath}:{source.Line}:{source.Column}";
-				if (unique.Add(key))
-					locations.Add(source);
-			}
+			return new CompactSymbol(
+				symbol.ToStableId(),
+				symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+				symbol.Kind.ToString(),
+				CreateOptionalSourceLocation(filePath, line, column),
+				symbol.ContainingType?.Name ?? symbol.ContainingNamespace.NormalizeOwner());
 		}
 
-		return locations
-			.OrderBy(static location => location.FilePath, StringComparer.Ordinal)
-			.ThenBy(static location => location.Line)
-			.ThenBy(static location => location.Column)
-			.ToArray();
+		internal async Task<IReadOnlyList<SourceLocation>> FindReferencesAsync(Solution solution, CancellationToken cancellationToken)
+		{
+			var references = await SymbolFinder.FindReferencesAsync(symbol, solution, cancellationToken).ConfigureAwait(false);
+			var unique = new HashSet<string>(StringComparer.Ordinal);
+			var locations = new List<SourceLocation>();
+
+			foreach (var reference in references)
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+
+				foreach (var location in reference.Locations.Where(l => l.Location.IsInSource))
+				{
+					var source = location.Location.ToSourceLocation();
+					var key = $"{source.FilePath}:{source.Line}:{source.Column}";
+
+					if (unique.Add(key))
+						locations.Add(source);
+				}
+			}
+
+			return locations
+				.OrderBy(static location => location.FilePath, StringComparer.Ordinal)
+				.ThenBy(static location => location.Line)
+				.ThenBy(static location => location.Column)
+				.ToArray();
+		}
 	}
 
 	internal static SourceLocation ToSourceLocation(this Location location)
 	{
 		var span = location.GetLineSpan();
 		var start = span.StartLinePosition;
+
 		return new SourceLocation(span.Path ?? string.Empty, start.Line + 1, start.Character + 1);
 	}
 
 	internal static SymbolDocumentation? GetDocumentation(this ISymbol symbol)
 	{
 		var xml = symbol.GetDocumentationCommentXml(cancellationToken: CancellationToken.None);
+
 		if (string.IsNullOrWhiteSpace(xml))
 			return null;
 
 		XElement root;
+
 		try
 		{
 			root = XElement.Parse($"<root>{xml}</root>", LoadOptions.PreserveWhitespace);
@@ -104,23 +109,21 @@ internal static class Extensions
 			: new SymbolDocumentationInfo(documentation.Summary, documentation.Returns, parameters);
 	}
 
-	internal static string BuildSignature(this ISymbol symbol)
-		=> symbol switch
-		{
-			IMethodSymbol method => method.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
-			IPropertySymbol property => property.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
-			IFieldSymbol field => field.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
-			INamedTypeSymbol type => type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
-			_ => symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)
-		};
+	internal static string BuildSignature(this ISymbol symbol) => symbol switch
+	{
+		IMethodSymbol method => method.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+		IPropertySymbol property => property.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+		IFieldSymbol field => field.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+		INamedTypeSymbol type => type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+		_ => symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)
+	};
 
-	internal static Result WithWorkspaceRelativePaths(this Result result)
-		=> result with
-		{
-			Symbol = result.Symbol.WithWorkspaceRelativePaths(),
-			KeyReferences = result.KeyReferences?.Select(static group => group.WithWorkspaceRelativePaths()).ToArray(),
-			Error = result.Error.WithWorkspaceRelativePaths()
-		};
+	internal static Result WithWorkspaceRelativePaths(this Result result) => result with
+	{
+		Symbol = result.Symbol.WithWorkspaceRelativePaths(),
+		KeyReferences = result.KeyReferences?.Select(static group => group.WithWorkspaceRelativePaths()).ToArray(),
+		Error = result.Error.WithWorkspaceRelativePaths()
+	};
 
 	private static CompactSymbol? WithWorkspaceRelativePaths(this CompactSymbol? symbol)
 		=> symbol is null ? null : symbol with { Location = symbol.Location.WithWorkspaceRelativePaths() };
@@ -137,12 +140,14 @@ internal static class Extensions
 			return error;
 
 		Dictionary<string, string>? updated = null;
+
 		foreach (var pair in error.Details)
 		{
 			if (pair.Key is not ("path" or "filepath" or "provided"))
 				continue;
 
 			var outward = pair.Value.ToWorkspaceRelativePathIfPossible();
+
 			if (string.Equals(outward, pair.Value, StringComparison.Ordinal))
 				continue;
 
@@ -163,6 +168,7 @@ internal static class Extensions
 	{
 		var name = NormalizeText(element.Attribute("name")?.Value);
 		var description = NormalizeElementText(element);
+
 		return name is null || description is null ? null : new SymbolParameterDocumentation(name, description);
 	}
 
@@ -173,6 +179,7 @@ internal static class Extensions
 
 		var builder = new StringBuilder();
 		AppendNodeText(element, builder);
+
 		return NormalizeText(builder.ToString());
 	}
 
