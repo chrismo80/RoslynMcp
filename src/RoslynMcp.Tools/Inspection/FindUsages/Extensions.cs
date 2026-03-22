@@ -54,6 +54,7 @@ internal static class Extensions
 	private static bool IsInScope(this ReferenceLocation referenceLocation, string scope, string? path, Project? ownerProject)
 	{
 		var document = referenceLocation.Document;
+
 		if (document is null)
 			return false;
 

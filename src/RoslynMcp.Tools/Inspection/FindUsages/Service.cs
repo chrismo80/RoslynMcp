@@ -2,7 +2,7 @@ using RoslynMcp.Tools.Infrastructure.Services;
 
 namespace RoslynMcp.Tools.Inspection.FindUsages;
 
-public sealed class Service(Infrastructure.Services.Workspace workspace, SymbolLookup symbolLookup)
+public sealed class Service(Workspace workspace, SymbolLookup symbolLookup)
 {
 	public async Task<Result> RunAsync(Request request, CancellationToken cancellationToken)
 	{
