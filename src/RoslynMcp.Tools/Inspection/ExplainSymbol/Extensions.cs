@@ -24,7 +24,7 @@ internal static class Extensions
 
             return new CompactSymbol(
                 symbol.ToStableId(),
-                symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+                symbol.Name,
                 symbol.Kind.ToString(),
                 CreateOptionalSourceLocation(filePath, line, column),
                 symbol.ContainingType?.Name ?? symbol.ContainingNamespace.NormalizeOwner());
@@ -189,11 +189,28 @@ internal static class Extensions
             case XText text:
                 builder.Append(text.Value);
                 break;
+            case XElement element when element.Name.LocalName is "see" or "seealso":
+                builder.Append(NormalizeSymbolReference(element.Attribute("cref")?.Value));
+                break;
+            case XElement element when element.Name.LocalName is "paramref" or "typeparamref":
+                builder.Append(element.Attribute("name")?.Value);
+                break;
             case XElement element:
                 foreach (var child in element.Nodes())
                     AppendNodeText(child, builder);
                 break;
         }
+    }
+
+    private static string? NormalizeSymbolReference(string? cref)
+    {
+        var normalized = NormalizeText(cref);
+        if (normalized is null)
+            return null;
+
+        return normalized.Length > 2 && normalized[1] == ':'
+            ? normalized[2..]
+            : normalized;
     }
 
     private static string? NormalizeText(string? text)

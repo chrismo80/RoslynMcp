@@ -181,6 +181,9 @@ internal static class Extensions
         {
             cancellationToken.ThrowIfCancellationRequested();
             var symbol = semanticModel.GetSymbolInfo(node, cancellationToken).Symbol;
+            if (symbol is IMethodSymbol { MethodKind: MethodKind.Constructor })
+                return;
+
             if (symbol is not null)
                 Callees.Add((symbol, location));
         }

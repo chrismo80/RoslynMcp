@@ -95,7 +95,14 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
         var methods = symbol.GetMembers().OfType<IMethodSymbol>().Count(static member => member.MethodKind == MethodKind.Ordinary);
         var properties = symbol.GetMembers().OfType<IPropertySymbol>().Count();
         var fields = symbol.GetMembers().OfType<IFieldSymbol>().Count(static member => !member.IsImplicitlyDeclared);
-        return $"{symbol.Name} is a {symbol.TypeKind.ToString().ToLowerInvariant()} in {NormalizeNamespace(symbol.ContainingNamespace)} that {responsibility}. It exposes {methods} methods, {properties} properties, and {fields} fields. Edits likely affect {referenceCount} referencing location{(referenceCount == 1 ? string.Empty : "s")}.";
+        var collaborators = string.Join(", ", CollectTypeCollaborators(symbol).Take(3));
+        var impact = referenceCount == 0
+            ? "It currently has no discovered incoming references."
+            : $"Edits likely affect {referenceCount} referencing location{(referenceCount == 1 ? string.Empty : "s")}.";
+
+        return string.IsNullOrWhiteSpace(collaborators)
+            ? $"{symbol.Name} is a {symbol.TypeKind.ToString().ToLowerInvariant()} in {NormalizeNamespace(symbol.ContainingNamespace)} that {responsibility}. It exposes {methods} methods, {properties} properties, and {fields} fields. {impact}"
+            : $"{symbol.Name} is a {symbol.TypeKind.ToString().ToLowerInvariant()} in {NormalizeNamespace(symbol.ContainingNamespace)} that {responsibility}. It exposes {methods} methods, {properties} properties, and {fields} fields. Key collaborators: {collaborators}. {impact}";
     }
 
     private static string BuildMethodSummary(IMethodSymbol symbol, int referenceCount)
@@ -118,4 +125,27 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
 
     private static string NormalizeNamespace(INamespaceSymbol? symbol)
         => symbol?.IsGlobalNamespace != false ? "the global namespace" : symbol.ToDisplayString();
+
+    private static IEnumerable<string> CollectTypeCollaborators(INamedTypeSymbol symbol)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var parameter in symbol.InstanceConstructors.SelectMany(static ctor => ctor.Parameters))
+        {
+            if (seen.Add(parameter.Type.Name) && !string.IsNullOrWhiteSpace(parameter.Type.Name))
+                yield return parameter.Type.Name;
+        }
+
+        foreach (var member in symbol.GetMembers().OfType<IFieldSymbol>())
+        {
+            if (seen.Add(member.Type.Name) && !string.IsNullOrWhiteSpace(member.Type.Name))
+                yield return member.Type.Name;
+        }
+
+        foreach (var member in symbol.GetMembers().OfType<IPropertySymbol>())
+        {
+            if (seen.Add(member.Type.Name) && !string.IsNullOrWhiteSpace(member.Type.Name))
+                yield return member.Type.Name;
+        }
+    }
 }
