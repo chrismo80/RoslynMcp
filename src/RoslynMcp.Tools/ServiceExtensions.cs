@@ -15,6 +15,12 @@ using RoslynMcp.Tools.Inspection.ResolveSymbols;
 using RoslynMcp.Tools.Inspection.RunTests;
 using RoslynMcp.Tools.Inspection.TraceCallFlow;
 using RoslynMcp.Tools.Inspection.UnderstandProjects;
+using RoslynMcp.Tools.Mutation.AddMethod;
+using RoslynMcp.Tools.Mutation.DeleteMethod;
+using RoslynMcp.Tools.Mutation.FormatDocument;
+using RoslynMcp.Tools.Mutation.RenameSymbol;
+using RoslynMcp.Tools.Mutation.ReplaceMethod;
+using RoslynMcp.Tools.Mutation.ReplaceMethodBody;
 
 namespace RoslynMcp.Tools;
 
@@ -45,6 +51,12 @@ public static class ServiceExtensions
             .AddResolveSymbolsTool()
             .AddRunTestsTool()
             .AddTraceCallFlowTool()
-            .AddListTypesTool();
+            .AddListTypesTool()
+            .AddFormatDocumentTool()
+            .AddRenameSymbolTool()
+            .AddAddMethodTool()
+            .AddDeleteMethodTool()
+            .AddReplaceMethodTool()
+            .AddReplaceMethodBodyTool();
     }
 }
