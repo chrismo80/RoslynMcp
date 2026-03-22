@@ -20,6 +20,14 @@ public sealed class Service(RoslynMcp.Tools.Infrastructure.Services.Workspace wo
         if (target is null)
             return new Result("failed", [], request.TargetMethodSymbolId, null, new DiagnosticsDeltaInfo([], []), resolveError);
 
+        var refreshedDocument = await target.Document.RefreshFromDiskAsync(cancellationToken).ConfigureAwait(false);
+        if (refreshedDocument.Error is not null)
+            return new Result("failed", CreateSingleChangedFileList(target.Document), request.TargetMethodSymbolId, null, new DiagnosticsDeltaInfo([], []), refreshedDocument.Error);
+
+        var workingDocument = refreshedDocument.Document ?? target.Document;
+        if (workingDocument.Id != target.Document.Id)
+            target = target with { Document = workingDocument };
+
         if (target.Declaration.Body is null || target.Declaration.ExpressionBody is not null)
             return new Result("failed", [], request.TargetMethodSymbolId, null, new DiagnosticsDeltaInfo([], []), new ErrorInfo("target_not_source_editable", "replace_method_body currently supports only existing block-bodied methods."));
 
@@ -37,9 +45,14 @@ public sealed class Service(RoslynMcp.Tools.Infrastructure.Services.Workspace wo
         var changedFiles = await session.Solution.CollectChangedFilesAsync(updatedSolution, cancellationToken).ConfigureAwait(false);
         var diagnosticsDelta = await DiagnosticsDeltaService.GetDeltaAsync(session.Solution, updatedSolution, target.Document.Id, cancellationToken).ConfigureAwait(false);
 
-        if (!session.Workspace.TryApplyChanges(updatedSolution))
+        if (!await workspace.ApplyChangesAsync(updatedSolution, cancellationToken).ConfigureAwait(false))
             return new Result("failed", changedFiles, request.TargetMethodSymbolId, null, diagnosticsDelta, new ErrorInfo("internal_error", "Failed to apply replace_method_body changes.")).WithWorkspaceRelativePaths();
 
         return new Result("applied", changedFiles, request.TargetMethodSymbolId, new ReplacedMethodBodyInfo(request.TargetMethodSymbolId, target.MethodSymbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)), diagnosticsDelta).WithWorkspaceRelativePaths();
     }
+
+    private static IReadOnlyList<string> CreateSingleChangedFileList(Document document)
+        => string.IsNullOrWhiteSpace(document.FilePath)
+            ? []
+            : [document.FilePath.ToWorkspaceRelativePathIfPossible()];
 }

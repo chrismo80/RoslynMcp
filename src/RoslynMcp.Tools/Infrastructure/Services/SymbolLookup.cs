@@ -20,7 +20,7 @@ public sealed class SymbolLookup
             if (compilation is null)
                 continue;
 
-            foreach (var symbol in EnumerateSymbols(compilation.Assembly.GlobalNamespace))
+            foreach (var symbol in EnumerateSymbols(compilation))
             {
                 if (string.Equals(symbol.ToStableId(), normalizedSymbolId, StringComparison.Ordinal)
                     || string.Equals((symbol.OriginalDefinition ?? symbol).ToStableId(), normalizedSymbolId, StringComparison.Ordinal))
@@ -45,7 +45,7 @@ public sealed class SymbolLookup
             if (compilation is null)
                 continue;
 
-            foreach (var symbol in EnumerateSymbols(compilation.Assembly.GlobalNamespace))
+            foreach (var symbol in EnumerateSymbols(compilation))
             {
                 if (string.Equals(symbol.ToStableId(), normalizedSymbolId, StringComparison.Ordinal)
                     || string.Equals((symbol.OriginalDefinition ?? symbol).ToStableId(), normalizedSymbolId, StringComparison.Ordinal))
@@ -107,6 +107,26 @@ public sealed class SymbolLookup
 
     internal static Task<ISymbol?> GetSymbolAtPositionAsync(Solution solution, string path, int line, int column, CancellationToken cancellationToken)
         => GetSymbolAtPositionAsync(solution, path, line, column, RoslynMcp.Tools.Extensions.WorkspaceRoot, cancellationToken);
+
+    private static IEnumerable<ISymbol> EnumerateSymbols(Compilation compilation)
+    {
+        var seenAssemblies = new HashSet<IAssemblySymbol>(SymbolEqualityComparer.Default);
+        var assemblies = new Stack<IAssemblySymbol>();
+        assemblies.Push(compilation.Assembly);
+
+        while (assemblies.Count > 0)
+        {
+            var assembly = assemblies.Pop();
+            if (!seenAssemblies.Add(assembly))
+                continue;
+
+            foreach (var symbol in EnumerateSymbols(assembly.GlobalNamespace))
+                yield return symbol;
+
+            foreach (var referencedAssembly in assembly.Modules.SelectMany(static module => module.ReferencedAssemblySymbols))
+                assemblies.Push(referencedAssembly);
+        }
+    }
 
     private static IEnumerable<ISymbol> EnumerateSymbols(INamespaceSymbol root)
     {

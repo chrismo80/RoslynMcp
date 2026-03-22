@@ -14,10 +14,10 @@ internal static class Extensions
         public Request ToRequest() => new(path.Trim());
     }
 
-    internal static Result WithWorkspaceRelativePaths(this Result result)
-        => result with { Path = result.Path.ToWorkspaceRelativePathIfPossible(), Error = result.Error.WithWorkspaceRelativePaths() };
+    internal static Result WithWorkspaceRelativePaths(this Result result, string workspaceRoot)
+        => result with { Path = result.Path.ToWorkspaceRelativePathIfPossible(workspaceRoot), Error = result.Error.WithWorkspaceRelativePaths(workspaceRoot) };
 
-    private static ErrorInfo? WithWorkspaceRelativePaths(this ErrorInfo? error)
+    private static ErrorInfo? WithWorkspaceRelativePaths(this ErrorInfo? error, string workspaceRoot)
     {
         if (error?.Details is null)
             return error;
@@ -25,7 +25,7 @@ internal static class Extensions
         foreach (var key in new[] { "path", "provided" })
         {
             if (map.TryGetValue(key, out var value))
-                map[key] = value.ToWorkspaceRelativePathIfPossible();
+                map[key] = value.ToWorkspaceRelativePathIfPossible(workspaceRoot);
         }
         return error with { Details = map };
     }

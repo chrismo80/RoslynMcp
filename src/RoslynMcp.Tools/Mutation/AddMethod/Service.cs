@@ -42,7 +42,7 @@ public sealed class Service(RoslynMcp.Tools.Infrastructure.Services.Workspace wo
         if (method is null)
             return new Result("failed", changedFiles, request.TargetTypeSymbolId, null, diagnosticsDelta, new ErrorInfo("created_symbol_unresolved", "The inserted method could not be resolved after mutation.")).WithWorkspaceRelativePaths();
 
-        if (!session.Workspace.TryApplyChanges(updatedSolution))
+        if (!await workspace.ApplyChangesAsync(updatedSolution, cancellationToken).ConfigureAwait(false))
             return new Result("failed", changedFiles, request.TargetTypeSymbolId, null, diagnosticsDelta, new ErrorInfo("internal_error", "Failed to apply add_method changes.")).WithWorkspaceRelativePaths();
 
         return new Result("applied", changedFiles, request.TargetTypeSymbolId, new AddedMethodInfo(method.ToStableId(), method.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)), diagnosticsDelta).WithWorkspaceRelativePaths();

@@ -29,8 +29,11 @@ internal sealed class TargetResolver
     public async Task<(MethodDeclarationTarget? Target, ErrorInfo? Error)> ResolveMethodAsync(string targetMethodSymbolId, Solution solution, string operation, CancellationToken cancellationToken)
     {
         var symbol = await SymbolLookup.ResolveSymbolAsync(targetMethodSymbolId, solution, cancellationToken).ConfigureAwait(false);
-        if (symbol is not IMethodSymbol methodSymbol)
+        if (symbol is null)
             return (null, CreateError("symbol_not_found", $"Target method symbol '{targetMethodSymbolId}' could not be resolved.", ("targetMethodSymbolId", targetMethodSymbolId), ("operation", operation)));
+
+        if (symbol is not IMethodSymbol methodSymbol)
+            return (null, CreateError("unsupported_symbol_kind", "Only ordinary source methods are supported.", ("targetMethodSymbolId", targetMethodSymbolId), ("operation", operation)));
 
         if (methodSymbol.MethodKind != MethodKind.Ordinary)
             return (null, CreateError("unsupported_symbol_kind", "Only ordinary source methods are supported.", ("targetMethodSymbolId", targetMethodSymbolId), ("operation", operation)));

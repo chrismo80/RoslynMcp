@@ -36,6 +36,7 @@ internal sealed class MethodDeclarationBuilder
     public bool TryBuild(MethodInsertionSpec spec, out MethodDeclarationSyntax? method, out ErrorInfo? error)
     {
         method = null;
+        spec = Normalize(spec);
         error = Validate(spec);
         if (error is not null)
             return false;
@@ -84,6 +85,14 @@ internal sealed class MethodDeclarationBuilder
         error = CreateInvalidSpecError("method body could not be parsed as a valid block-bodied method.", ("field", "body"));
         return false;
     }
+
+    private static MethodInsertionSpec Normalize(MethodInsertionSpec spec)
+        => spec with
+        {
+            ReturnType = spec.ReturnType.DecodeHtmlEntities(),
+            Parameters = [.. spec.Parameters.Select(static parameter => parameter with { Type = parameter.Type.DecodeHtmlEntities() })],
+            Body = spec.Body.NormalizeEscapedNewlines()
+        };
 
     private static ErrorInfo? Validate(MethodInsertionSpec spec)
     {

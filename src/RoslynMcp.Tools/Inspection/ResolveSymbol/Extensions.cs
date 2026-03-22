@@ -115,11 +115,11 @@ internal static class Extensions
             };
         }
 
-        internal ResolvedSymbol ToResolvedSymbol(bool includeQualifiedDisplayName = false)
+        internal ResolvedSymbol ToResolvedSymbol(bool includeQualifiedDisplayName = false, string? symbolIdOverride = null)
         {
             var (filePath, line, column) = symbol.GetDeclarationPosition();
             return new ResolvedSymbol(
-                symbol.ToStableId(),
+                symbolIdOverride ?? symbol.ToStableId(),
                 symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
                 symbol.Kind.ToString(),
                 CreateOptionalSourceLocation(filePath, line, column),

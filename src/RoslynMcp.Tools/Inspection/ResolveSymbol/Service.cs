@@ -75,7 +75,8 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
         }
 
         var selected = candidates[0];
-        return new Result(new ResolvedSymbol(selected.SymbolId, selected.DisplayName, selected.Kind, selected.Location), false, []).WithWorkspaceRelativePaths(currentWorkspaceRoot);
+        var canonicalSelectedSymbolId = await workspace.GetCanonicalSymbolIdAsync(selected.SymbolId, cancellationToken).ConfigureAwait(false);
+        return new Result(new ResolvedSymbol(canonicalSelectedSymbolId, selected.DisplayName, selected.Kind, selected.Location, null), false, []).WithWorkspaceRelativePaths(currentWorkspaceRoot);
     }
 
     private async Task<Result> ResolveBySymbolIdAsync(Request request, Microsoft.CodeAnalysis.Solution solution, string workspaceRoot, CancellationToken cancellationToken)
@@ -94,7 +95,8 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
                 })).WithWorkspaceRelativePaths(workspaceRoot);
         }
 
-        return new Result(symbol.ToResolvedSymbol(), false, []).WithWorkspaceRelativePaths(workspaceRoot);
+        var canonicalSymbolId = await workspace.GetCanonicalSymbolIdAsync(symbol.ToStableId(), cancellationToken).ConfigureAwait(false);
+        return new Result(symbol.ToResolvedSymbol(symbolIdOverride: canonicalSymbolId), false, []).WithWorkspaceRelativePaths(workspaceRoot);
     }
 
     private async Task<Result> ResolveByPositionAsync(Request request, Microsoft.CodeAnalysis.Solution solution, string workspaceRoot, CancellationToken cancellationToken)
@@ -113,6 +115,7 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
                 })).WithWorkspaceRelativePaths(workspaceRoot);
         }
 
-        return new Result(symbol.ToResolvedSymbol(), false, []).WithWorkspaceRelativePaths(workspaceRoot);
+        var canonicalSymbolId = await workspace.GetCanonicalSymbolIdAsync(symbol.ToStableId(), cancellationToken).ConfigureAwait(false);
+        return new Result(symbol.ToResolvedSymbol(symbolIdOverride: canonicalSymbolId), false, []).WithWorkspaceRelativePaths(workspaceRoot);
     }
 }

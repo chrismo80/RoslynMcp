@@ -53,7 +53,7 @@ internal static class MethodSignatureComparer
 
     private static string NormalizeTypeIdentity(string type)
     {
-        var trimmed = RemoveWhitespace(type.Trim());
+        var trimmed = RemoveWhitespace(type.DecodeHtmlEntities().Trim());
         if (TypeAliasMap.TryGetValue(trimmed, out var alias))
             return alias;
 
