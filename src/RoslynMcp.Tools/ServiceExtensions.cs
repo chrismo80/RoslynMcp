@@ -11,6 +11,7 @@ using RoslynMcp.Tools.Inspection.ListTypes;
 using RoslynMcp.Tools.Inspection.LoadSolution;
 using RoslynMcp.Tools.Inspection.ResolveSymbol;
 using RoslynMcp.Tools.Inspection.ResolveSymbols;
+using RoslynMcp.Tools.Inspection.RunTests;
 using RoslynMcp.Tools.Inspection.TraceCallFlow;
 using RoslynMcp.Tools.Inspection.UnderstandProjects;
 
@@ -40,6 +41,7 @@ public static class ServiceExtensions
             .AddListMembersTool()
             .AddResolveSymbolTool()
             .AddResolveSymbolsTool()
+            .AddRunTestsTool()
             .AddTraceCallFlowTool()
             .AddListTypesTool();
     }
