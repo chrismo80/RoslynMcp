@@ -108,25 +108,6 @@ internal static partial class Extensions
 		};
 	}
 
-	extension(ISymbol symbol)
-	{
-		public (string FilePath, int? Line, int? Column) GetDeclarationPosition()
-		{
-			var location = symbol.Locations.FirstOrDefault(static location => location.IsInSource);
-
-			if (location is null)
-				return (string.Empty, null, null);
-
-			var span = location.GetLineSpan();
-			var start = span.StartLinePosition;
-
-			return (span.Path ?? string.Empty, start.Line + 1, start.Character + 1);
-		}
-
-		public string ToStableId() =>
-			$"{symbol.Kind}:{symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)}";
-	}
-
 	internal static Entry Enrich(this Discovery discovery, bool includeSummary, bool includeMembers)
 	{
 		var summary = includeSummary ? discovery.Symbol.GetDocumentation()?.Summary : discovery.Entry.Summary;

@@ -145,65 +145,8 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
 
 	private static IReadOnlyList<Project> ResolveProjectSelector(Solution solution, string? projectPath, string? projectName, string? projectId, out ErrorInfo? error)
 	{
-		var normalizedPath = projectPath.NormalizeOptional();
-		var normalizedName = projectName.NormalizeOptional();
-		var normalizedId = projectId.NormalizeOptional();
-
-		if (normalizedPath is null && normalizedName is null && normalizedId is null)
-		{
-			error = new ErrorInfo(
-				"invalid_input",
-				"A project selector is required. Provide projectPath, projectName, or projectId.",
-				new Dictionary<string, string>(StringComparer.Ordinal)
-				{
-					["field"] = "project selector",
-					["expected"] = "projectPath|projectName|projectId",
-					["nextAction"] = "Call list_types with one project selector from load_solution results."
-				});
-			return [];
-		}
-
-		var matches = solution.Projects
-			.Where(project => normalizedPath is null || string.Equals(project.FilePath.NormalizeOptional(), normalizedPath, StringComparison.OrdinalIgnoreCase) || string.Equals(project.FilePath?.ToWorkspaceRelativePathIfPossible().NormalizeOptional(), normalizedPath, StringComparison.OrdinalIgnoreCase))
-			.Where(project => normalizedName is null || string.Equals(project.Name, normalizedName, StringComparison.OrdinalIgnoreCase))
-			.Where(project => normalizedId is null || string.Equals(project.Id.Id.ToString(), normalizedId, StringComparison.OrdinalIgnoreCase))
-			.OrderBy(static project => project.Name, StringComparer.Ordinal)
-			.ToArray();
-
-		if (matches.Length == 0)
-		{
-			error = new ErrorInfo("invalid_input",
-				normalizedId is null ? "Project selector did not match any loaded project." : "projectId did not match any project in the active workspace snapshot.",
-				new Dictionary<string, string>(StringComparer.Ordinal)
-				{
-					["field"] = "project selector",
-					["provided"] = string.Join(", ", new[]
-					{
-						normalizedPath is null ? null : $"projectPath={normalizedPath}",
-						normalizedName is null ? null : $"projectName={normalizedName}",
-						normalizedId is null ? null : $"projectId={normalizedId}"
-					}.Where(static value => value is not null)!),
-					["nextAction"] = normalizedId is null
-						? "Use load_solution output to provide an exact projectPath, projectName, or projectId."
-						: "projectId values are snapshot-local and can change after reload. Refresh selectors from the current snapshot or prefer projectPath for automation."
-				});
-			return [];
-		}
-
-		if (matches.Length > 1)
-		{
-			error = new ErrorInfo("invalid_input",
-				"Project selector is ambiguous and matched multiple projects.",
-				new Dictionary<string, string>(StringComparer.Ordinal)
-				{
-					["field"] = "project selector",
-					["matches"] = string.Join(", ", matches.Select(static project => project.Name)),
-					["nextAction"] = "Provide projectPath or projectId to uniquely identify the project."
-				});
-			return [];
-		}
-
-		error = null;
+		var matches = solution.Resolve(projectPath, projectName, projectId, selectorRequired: true, toolName: "list_types", out var selectorError);
+		error = selectorError is null ? null : new ErrorInfo(selectorError.Code, selectorError.Message, selectorError.Details);
 		return matches;
 	}
 

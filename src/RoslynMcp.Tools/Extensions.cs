@@ -1,3 +1,5 @@
+using Microsoft.CodeAnalysis;
+
 namespace RoslynMcp.Tools;
 
 internal static class Extensions
@@ -24,6 +26,23 @@ internal static class Extensions
 
 	extension(string? path)
 	{
+		internal bool MatchesByNormalizedPath(string otherPath)
+		{
+			if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(otherPath))
+				return false;
+
+			try
+			{
+				var normalizedPath = Path.GetFullPath(path);
+				var normalizedOtherPath = Path.GetFullPath(otherPath);
+				return string.Equals(normalizedPath, normalizedOtherPath, StringComparison.OrdinalIgnoreCase);
+			}
+			catch
+			{
+				return string.Equals(path, otherPath, StringComparison.OrdinalIgnoreCase);
+			}
+		}
+
 		public string ToWorkspaceAbsolutePath()
 		{
 			if (string.IsNullOrWhiteSpace(path))
@@ -65,6 +84,25 @@ internal static class Extensions
 				return absolutePath;
 			}
 		}
+	}
+
+	extension(ISymbol symbol)
+	{
+		internal (string FilePath, int? Line, int? Column) GetDeclarationPosition()
+		{
+			var location = symbol.Locations.FirstOrDefault(static location => location.IsInSource);
+
+			if (location is null)
+				return (string.Empty, null, null);
+
+			var span = location.GetLineSpan();
+			var start = span.StartLinePosition;
+
+			return (span.Path ?? string.Empty, start.Line + 1, start.Character + 1);
+		}
+
+		internal string ToStableId() =>
+			$"{symbol.Kind}:{symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)}";
 	}
 
 	private static string EnsureTrailingDirectorySeparator(this string path)

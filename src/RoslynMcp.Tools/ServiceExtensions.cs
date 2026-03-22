@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using RoslynMcp.Tools.Infrastructure.Services;
+using RoslynMcp.Tools.Inspection.ListMembers;
 using RoslynMcp.Tools.Inspection.ListTypes;
 using RoslynMcp.Tools.Inspection.LoadSolution;
+using RoslynMcp.Tools.Inspection.ResolveSymbol;
 using RoslynMcp.Tools.Inspection.UnderstandProjects;
 
 namespace RoslynMcp.Tools;
@@ -15,11 +17,14 @@ public static class ServiceExtensions
             .AddTools();
 
         private IServiceCollection AddInfrastructure() => services
-            .AddSingleton<Workspace>();
+            .AddSingleton<Workspace>()
+            .AddSingleton<SymbolLookup>();
 
         private IServiceCollection AddTools() => services
             .AddLoadSolutionTool()
             .AddUnderstandProjectsTool()
+            .AddListMembersTool()
+            .AddResolveSymbolTool()
             .AddListTypesTool();
     }
 }
