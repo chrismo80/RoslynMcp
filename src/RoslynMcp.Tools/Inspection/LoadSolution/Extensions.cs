@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.CodeAnalysis;
+using RoslynMcp.Tools.Infrastructure;
 
 namespace RoslynMcp.Tools.Inspection.LoadSolution;
 
@@ -22,13 +23,13 @@ internal static class Extensions
 
     extension(ProjectSummary project)
     {
-        public ProjectSummary WithWorkspaceRelativePaths()
-            => project with { Path = project.Path?.ToWorkspaceRelativePathIfPossible() };
+        public ProjectSummary WithWorkspaceRelativePaths(string workspaceRoot)
+            => project with { Path = project.Path?.ToWorkspaceRelativePathIfPossible(workspaceRoot) };
     }
 
     extension(ErrorInfo? error)
     {
-        public ErrorInfo? WithWorkspaceRelativePaths()
+        public ErrorInfo? WithWorkspaceRelativePaths(string workspaceRoot)
         {
             if (error?.Details is null || error.Details.Count == 0)
                 return error;
@@ -39,7 +40,7 @@ internal static class Extensions
                 if (!ShouldRewritePathDetail(pair.Key, error.Details))
                     continue;
 
-                var outwardPath = pair.Value.ToWorkspaceRelativePathIfPossible();
+                var outwardPath = pair.Value.ToWorkspaceRelativePathIfPossible(workspaceRoot);
                 if (string.Equals(outwardPath, pair.Value, StringComparison.Ordinal))
                     continue;
 
@@ -53,23 +54,30 @@ internal static class Extensions
 
     extension(Result result)
     {
-        public Result WithWorkspaceRelativePaths()
+        public Result WithWorkspaceRelativePaths(string workspaceRoot)
             => result with
             {
-                SelectedSolutionPath = result.SelectedSolutionPath?.ToWorkspaceRelativePathIfPossible(),
-                WorkspaceId = result.WorkspaceId.ToWorkspaceRelativePathIfPossible(),
-                Projects = [.. result.Projects.Select(project => project.WithWorkspaceRelativePaths())],
-                Error = result.Error.WithWorkspaceRelativePaths()
+                SelectedSolutionPath = result.SelectedSolutionPath?.ToWorkspaceRelativePathIfPossible(workspaceRoot),
+                WorkspaceId = result.WorkspaceId.ToWorkspaceRelativePathIfPossible(workspaceRoot),
+                Projects = [.. result.Projects.Select(project => project.WithWorkspaceRelativePaths(workspaceRoot))],
+                Error = result.Error.WithWorkspaceRelativePaths(workspaceRoot)
             };
     }
 
     extension(IReadOnlyList<Diagnostic> diagnostics)
     {
-        public DiagnosticsSummary ToDiagnosticsSummary() => new(
-            diagnostics.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error),
-            diagnostics.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Warning),
-            diagnostics.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Info || diagnostic.Severity == DiagnosticSeverity.Hidden),
-            diagnostics.Count);
+        public DiagnosticsSummary ToDiagnosticsSummary()
+        {
+            var filtered = diagnostics
+                .Where(static diagnostic => SourceVisibility.ShouldIncludeInHumanResults(diagnostic.Location.GetLineSpan().Path))
+                .ToArray();
+
+            return new DiagnosticsSummary(
+                filtered.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error),
+                filtered.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Warning),
+                filtered.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Info || diagnostic.Severity == DiagnosticSeverity.Hidden),
+                filtered.Length);
+        }
     }
 
     private static readonly HashSet<string> PathDetailKeys =

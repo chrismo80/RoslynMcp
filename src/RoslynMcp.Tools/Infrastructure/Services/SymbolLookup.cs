@@ -54,15 +54,23 @@ public sealed class SymbolLookup
         return (null, null);
     }
 
-    internal static async Task<ISymbol?> GetSymbolAtPositionAsync(Solution solution, string path, int line, int column, CancellationToken cancellationToken)
+    internal static async Task<ISymbol?> GetSymbolAtPositionAsync(Solution solution, string path, int line, int column, string workspaceRoot, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(path))
             return null;
 
-        var absolutePath = path.ToWorkspaceAbsolutePath();
+        var absolutePath = path.ToWorkspaceAbsolutePath(workspaceRoot);
+        var normalizedRelativePath = Path.IsPathRooted(path)
+            ? null
+            : path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
         var document = solution.Projects
             .SelectMany(static project => project.Documents)
-            .FirstOrDefault(document => document.FilePath.MatchesByNormalizedPath(absolutePath));
+            .FirstOrDefault(document =>
+                document.FilePath.MatchesByNormalizedPath(absolutePath)
+                || (normalizedRelativePath is not null
+                    && document.FilePath is not null
+                    && document.FilePath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
+                        .EndsWith(normalizedRelativePath, StringComparison.OrdinalIgnoreCase)));
 
         if (document is null)
             return null;
@@ -94,6 +102,9 @@ public sealed class SymbolLookup
 
         return null;
     }
+
+    internal static Task<ISymbol?> GetSymbolAtPositionAsync(Solution solution, string path, int line, int column, CancellationToken cancellationToken)
+        => GetSymbolAtPositionAsync(solution, path, line, column, RoslynMcp.Tools.Extensions.WorkspaceRoot, cancellationToken);
 
     private static IEnumerable<ISymbol> EnumerateSymbols(INamespaceSymbol root)
     {

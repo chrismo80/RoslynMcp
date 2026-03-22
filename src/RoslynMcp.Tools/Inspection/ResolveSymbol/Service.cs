@@ -21,11 +21,14 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
                 }));
         }
 
+        var currentWorkspaceRoot = Path.GetDirectoryName(session.SelectedSolutionPath)
+            ?? Path.GetFullPath(Directory.GetCurrentDirectory());
+
         if (!string.IsNullOrWhiteSpace(request.SymbolId))
-            return await ResolveBySymbolIdAsync(request, session.Solution, cancellationToken).ConfigureAwait(false);
+            return await ResolveBySymbolIdAsync(request, session.Solution, currentWorkspaceRoot, cancellationToken).ConfigureAwait(false);
 
         if (!string.IsNullOrWhiteSpace(request.Path) && request.Line.HasValue && request.Column.HasValue)
-            return await ResolveByPositionAsync(request, session.Solution, cancellationToken).ConfigureAwait(false);
+            return await ResolveByPositionAsync(request, session.Solution, currentWorkspaceRoot, cancellationToken).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(request.QualifiedName))
         {
@@ -40,7 +43,7 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
 
         var selectedProjects = session.Solution.Resolve(request.ProjectPath, request.ProjectName, request.ProjectId, selectorRequired: false, toolName: "resolve_symbol", out var selectorError);
         if (selectorError is not null)
-            return new Result(null, false, [], new ErrorInfo(selectorError.Code, selectorError.Message, selectorError.Details)).WithWorkspaceRelativePaths();
+            return new Result(null, false, [], new ErrorInfo(selectorError.Code, selectorError.Message, selectorError.Details)).WithWorkspaceRelativePaths(currentWorkspaceRoot);
 
         var candidates = await request.QualifiedName.ResolveByQualifiedNameAsync(selectedProjects, cancellationToken).ConfigureAwait(false);
         if (candidates.Length == 0)
@@ -53,7 +56,7 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
                     ["field"] = "qualifiedName",
                     ["provided"] = request.QualifiedName,
                     ["nextAction"] = "Refine qualifiedName or provide projectName/projectPath/projectId to narrow the lookup."
-                })).WithWorkspaceRelativePaths();
+                })).WithWorkspaceRelativePaths(currentWorkspaceRoot);
         }
 
         if (candidates.Length > 1)
@@ -68,14 +71,14 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
                     ["provided"] = request.QualifiedName,
                     ["candidateCount"] = qualifiedCandidates.Length.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     ["nextAction"] = "Select one candidate symbolId and call resolve_symbol again, or scope by projectName/projectPath/projectId."
-                })).WithWorkspaceRelativePaths();
+                })).WithWorkspaceRelativePaths(currentWorkspaceRoot);
         }
 
         var selected = candidates[0];
-        return new Result(new ResolvedSymbol(selected.SymbolId, selected.DisplayName, selected.Kind, selected.Location), false, []).WithWorkspaceRelativePaths();
+        return new Result(new ResolvedSymbol(selected.SymbolId, selected.DisplayName, selected.Kind, selected.Location), false, []).WithWorkspaceRelativePaths(currentWorkspaceRoot);
     }
 
-    private async Task<Result> ResolveBySymbolIdAsync(Request request, Microsoft.CodeAnalysis.Solution solution, CancellationToken cancellationToken)
+    private async Task<Result> ResolveBySymbolIdAsync(Request request, Microsoft.CodeAnalysis.Solution solution, string workspaceRoot, CancellationToken cancellationToken)
     {
         var symbol = await SymbolLookup.ResolveSymbolAsync(request.SymbolId!, solution, cancellationToken).ConfigureAwait(false);
         if (symbol is null)
@@ -88,15 +91,15 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
                     ["field"] = "symbolId",
                     ["provided"] = request.SymbolId!,
                     ["nextAction"] = "Call list_types/list_members or explain_symbol first to obtain a valid symbolId."
-                })).WithWorkspaceRelativePaths();
+                })).WithWorkspaceRelativePaths(workspaceRoot);
         }
 
-        return new Result(symbol.ToResolvedSymbol(), false, []).WithWorkspaceRelativePaths();
+        return new Result(symbol.ToResolvedSymbol(), false, []).WithWorkspaceRelativePaths(workspaceRoot);
     }
 
-    private async Task<Result> ResolveByPositionAsync(Request request, Microsoft.CodeAnalysis.Solution solution, CancellationToken cancellationToken)
+    private async Task<Result> ResolveByPositionAsync(Request request, Microsoft.CodeAnalysis.Solution solution, string workspaceRoot, CancellationToken cancellationToken)
     {
-        var symbol = await SymbolLookup.GetSymbolAtPositionAsync(solution, request.Path!, request.Line!.Value, request.Column!.Value, cancellationToken).ConfigureAwait(false);
+        var symbol = await SymbolLookup.GetSymbolAtPositionAsync(solution, request.Path!, request.Line!.Value, request.Column!.Value, workspaceRoot, cancellationToken).ConfigureAwait(false);
         if (symbol is null)
         {
             return new Result(null, false, [], new ErrorInfo(
@@ -107,9 +110,9 @@ public sealed class Service(Infrastructure.Services.Workspace workspace)
                     ["field"] = "path",
                     ["provided"] = request.Path!,
                     ["nextAction"] = "Call resolve_symbol with a valid path+line+column or use list_types/list_members to select a symbolId."
-                })).WithWorkspaceRelativePaths();
+                })).WithWorkspaceRelativePaths(workspaceRoot);
         }
 
-        return new Result(symbol.ToResolvedSymbol(), false, []).WithWorkspaceRelativePaths();
+        return new Result(symbol.ToResolvedSymbol(), false, []).WithWorkspaceRelativePaths(workspaceRoot);
     }
 }

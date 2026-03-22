@@ -4,7 +4,7 @@ namespace RoslynMcp.Tools;
 
 internal static class Extensions
 {
-    internal static string WorkspaceRoot { get; } = Path.GetFullPath(Directory.GetCurrentDirectory());
+    internal static string WorkspaceRoot => Path.GetFullPath(Directory.GetCurrentDirectory());
 
     extension(string? input)
     {
@@ -26,6 +26,24 @@ internal static class Extensions
 
     extension(string? path)
     {
+        internal string ToWorkspaceAbsolutePath(string workspaceRoot)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return path!;
+
+            var trimmedPath = path.Trim();
+            try
+            {
+                return Path.IsPathRooted(trimmedPath)
+                    ? Path.GetFullPath(trimmedPath)
+                    : Path.GetFullPath(trimmedPath, workspaceRoot);
+            }
+            catch
+            {
+                return trimmedPath;
+            }
+        }
+
         internal bool MatchesByNormalizedPath(string otherPath)
         {
             if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(otherPath))
@@ -78,6 +96,30 @@ internal static class Extensions
                     return normalizedAbsolutePath;
 
                 return Path.GetRelativePath(WorkspaceRoot, normalizedAbsolutePath);
+            }
+            catch
+            {
+                return absolutePath;
+            }
+        }
+
+        public string ToWorkspaceRelativePathIfPossible(string workspaceRoot)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return path!;
+
+            var absolutePath = path.ToWorkspaceAbsolutePath(workspaceRoot);
+            if (!Path.IsPathRooted(absolutePath))
+                return absolutePath;
+
+            try
+            {
+                var normalizedWorkspaceRoot = workspaceRoot.EnsureTrailingDirectorySeparator();
+                var normalizedAbsolutePath = Path.GetFullPath(absolutePath);
+                if (!normalizedAbsolutePath.StartsWith(normalizedWorkspaceRoot, StringComparison.OrdinalIgnoreCase))
+                    return normalizedAbsolutePath;
+
+                return Path.GetRelativePath(workspaceRoot, normalizedAbsolutePath);
             }
             catch
             {

@@ -227,36 +227,36 @@ internal static class Extensions
 
     extension(Result result)
     {
-        internal Result WithWorkspaceRelativePaths()
+        internal Result WithWorkspaceRelativePaths(string workspaceRoot)
             => result with
             {
-                Symbol = result.Symbol.WithWorkspaceRelativePaths(),
-                Candidates = [.. result.Candidates.Select(candidate => candidate.WithWorkspaceRelativePaths())],
-                Error = result.Error.WithWorkspaceRelativePaths()
+                Symbol = result.Symbol.WithWorkspaceRelativePaths(workspaceRoot),
+                Candidates = [.. result.Candidates.Select(candidate => candidate.WithWorkspaceRelativePaths(workspaceRoot))],
+                Error = result.Error.WithWorkspaceRelativePaths(workspaceRoot)
             };
     }
 
     extension(ResolvedSymbol? symbol)
     {
-        private ResolvedSymbol? WithWorkspaceRelativePaths()
-            => symbol is null ? null : symbol with { Location = symbol.Location.WithWorkspaceRelativePaths() };
+        private ResolvedSymbol? WithWorkspaceRelativePaths(string workspaceRoot)
+            => symbol is null ? null : symbol with { Location = symbol.Location.WithWorkspaceRelativePaths(workspaceRoot) };
     }
 
     extension(Candidate candidate)
     {
-        private Candidate WithWorkspaceRelativePaths()
-            => candidate with { Location = candidate.Location.WithWorkspaceRelativePaths() };
+        private Candidate WithWorkspaceRelativePaths(string workspaceRoot)
+            => candidate with { Location = candidate.Location.WithWorkspaceRelativePaths(workspaceRoot) };
     }
 
     extension(SourceLocation? location)
     {
-        private SourceLocation? WithWorkspaceRelativePaths()
-            => location is null ? null : location with { FilePath = location.FilePath.ToWorkspaceRelativePathIfPossible() };
+        private SourceLocation? WithWorkspaceRelativePaths(string workspaceRoot)
+            => location is null ? null : location with { FilePath = location.FilePath.ToWorkspaceRelativePathIfPossible(workspaceRoot) };
     }
 
     extension(ErrorInfo? error)
     {
-        private ErrorInfo? WithWorkspaceRelativePaths()
+        private ErrorInfo? WithWorkspaceRelativePaths(string workspaceRoot)
         {
             if (error?.Details is null || error.Details.Count == 0)
                 return error;
@@ -267,7 +267,7 @@ internal static class Extensions
                 if (pair.Key is not ("path" or "filepath" or "projectpath" or "provided"))
                     continue;
 
-                var outward = pair.Value.ToWorkspaceRelativePathIfPossible();
+                var outward = pair.Value.ToWorkspaceRelativePathIfPossible(workspaceRoot);
                 if (string.Equals(outward, pair.Value, StringComparison.Ordinal))
                     continue;
 

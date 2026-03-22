@@ -12,8 +12,11 @@ public sealed class Service(Infrastructure.Services.Workspace workspace) : IAsyn
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var workspaceRoot = GetWorkspaceRoot();
-        var hint = request.SolutionHintPath?.ToWorkspaceAbsolutePath()?.Trim();
+        var currentDirectoryRoot = Path.GetFullPath(Directory.GetCurrentDirectory());
+        var existingSession = await workspace.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
+        var workspaceRoot = GetWorkspaceRoot(existingSession, currentDirectoryRoot);
+
+        var hint = ToAbsolutePath(request.SolutionHintPath, workspaceRoot)?.Trim();
 
         var (solutionPath, error) = await ResolveSolutionPathAsync(hint, workspaceRoot, cancellationToken).ConfigureAwait(false);
 
@@ -51,12 +54,10 @@ public sealed class Service(Infrastructure.Services.Workspace workspace) : IAsyn
         var readiness = AssessReadiness(session.Solution, diagnostics);
 
         return new Result(session.SelectedSolutionPath, workspaceId, snapshotId, projects, diagnostics.ToDiagnosticsSummary(), readiness)
-            .WithWorkspaceRelativePaths();
+            .WithWorkspaceRelativePaths(workspaceRoot);
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-
-    private static string GetWorkspaceRoot() => Path.GetFullPath(Directory.GetCurrentDirectory());
 
     private static async Task<(string? SolutionPath, ErrorInfo? Error)> ResolveSolutionPathAsync(
         string? hint, string workspaceRoot, CancellationToken cancellationToken)
@@ -236,7 +237,36 @@ public sealed class Service(Infrastructure.Services.Workspace workspace) : IAsyn
 
     private static Result Failure(string workspaceRoot, WorkspaceReadiness readiness, ErrorInfo? error) =>
         new Result(null, string.Empty, string.Empty, [], new DiagnosticsSummary(0, 0, 0, 0), readiness, error)
-            .WithWorkspaceRelativePaths();
+            .WithWorkspaceRelativePaths(workspaceRoot);
+
+    private static string? ToAbsolutePath(string? path, string workspaceRoot)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return path;
+
+        var trimmedPath = path.Trim();
+
+        try
+        {
+            return Path.IsPathRooted(trimmedPath)
+                ? Path.GetFullPath(trimmedPath)
+                : Path.GetFullPath(trimmedPath, workspaceRoot);
+        }
+        catch
+        {
+            return trimmedPath;
+        }
+    }
+
+    private static string GetWorkspaceRoot(Session? session, string fallbackRoot)
+    {
+        var selectedSolutionPath = session?.SelectedSolutionPath;
+        if (string.IsNullOrWhiteSpace(selectedSolutionPath))
+            return fallbackRoot;
+
+        var solutionDirectory = Path.GetDirectoryName(selectedSolutionPath);
+        return string.IsNullOrWhiteSpace(solutionDirectory) ? fallbackRoot : solutionDirectory;
+    }
 
     private static class Codes
     {
