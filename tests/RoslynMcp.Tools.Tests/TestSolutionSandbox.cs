@@ -30,6 +30,24 @@ public sealed class TestSolutionSandbox : IDisposable
         return new TestSolutionSandbox(sandboxRoot, solutionRoot);
     }
 
+    public static TestSolutionSandbox CreateNested(string canonicalSolutionRoot, params string[] solutionRelativePathSegments)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(canonicalSolutionRoot);
+
+        if (!Directory.Exists(canonicalSolutionRoot))
+            throw new DirectoryNotFoundException($"Canonical test solution directory '{canonicalSolutionRoot}' does not exist.");
+
+        if (solutionRelativePathSegments is null || solutionRelativePathSegments.Length == 0)
+            throw new ArgumentException("At least one nested path segment must be provided.", nameof(solutionRelativePathSegments));
+
+        var sandboxRoot = Path.Combine(Path.GetTempPath(), "RoslynMcp.Tools.Tests", Guid.NewGuid().ToString("N"));
+        var solutionRoot = Path.Combine([sandboxRoot, .. solutionRelativePathSegments]);
+
+        CopyDirectory(canonicalSolutionRoot, solutionRoot);
+
+        return new TestSolutionSandbox(sandboxRoot, solutionRoot);
+    }
+
     public void Dispose()
     {
         if (!Directory.Exists(SandboxRoot))

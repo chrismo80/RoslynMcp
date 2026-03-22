@@ -57,9 +57,11 @@ public sealed class Service(Workspace workspace)
                 }));
         }
 
+        var workspaceRoot = Path.GetDirectoryName(session.SelectedSolutionPath) ?? Path.GetFullPath(Directory.GetCurrentDirectory());
+
         if (string.Equals(request.Scope, ReferenceScopes.Document, StringComparison.Ordinal))
         {
-            var absolutePath = request.Path!.ToWorkspaceAbsolutePath();
+            var absolutePath = request.Path!.ToWorkspaceAbsolutePath(workspaceRoot);
             var exists = session.Solution.Projects.SelectMany(static project => project.Documents).Any(document => document.FilePath.MatchesByNormalizedPath(absolutePath));
             if (!exists)
             {
@@ -70,7 +72,7 @@ public sealed class Service(Workspace workspace)
                     {
                         ["path"] = request.Path!,
                         ["nextAction"] = "Provide a document path that exists in the loaded solution."
-                    })).WithWorkspaceRelativePaths();
+                    })).WithWorkspaceRelativePaths(workspaceRoot);
             }
         }
 
@@ -87,7 +89,7 @@ public sealed class Service(Workspace workspace)
                 }));
         }
 
-        var absolutePathForScope = request.Path?.ToWorkspaceAbsolutePath();
+        var absolutePathForScope = request.Path?.ToWorkspaceAbsolutePath(workspaceRoot);
         var references = await symbol.FindReferencesScopedAsync(session.Solution, request.Scope, absolutePathForScope, ownerProject, cancellationToken).ConfigureAwait(false);
 
         return new Result(
@@ -95,7 +97,7 @@ public sealed class Service(Workspace workspace)
             [.. references.GroupBy(static reference => reference.FilePath, StringComparer.Ordinal)
                 .OrderBy(static group => group.Key, StringComparer.Ordinal)
                 .Select(group => new ReferenceFileGroup(group.Key, [.. group.Select(static reference => new ReferencePosition(reference.Line, reference.Column))]))],
-            references.Count).WithWorkspaceRelativePaths();
+            references.Count).WithWorkspaceRelativePaths(workspaceRoot);
     }
 
     private static SourceLocation? CreateOptionalSourceLocation(Microsoft.CodeAnalysis.ISymbol symbol)

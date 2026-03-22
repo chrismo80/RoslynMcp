@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.Extensions.DependencyInjection;
+using RoslynMcp.Tools.Infrastructure;
 using System.Collections.Immutable;
 
 namespace RoslynMcp.Tools.Inspection.TraceCallFlow;
@@ -44,7 +45,7 @@ internal static class Extensions
         internal TraceSymbolEntry ToTraceSymbolEntry()
         {
             var (filePath, line, column) = symbol.GetDeclarationPosition();
-            return new TraceSymbolEntry(symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat), CreateOptionalSourceLocation(filePath, line, column));
+            return new TraceSymbolEntry(symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), CreateOptionalSourceLocation(filePath, line, column));
         }
     }
 
@@ -111,8 +112,8 @@ internal static class Extensions
                 var callerInfos = await SymbolFinder.FindCallersAsync(current, solution, cancellationToken).ConfigureAwait(false);
                 foreach (var info in callerInfos)
                 {
-                    var normalizedCalled = info.CalledSymbol.OriginalDefinition ?? info.CalledSymbol;
-                    var normalizedCaller = info.CallingSymbol.OriginalDefinition ?? info.CallingSymbol;
+                    var normalizedCalled = info.CalledSymbol;
+                    var normalizedCaller = info.CallingSymbol;
 
                     foreach (var location in info.Locations.Where(static location => location.IsInSource))
                     {
@@ -130,8 +131,8 @@ internal static class Extensions
                 var callees = await CollectCalleesAsync(current, solution, cancellationToken).ConfigureAwait(false);
                 foreach (var (callee, location) in callees)
                 {
-                    var normalizedCallee = callee.OriginalDefinition ?? callee;
-                    var normalizedCurrent = current.OriginalDefinition ?? current;
+                    var normalizedCallee = callee;
+                    var normalizedCurrent = current;
                     var source = location.ToSourceLocation();
                     if (edgeKeys.Add($"{normalizedCurrent.ToStableId()}->{normalizedCallee.ToStableId()}@{source.FilePath}:{source.Line}:{source.Column}"))
                         edges.Add((normalizedCurrent, normalizedCallee, source));
@@ -175,25 +176,45 @@ internal static class Extensions
         return new SourceLocation(span.Path ?? string.Empty, start.Line + 1, start.Character + 1);
     }
 
-    internal static Result WithWorkspaceRelativePaths(this Result result)
+    internal static Result WithWorkspaceRelativePaths(this Result result, string workspaceRoot)
         => result with
         {
-            Root = result.Root.WithWorkspaceRelativePaths(),
-            Symbols = result.Symbols?.ToDictionary(static pair => pair.Key, static pair => pair.Value.WithWorkspaceRelativePaths(), StringComparer.Ordinal),
-            Edges = [.. result.Edges.Select(static edge => edge.WithWorkspaceRelativePaths())],
-            Error = result.Error.WithWorkspaceRelativePaths()
+            Root = result.Root.WithWorkspaceRelativePaths(workspaceRoot),
+            Symbols = result.Symbols?.ToDictionary(static pair => pair.Key, pair => pair.Value.WithWorkspaceRelativePaths(workspaceRoot), StringComparer.Ordinal),
+            Edges = [.. result.Edges.Select(edge => edge.WithWorkspaceRelativePaths(workspaceRoot))],
+            PossibleTargetEdges = result.PossibleTargetEdges is null ? null : [.. result.PossibleTargetEdges.Select(edge => edge.WithWorkspaceRelativePaths(workspaceRoot))],
+            Error = result.Error.WithWorkspaceRelativePaths(workspaceRoot)
         };
 
-    private static TraceRootSummary? WithWorkspaceRelativePaths(this TraceRootSummary? root)
-        => root is null ? null : root with { Location = root.Location.WithWorkspaceRelativePaths() };
-    private static TraceSymbolEntry WithWorkspaceRelativePaths(this TraceSymbolEntry entry)
-        => entry with { Location = entry.Location.WithWorkspaceRelativePaths() };
-    private static TraceFlowEdge WithWorkspaceRelativePaths(this TraceFlowEdge edge)
-        => edge with { Site = edge.Site with { FilePath = edge.Site.FilePath.ToWorkspaceRelativePathIfPossible() } };
-    private static SourceLocation? WithWorkspaceRelativePaths(this SourceLocation? location)
-        => location is null ? null : location with { FilePath = location.FilePath.ToWorkspaceRelativePathIfPossible() };
-    private static ErrorInfo? WithWorkspaceRelativePaths(this ErrorInfo? error)
-        => error;
+    private static TraceRootSummary? WithWorkspaceRelativePaths(this TraceRootSummary? root, string workspaceRoot)
+        => root is null ? null : root with { Location = root.Location.WithWorkspaceRelativePaths(workspaceRoot) };
+    private static TraceSymbolEntry WithWorkspaceRelativePaths(this TraceSymbolEntry entry, string workspaceRoot)
+        => entry with { Location = entry.Location.WithWorkspaceRelativePaths(workspaceRoot) };
+    private static TraceFlowEdge WithWorkspaceRelativePaths(this TraceFlowEdge edge, string workspaceRoot)
+        => edge with { Site = edge.Site with { FilePath = edge.Site.FilePath.ToWorkspaceRelativePathIfPossible(workspaceRoot) } };
+    private static SourceLocation? WithWorkspaceRelativePaths(this SourceLocation? location, string workspaceRoot)
+        => location is null ? null : location with { FilePath = location.FilePath.ToWorkspaceRelativePathIfPossible(workspaceRoot) };
+    private static ErrorInfo? WithWorkspaceRelativePaths(this ErrorInfo? error, string workspaceRoot)
+    {
+        if (error?.Details is null || error.Details.Count == 0)
+            return error;
+
+        Dictionary<string, string>? updated = null;
+        foreach (var pair in error.Details)
+        {
+            if (pair.Key is not ("path" or "filepath" or "provided"))
+                continue;
+
+            var outward = pair.Value.ToWorkspaceRelativePathIfPossible(workspaceRoot);
+            if (string.Equals(outward, pair.Value, StringComparison.Ordinal))
+                continue;
+
+            updated ??= new Dictionary<string, string>(error.Details, StringComparer.Ordinal);
+            updated[pair.Key] = outward;
+        }
+
+        return updated is null ? error : error with { Details = updated };
+    }
 
     private static SourceLocation? CreateOptionalSourceLocation(string filePath, int? line, int? column)
         => string.IsNullOrWhiteSpace(filePath) || !line.HasValue || !column.HasValue ? null : new(filePath, line.Value, column.Value);
@@ -218,9 +239,6 @@ internal static class Extensions
         {
             cancellationToken.ThrowIfCancellationRequested();
             var symbol = semanticModel.GetSymbolInfo(node, cancellationToken).Symbol;
-            if (symbol is IMethodSymbol { MethodKind: MethodKind.Constructor })
-                return;
-
             if (symbol is not null)
                 Callees.Add((symbol, location));
         }

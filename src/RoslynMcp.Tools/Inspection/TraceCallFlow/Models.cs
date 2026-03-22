@@ -44,4 +44,9 @@ internal static class FlowEvidenceKinds
 internal static class FlowUncertaintyCategories
 {
     public const string InterfaceDispatch = "interface_dispatch";
+    public const string PolymorphicInference = "polymorphic_inference";
+    public const string ReflectionBlindspot = "reflection_blindspot";
+    public const string DynamicUnresolved = "dynamic_unresolved";
+    public const string UnresolvedProject = "unresolved_project";
+    public const string ProjectInferenceDegraded = "project_inference_degraded";
 }

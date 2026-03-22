@@ -15,8 +15,25 @@ internal static class SourceVisibility
     public static bool ShouldIncludeInHumanResults(string? path)
         => ClassifyPath(path) is SourceKind.HandWritten or SourceKind.Unknown;
 
+    public static bool ShouldIncludeInInteractiveTrace(string? path)
+        => ClassifyPath(path) is SourceKind.HandWritten && !IsLikelyTestPath(path);
+
     public static bool IsGeneratedLike(string? path)
         => ClassifyPath(path) is SourceKind.Generated or SourceKind.Intermediate;
+
+    public static bool IsLikelyTestPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        var normalized = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+        var fileName = Path.GetFileName(normalized);
+
+        return normalized.Contains($"{Path.DirectorySeparatorChar}tests{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+               || normalized.Contains($"{Path.DirectorySeparatorChar}test{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+               || fileName.EndsWith("Tests.cs", StringComparison.OrdinalIgnoreCase)
+               || fileName.EndsWith("Test.cs", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static SourceKind ClassifyPath(string? path)
     {

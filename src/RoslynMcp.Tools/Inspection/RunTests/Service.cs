@@ -28,7 +28,7 @@ public sealed class Service(Workspace workspace)
         var solutionPath = session.SelectedSolutionPath;
         var targetResolution = ResolveTarget(solutionPath, session.WorkspaceRoot, request.Target);
         if (targetResolution.Error is not null)
-            return InvalidInput(targetResolution.Error).WithWorkspaceRelativePaths();
+            return InvalidInput(targetResolution.Error).WithWorkspaceRelativePaths(session.WorkspaceRoot);
 
         var artifacts = CreateArtifacts();
 
@@ -38,7 +38,7 @@ public sealed class Service(Workspace workspace)
                 .ConfigureAwait(false);
 
             var trxReports = DiscoverTrxReports(artifacts.ResultsDirectory);
-            return ResultInterpreter.Interpret(processResult, trxReports).WithWorkspaceRelativePaths();
+            return ResultInterpreter.Interpret(processResult, trxReports).WithWorkspaceRelativePaths(session.WorkspaceRoot);
         }
         catch (OperationCanceledException)
         {
@@ -64,12 +64,18 @@ public sealed class Service(Workspace workspace)
         if (string.IsNullOrWhiteSpace(requestedTarget))
             return new TargetResolution(solutionPath, null);
 
-        var normalizedTarget = Path.GetFullPath(
-            Path.IsPathRooted(requestedTarget)
-                ? requestedTarget
-                : Path.Combine(workspaceRoot, requestedTarget.Trim()));
+        var trimmedTarget = requestedTarget.Trim();
+        var candidateRoots = Path.IsPathRooted(trimmedTarget)
+            ? [Path.GetFullPath(trimmedTarget)]
+            : new[]
+            {
+                Path.GetFullPath(Path.Combine(workspaceRoot, trimmedTarget)),
+                Path.GetFullPath(Path.Combine(solutionDirectory, trimmedTarget))
+            }.Distinct(GetPathStringComparer()).ToArray();
 
-        if (!IsPathWithinRoot(solutionDirectory, normalizedTarget))
+        var normalizedTarget = candidateRoots.FirstOrDefault(path => File.Exists(path) || Directory.Exists(path)) ?? candidateRoots[0];
+
+        if (!IsPathWithinRoot(workspaceRoot, normalizedTarget) && !IsPathWithinRoot(solutionDirectory, normalizedTarget))
         {
             return new TargetResolution(null, new ErrorInfo(
                 "invalid_input",

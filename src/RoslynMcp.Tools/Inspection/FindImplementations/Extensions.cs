@@ -39,6 +39,12 @@ internal static class Extensions
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
+                    if (candidate is IMethodSymbol { IsAbstract: true })
+                        continue;
+
+                    if (candidate is INamedTypeSymbol { IsAbstract: true, TypeKind: not TypeKind.Interface })
+                        continue;
+
                     var normalized = NormalizeResultSymbol(candidate);
                     unique[normalized.ToStableId()] = normalized;
                 }

@@ -108,7 +108,7 @@ public sealed class Service(RoslynMcp.Tools.Infrastructure.Services.Workspace wo
             var compilationWithAnalyzers = compilation.WithAnalyzers(Analyzers);
             var diagnostics = await compilationWithAnalyzers.GetAllDiagnosticsAsync(cancellationToken).ConfigureAwait(false);
             return [.. diagnostics
-                .Where(static diagnostic => diagnostic.Id.StartsWith("RCS", StringComparison.Ordinal))
+                .Where(static diagnostic => string.Equals(diagnostic.Id, "RCS1163", StringComparison.Ordinal))
                 .Where(diagnostic => diagnostic.Location.IsInSource && ReferenceEquals(diagnostic.Location.SourceTree, syntaxTree))
                 .Select(static diagnostic => CreateAnalyzerMatch($"Diagnostic: {diagnostic.Id}", diagnostic.Location))];
         }
@@ -135,12 +135,12 @@ public sealed class Service(RoslynMcp.Tools.Infrastructure.Services.Workspace wo
         foreach (var method in syntaxRoot.DescendantNodes().OfType<MethodDeclarationSyntax>())
         {
             if (!LooksLikePascalCase(method.Identifier.ValueText))
-                yield return CreateMatch("Method name does not follow PascalCase", "style", "heuristic", "low", ReviewKinds.StyleSuggestion, filePath, method.Identifier.GetLocation());
+                yield return CreateMatch("Method name does not follow PascalCase", "style", "heuristic", "info", ReviewKinds.StyleSuggestion, filePath, method.Identifier.GetLocation());
 
             foreach (var parameter in method.ParameterList.Parameters)
             {
                 if (!LooksLikeCamelCase(parameter.Identifier.ValueText))
-                    yield return CreateMatch("Parameter name does not follow camelCase", "style", "heuristic", "low", ReviewKinds.StyleSuggestion, filePath, parameter.Identifier.GetLocation());
+                    yield return CreateMatch("Parameter name does not follow camelCase", "style", "heuristic", "info", ReviewKinds.StyleSuggestion, filePath, parameter.Identifier.GetLocation());
             }
         }
 

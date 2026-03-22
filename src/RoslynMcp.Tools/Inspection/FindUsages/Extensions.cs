@@ -75,24 +75,24 @@ internal static class Extensions
         return new SourceLocation(span.Path ?? string.Empty, start.Line + 1, start.Character + 1);
     }
 
-    internal static Result WithWorkspaceRelativePaths(this Result result)
+    internal static Result WithWorkspaceRelativePaths(this Result result, string workspaceRoot)
         => result with
         {
-            Symbol = result.Symbol.WithWorkspaceRelativePaths(),
-            ReferenceFiles = [.. result.ReferenceFiles.Select(static group => group.WithWorkspaceRelativePaths())],
-            Error = result.Error.WithWorkspaceRelativePaths()
+            Symbol = result.Symbol.WithWorkspaceRelativePaths(workspaceRoot),
+            ReferenceFiles = [.. result.ReferenceFiles.Select(group => group.WithWorkspaceRelativePaths(workspaceRoot))],
+            Error = result.Error.WithWorkspaceRelativePaths(workspaceRoot)
         };
 
-    private static UsageSymbol? WithWorkspaceRelativePaths(this UsageSymbol? symbol)
-        => symbol is null ? null : symbol with { Location = symbol.Location.WithWorkspaceRelativePaths() };
+    private static UsageSymbol? WithWorkspaceRelativePaths(this UsageSymbol? symbol, string workspaceRoot)
+        => symbol is null ? null : symbol with { Location = symbol.Location.WithWorkspaceRelativePaths(workspaceRoot) };
 
-    private static ReferenceFileGroup WithWorkspaceRelativePaths(this ReferenceFileGroup group)
-        => group with { FilePath = group.FilePath.ToWorkspaceRelativePathIfPossible() };
+    private static ReferenceFileGroup WithWorkspaceRelativePaths(this ReferenceFileGroup group, string workspaceRoot)
+        => group with { FilePath = group.FilePath.ToWorkspaceRelativePathIfPossible(workspaceRoot) };
 
-    private static SourceLocation? WithWorkspaceRelativePaths(this SourceLocation? location)
-        => location is null ? null : location with { FilePath = location.FilePath.ToWorkspaceRelativePathIfPossible() };
+    private static SourceLocation? WithWorkspaceRelativePaths(this SourceLocation? location, string workspaceRoot)
+        => location is null ? null : location with { FilePath = location.FilePath.ToWorkspaceRelativePathIfPossible(workspaceRoot) };
 
-    private static ErrorInfo? WithWorkspaceRelativePaths(this ErrorInfo? error)
+    private static ErrorInfo? WithWorkspaceRelativePaths(this ErrorInfo? error, string workspaceRoot)
     {
         if (error?.Details is null || error.Details.Count == 0)
             return error;
@@ -103,7 +103,7 @@ internal static class Extensions
             if (pair.Key is not ("path" or "filepath" or "provided"))
                 continue;
 
-            var outward = pair.Value.ToWorkspaceRelativePathIfPossible();
+            var outward = pair.Value.ToWorkspaceRelativePathIfPossible(workspaceRoot);
             if (string.Equals(outward, pair.Value, StringComparison.Ordinal))
                 continue;
 

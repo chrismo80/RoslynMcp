@@ -16,21 +16,21 @@ internal static class Extensions
         public Request ToRequest(string? filter) => new(target.NormalizeOptional(), filter.NormalizeOptional());
     }
 
-    internal static Result WithWorkspaceRelativePaths(this Result result)
+    internal static Result WithWorkspaceRelativePaths(this Result result, string workspaceRoot)
         => result with
         {
-            FailureGroups = [.. result.FailureGroups.Select(static group => group.WithWorkspaceRelativePaths())],
-            BuildDiagnostics = result.BuildDiagnostics?.Select(static diagnostic => diagnostic.WithWorkspaceRelativePaths()).ToArray(),
-            Error = result.Error.WithWorkspaceRelativePaths()
+            FailureGroups = [.. result.FailureGroups.Select(group => group.WithWorkspaceRelativePaths(workspaceRoot))],
+            BuildDiagnostics = result.BuildDiagnostics?.Select(diagnostic => diagnostic.WithWorkspaceRelativePaths(workspaceRoot)).ToArray(),
+            Error = result.Error.WithWorkspaceRelativePaths(workspaceRoot)
         };
 
-    private static TestFailureGroup WithWorkspaceRelativePaths(this TestFailureGroup group)
-        => group with { File = group.File?.ToWorkspaceRelativePathIfPossible() };
+    private static TestFailureGroup WithWorkspaceRelativePaths(this TestFailureGroup group, string workspaceRoot)
+        => group with { File = group.File?.ToWorkspaceRelativePathIfPossible(workspaceRoot) };
 
-    private static BuildDiagnostic WithWorkspaceRelativePaths(this BuildDiagnostic diagnostic)
-        => diagnostic with { File = diagnostic.File?.ToWorkspaceRelativePathIfPossible() };
+    private static BuildDiagnostic WithWorkspaceRelativePaths(this BuildDiagnostic diagnostic, string workspaceRoot)
+        => diagnostic with { File = diagnostic.File?.ToWorkspaceRelativePathIfPossible(workspaceRoot) };
 
-    private static ErrorInfo? WithWorkspaceRelativePaths(this ErrorInfo? error)
+    private static ErrorInfo? WithWorkspaceRelativePaths(this ErrorInfo? error, string workspaceRoot)
     {
         if (error?.Details is null || error.Details.Count == 0)
             return error;
@@ -41,7 +41,7 @@ internal static class Extensions
             if (pair.Key is not ("path" or "file" or "filepath" or "projectpath" or "solutionpath" or "target" or "targetpath" or "provided"))
                 continue;
 
-            var outward = pair.Value.ToWorkspaceRelativePathIfPossible();
+            var outward = pair.Value.ToWorkspaceRelativePathIfPossible(workspaceRoot);
             if (string.Equals(outward, pair.Value, StringComparison.Ordinal))
                 continue;
 
