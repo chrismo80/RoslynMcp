@@ -1,40 +1,40 @@
 namespace RoslynMcp.Tools.Inspection.LoadSolution;
 
 public sealed record Request(
-	string? SolutionHintPath = null);
+    string? SolutionHintPath = null);
 
 public sealed record Result(
-	string? SelectedSolutionPath,
-	string WorkspaceId,
-	string WorkspaceSnapshotId,
-	IReadOnlyList<ProjectSummary> Projects,
-	DiagnosticsSummary BaselineDiagnostics,
-	WorkspaceReadiness Readiness,
-	ErrorInfo? Error = null);
+    string? SelectedSolutionPath,
+    string WorkspaceId,
+    string WorkspaceSnapshotId,
+    IReadOnlyList<ProjectSummary> Projects,
+    DiagnosticsSummary BaselineDiagnostics,
+    WorkspaceReadiness Readiness,
+    ErrorInfo? Error = null);
 
 public sealed record ProjectSummary(
-	string Name,
-	string? Path);
+    string Name,
+    string? Path);
 
 public sealed record DiagnosticsSummary(
-	int ErrorCount,
-	int WarningCount,
-	int InfoCount,
-	int TotalCount);
+    int ErrorCount,
+    int WarningCount,
+    int InfoCount,
+    int TotalCount);
 
 public sealed record WorkspaceReadiness(
-	string State,
-	IReadOnlyList<string> DegradedReasons,
-	string? RecommendedNextStep = null);
+    string State,
+    IReadOnlyList<string> DegradedReasons,
+    string? RecommendedNextStep = null);
 
 public static class ReadinessStates
 {
-	public const string Ready = "ready";
-	public const string DegradedMissingArtifacts = "degraded_missing_artifacts";
-	public const string DegradedRestoreRecommended = "degraded_restore_recommended";
+    public const string Ready = "ready";
+    public const string DegradedMissingArtifacts = "degraded_missing_artifacts";
+    public const string DegradedRestoreRecommended = "degraded_restore_recommended";
 }
 
 public sealed record ErrorInfo(
-	string Code,
-	string Message,
-	IReadOnlyDictionary<string, string>? Details = null);
+    string Code,
+    string Message,
+    IReadOnlyDictionary<string, string>? Details = null);

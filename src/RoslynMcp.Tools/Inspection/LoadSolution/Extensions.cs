@@ -58,7 +58,7 @@ internal static class Extensions
             {
                 SelectedSolutionPath = result.SelectedSolutionPath?.ToWorkspaceRelativePathIfPossible(),
                 WorkspaceId = result.WorkspaceId.ToWorkspaceRelativePathIfPossible(),
-                Projects = result.Projects.Select(project => project.WithWorkspaceRelativePaths()).ToArray(),
+                Projects = [.. result.Projects.Select(project => project.WithWorkspaceRelativePaths())],
                 Error = result.Error.WithWorkspaceRelativePaths()
             };
     }
@@ -105,8 +105,8 @@ internal static class Extensions
         if (!string.Equals(key, "provided", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        return details.TryGetValue("field", out var field) && PathFieldNames.Contains(field)
-            || details.TryGetValue("parameter", out var parameter) && PathFieldNames.Contains(parameter);
+        return (details.TryGetValue("field", out var field) && PathFieldNames.Contains(field))
+            || (details.TryGetValue("parameter", out var parameter) && PathFieldNames.Contains(parameter));
     }
 
 }

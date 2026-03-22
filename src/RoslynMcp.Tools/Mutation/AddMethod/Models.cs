@@ -1,4 +1,4 @@
-using RoslynMcp.Tools.Mutation.Shared;
+using RoslynMcp.Tools.Mutation;
 
 namespace RoslynMcp.Tools.Mutation.AddMethod;
 
