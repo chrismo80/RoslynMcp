@@ -3,6 +3,7 @@ using RoslynMcp.Tools.Infrastructure.Services;
 using RoslynMcp.Tools.Inspection.ExplainSymbol;
 using RoslynMcp.Tools.Inspection.FindImplementations;
 using RoslynMcp.Tools.Inspection.FindUsages;
+using RoslynMcp.Tools.Inspection.GetTypeHierarchy;
 using RoslynMcp.Tools.Inspection.ListMembers;
 using RoslynMcp.Tools.Inspection.ListTypes;
 using RoslynMcp.Tools.Inspection.LoadSolution;
@@ -30,6 +31,7 @@ public static class ServiceExtensions
             .AddExplainSymbolTool()
             .AddFindImplementationsTool()
             .AddFindUsagesTool()
+            .AddGetTypeHierarchyTool()
             .AddListMembersTool()
             .AddResolveSymbolTool()
             .AddResolveSymbolsTool()
