@@ -8,6 +8,7 @@ using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Tests.Inspections.Tools;
 
+[Collection(SharedSandboxCollections.GraphCollectionName)]
 public sealed class TraceCallFlowToolTests(SharedSandboxFixture fixture, ITestOutputHelper output)
     : SharedToolTests<RoslynMcp.Tools.Inspection.TraceCallFlow.Tool>(fixture, output), IClassFixture<SharedSandboxFixture>
 {

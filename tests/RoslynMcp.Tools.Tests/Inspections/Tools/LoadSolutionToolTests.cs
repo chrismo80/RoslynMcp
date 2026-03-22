@@ -7,6 +7,7 @@ using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Tests.Inspections.Tools;
 
+[Collection(SharedSandboxCollections.CoreCollectionName)]
 public sealed class LoadSolutionToolTests(SharedSandboxFixture fixture, ITestOutputHelper output)
     : SharedToolTests<Tool>(fixture, output)
 {
@@ -27,24 +28,9 @@ public sealed class LoadSolutionToolTests(SharedSandboxFixture fixture, ITestOut
     }
 }
 
-[Collection(CurrentDirectorySensitiveCollection.Name)]
 public sealed class LoadSolutionToolIsolatedTests(ITestOutputHelper output)
     : IsolatedToolTests<Tool>(output)
 {
-    [Fact]
-    public async Task Run_WithWorkspaceRelativeSolutionPath_ReturnsRelativePaths()
-    {
-        await using var context = await WorkspaceRootSandboxContext.CreateAsync();
-        var sut = context.GetRequiredService<Tool>();
-
-        var result = await sut.Run(CancellationToken.None, "TestSolution.sln");
-
-        result.Error.IsNull();
-        result.SelectedSolutionPath.Is("TestSolution.sln");
-        result.WorkspaceId.Is("TestSolution.sln");
-        result.Projects.Any(project => project.Path == Path.Combine("ProjectApp", "ProjectApp.csproj")).IsTrue();
-    }
-
     [Fact]
     public async Task Run_WithSlnxSolutionPath_LoadsRepositorySolution()
     {
@@ -102,6 +88,26 @@ public sealed class LoadSolutionToolIsolatedTests(ITestOutputHelper output)
         result.Readiness.State.Is(ReadinessStates.DegradedMissingArtifacts);
         result.Readiness.DegradedReasons.IsContaining("missing_artifacts");
         result.Readiness.RecommendedNextStep.IsNotNull();
+    }
+
+}
+
+[Collection(CurrentDirectorySensitiveCollection.Name)]
+public sealed class LoadSolutionToolCurrentDirectoryTests(ITestOutputHelper output)
+    : IsolatedToolTests<Tool>(output)
+{
+    [Fact]
+    public async Task Run_WithWorkspaceRelativeSolutionPath_ReturnsRelativePaths()
+    {
+        await using var context = await WorkspaceRootSandboxContext.CreateAsync();
+        var sut = context.GetRequiredService<Tool>();
+
+        var result = await sut.Run(CancellationToken.None, "TestSolution.sln");
+
+        result.Error.IsNull();
+        result.SelectedSolutionPath.Is("TestSolution.sln");
+        result.WorkspaceId.Is("TestSolution.sln");
+        result.Projects.Any(project => project.Path == Path.Combine("ProjectApp", "ProjectApp.csproj")).IsTrue();
     }
 
     private sealed class WorkspaceRootSandboxContext : SandboxContext

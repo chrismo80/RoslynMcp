@@ -4,7 +4,6 @@ using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Tests.Mutations.Tools;
 
-[Collection(CurrentDirectorySensitiveCollection.Name)]
 public sealed class FormatDocumentToolTests(ITestOutputHelper output)
     : IsolatedToolTests<RoslynMcp.Tools.Mutation.FormatDocument.Tool>(output)
 {
@@ -39,6 +38,48 @@ public sealed class FormatDocumentToolTests(ITestOutputHelper output)
         result.WasFormatted.IsFalse();
     }
 
+    [Fact]
+    public async Task Run_WithDirectDiskEditAfterLoad_PreservesEditWhileFormatting()
+    {
+        await using var context = await CreateContextAsync();
+        var sut = GetSut(context);
+        var filePath = context.GetFilePath("ProjectImpl", "FormattingFixture");
+
+        await File.WriteAllTextAsync(filePath, "namespace ProjectImpl;\r\n\r\npublic sealed class FormattingFixture\r\n{\r\npublic int Add( int left,int right )\r\n    {\r\n            return left+right+1;\r\n    }\r\n}\r\n");
+
+        var result = await sut.Run(CancellationToken.None, filePath);
+
+        result.Error.IsNull();
+        result.Path.ShouldEndWithPathSuffix(Path.Combine("ProjectImpl", "FormattingFixture.cs"));
+        result.WasFormatted.IsTrue();
+
+        var after = await File.ReadAllTextAsync(filePath);
+        after.Contains("public int Add(int left, int right)", StringComparison.Ordinal).IsTrue();
+        after.Contains("return left + right + 1;", StringComparison.Ordinal).IsTrue();
+        after.Contains("return left + right;", StringComparison.Ordinal).IsFalse();
+    }
+
+    [Fact]
+    public async Task Run_WithUnreadableFileDuringHealthCheck_ReturnsStaleWorkspaceSnapshot()
+    {
+        await using var context = await CreateContextAsync();
+        var sut = GetSut(context);
+        var filePath = context.GetFilePath("ProjectImpl", "FormattingFixture");
+
+        await using var lockStream = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+        var result = await sut.Run(CancellationToken.None, filePath);
+
+        result.Error.IsNotNull();
+        result.Error!.Code.Is("stale_workspace_snapshot");
+        result.WasFormatted.IsFalse();
+    }
+}
+
+[Collection(CurrentDirectorySensitiveCollection.Name)]
+public sealed class FormatDocumentToolCurrentDirectoryTests(ITestOutputHelper output)
+    : IsolatedToolTests<RoslynMcp.Tools.Mutation.FormatDocument.Tool>(output)
+{
     [Fact]
     public async Task Run_WithAbsoluteInWorkspacePath_ReturnsRelativeSuccessPath()
     {
@@ -112,43 +153,6 @@ public sealed class FormatDocumentToolTests(ITestOutputHelper output)
         var after = await File.ReadAllTextAsync(filePath);
         after.Contains("public int Add(int left, int right)", StringComparison.Ordinal).IsTrue();
         after.Contains("return left + right;", StringComparison.Ordinal).IsTrue();
-    }
-
-    [Fact]
-    public async Task Run_WithDirectDiskEditAfterLoad_PreservesEditWhileFormatting()
-    {
-        await using var context = await CreateContextAsync();
-        var sut = GetSut(context);
-        var filePath = context.GetFilePath("ProjectImpl", "FormattingFixture");
-
-        await File.WriteAllTextAsync(filePath, "namespace ProjectImpl;\r\n\r\npublic sealed class FormattingFixture\r\n{\r\npublic int Add( int left,int right )\r\n    {\r\n            return left+right+1;\r\n    }\r\n}\r\n");
-
-        var result = await sut.Run(CancellationToken.None, filePath);
-
-        result.Error.IsNull();
-        result.Path.ShouldEndWithPathSuffix(Path.Combine("ProjectImpl", "FormattingFixture.cs"));
-        result.WasFormatted.IsTrue();
-
-        var after = await File.ReadAllTextAsync(filePath);
-        after.Contains("public int Add(int left, int right)", StringComparison.Ordinal).IsTrue();
-        after.Contains("return left + right + 1;", StringComparison.Ordinal).IsTrue();
-        after.Contains("return left + right;", StringComparison.Ordinal).IsFalse();
-    }
-
-    [Fact]
-    public async Task Run_WithUnreadableFileDuringHealthCheck_ReturnsStaleWorkspaceSnapshot()
-    {
-        await using var context = await CreateContextAsync();
-        var sut = GetSut(context);
-        var filePath = context.GetFilePath("ProjectImpl", "FormattingFixture");
-
-        await using var lockStream = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-
-        var result = await sut.Run(CancellationToken.None, filePath);
-
-        result.Error.IsNotNull();
-        result.Error!.Code.Is("stale_workspace_snapshot");
-        result.WasFormatted.IsFalse();
     }
 
     private sealed class CurrentDirectoryScope(string originalDirectory) : IDisposable

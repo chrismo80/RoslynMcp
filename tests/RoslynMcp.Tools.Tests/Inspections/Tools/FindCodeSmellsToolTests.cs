@@ -9,6 +9,7 @@ namespace RoslynMcp.Tools.Tests.Inspections.Tools;
 
 public sealed record ExpectedCodeSmellFinding(string Title, string Category, string RiskLevel, string ReviewKind, int Line, int Column);
 
+[Collection(SharedSandboxCollections.AnalysisCollectionName)]
 public sealed class FindCodeSmellsToolTests(SharedSandboxFixture fixture, ITestOutputHelper output)
     : SharedToolTests<RoslynMcp.Tools.Inspection.FindCodeSmells.Tool>(fixture, output), IClassFixture<SharedSandboxFixture>
 {

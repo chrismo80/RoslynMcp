@@ -5,6 +5,7 @@ using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Tests.Inspections.Tools;
 
+[Collection(SharedSandboxCollections.AnalysisCollectionName)]
 public sealed class UnderstandProjectsToolTests(SharedSandboxFixture fixture, ITestOutputHelper output)
     : SharedToolTests<RoslynMcp.Tools.Inspection.UnderstandProjects.Tool>(fixture, output), IClassFixture<SharedSandboxFixture>
 {

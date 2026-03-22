@@ -1,6 +1,7 @@
 using Is.Assertions;
 using RoslynMcp.Tools.Inspection.ResolveSymbol;
 using RoslynMcp.Tools.Tests.Inspections;
+using RoslynMcp.Tools.Tests.Mutations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
@@ -8,23 +9,9 @@ using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Tests.Inspections.Tools;
 
-[Collection(CurrentDirectorySensitiveCollection.Name)]
 public sealed class ResolveSymbolToolTests(SharedSandboxFixture fixture, ITestOutputHelper output)
     : SharedToolTests<Tool>(fixture, output), IClassFixture<SharedSandboxFixture>
 {
-    [Fact]
-    public async Task Run_WithWorkspaceRelativeSourcePosition_ReturnsRelativeLocation()
-    {
-        await using var context = await WorkspaceRootSandboxContext.CreateAsync();
-        var sut = context.GetRequiredService<Tool>();
-
-        var result = await sut.Run(CancellationToken.None, path: Path.Combine("ProjectApp", "AppOrchestrator.cs"), line: 6, column: 21);
-
-        result.Error.IsNull();
-        result.Symbol.IsNotNull();
-        result.Symbol!.Location!.FilePath.Is(Path.Combine("ProjectApp", "AppOrchestrator.cs"));
-    }
-
     [Fact]
     public async Task Run_WithQualifiedName_ReturnsResolvedTypeSymbol()
     {
@@ -241,6 +228,24 @@ public sealed class ResolveSymbolToolTests(SharedSandboxFixture fixture, ITestOu
 
         json.Contains("reference", StringComparison.Ordinal).IsFalse();
         json.Contains("qualifiedDisplayName", StringComparison.Ordinal).IsFalse();
+    }
+}
+
+[Collection(CurrentDirectorySensitiveCollection.Name)]
+public sealed class ResolveSymbolToolCurrentDirectoryTests(ITestOutputHelper output)
+    : IsolatedToolTests<Tool>(output)
+{
+    [Fact]
+    public async Task Run_WithWorkspaceRelativeSourcePosition_ReturnsRelativeLocation()
+    {
+        await using var context = await WorkspaceRootSandboxContext.CreateAsync();
+        var sut = context.GetRequiredService<Tool>();
+
+        var result = await sut.Run(CancellationToken.None, path: Path.Combine("ProjectApp", "AppOrchestrator.cs"), line: 6, column: 21);
+
+        result.Error.IsNull();
+        result.Symbol.IsNotNull();
+        result.Symbol!.Location!.FilePath.Is(Path.Combine("ProjectApp", "AppOrchestrator.cs"));
     }
 }
 

@@ -5,7 +5,6 @@ using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Tests.Inspections.Tools;
 
-[Collection(CurrentDirectorySensitiveCollection.Name)]
 public sealed class RunTestsToolTests(ITestOutputHelper output)
     : IsolatedToolTests<RoslynMcp.Tools.Inspection.RunTests.Tool>(output)
 {
@@ -170,34 +169,6 @@ public sealed class RunTestsToolTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public async Task Run_WithWorkspaceRelativeProjectTarget_RunsTargetedProject()
-    {
-        await using var context = await WorkspaceRootSandboxContext.CreateAsync();
-        var sut = context.GetRequiredService<RoslynMcp.Tools.Inspection.RunTests.Tool>();
-        var result = await sut.Run(CancellationToken.None, Path.Combine(RunTestsFixturesDirectoryName, PassingOnlyProjectName, $"{PassingOnlyProjectName}.csproj"));
-
-        result.Error.IsNull();
-        result.Outcome.Is("passed");
-        result.FailureGroups.Count.Is(0);
-    }
-
-    [Fact]
-    public async Task Run_WithWorkspaceRelativeProjectTarget_ForNestedSolution_ResolvesFromWorkspaceRoot()
-    {
-        await using var context = await NestedWorkspaceRootSandboxContext.CreateAsync();
-        var sut = context.GetRequiredService<RoslynMcp.Tools.Inspection.RunTests.Tool>();
-        var relativeTarget = Path.Combine("tests", "TestSolution", RunTestsFixturesDirectoryName, PassingOnlyProjectName, $"{PassingOnlyProjectName}.csproj");
-
-        var result = await sut.Run(CancellationToken.None, relativeTarget);
-
-        result.Error.IsNull();
-        result.Outcome.Is("passed");
-        result.FailureGroups.Count.Is(0);
-        result.Counts.IsNotNull();
-        result.Counts!.Passed.Is(1);
-    }
-
-    [Fact]
     public async Task Run_WhenBuildFails_ReturnsBuildDiagnostics()
     {
         await using var context = await CreateContextAsync();
@@ -262,6 +233,42 @@ public sealed class RunTestsToolTests(ITestOutputHelper output)
 
     private static string GetFixtureSolutionPath(IsolatedSandboxContext context, string solutionFileName)
         => Path.Combine(context.TestSolutionDirectory, RunTestsFixturesDirectoryName, solutionFileName);
+}
+
+[Collection(CurrentDirectorySensitiveCollection.Name)]
+public sealed class RunTestsToolCurrentDirectoryTests(ITestOutputHelper output)
+    : IsolatedToolTests<RoslynMcp.Tools.Inspection.RunTests.Tool>(output)
+{
+    private const string RunTestsFixturesDirectoryName = "RunTestsFixtures";
+    private const string PassingOnlyProjectName = "PassingOnlyTests";
+
+    [Fact]
+    public async Task Run_WithWorkspaceRelativeProjectTarget_RunsTargetedProject()
+    {
+        await using var context = await WorkspaceRootSandboxContext.CreateAsync();
+        var sut = context.GetRequiredService<RoslynMcp.Tools.Inspection.RunTests.Tool>();
+        var result = await sut.Run(CancellationToken.None, Path.Combine(RunTestsFixturesDirectoryName, PassingOnlyProjectName, $"{PassingOnlyProjectName}.csproj"));
+
+        result.Error.IsNull();
+        result.Outcome.Is("passed");
+        result.FailureGroups.Count.Is(0);
+    }
+
+    [Fact]
+    public async Task Run_WithWorkspaceRelativeProjectTarget_ForNestedSolution_ResolvesFromWorkspaceRoot()
+    {
+        await using var context = await NestedWorkspaceRootSandboxContext.CreateAsync();
+        var sut = context.GetRequiredService<RoslynMcp.Tools.Inspection.RunTests.Tool>();
+        var relativeTarget = Path.Combine("tests", "TestSolution", RunTestsFixturesDirectoryName, PassingOnlyProjectName, $"{PassingOnlyProjectName}.csproj");
+
+        var result = await sut.Run(CancellationToken.None, relativeTarget);
+
+        result.Error.IsNull();
+        result.Outcome.Is("passed");
+        result.FailureGroups.Count.Is(0);
+        result.Counts.IsNotNull();
+        result.Counts!.Passed.Is(1);
+    }
 
     private sealed class WorkspaceRootSandboxContext : SandboxContext
     {

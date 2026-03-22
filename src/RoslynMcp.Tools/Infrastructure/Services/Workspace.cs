@@ -6,10 +6,10 @@ namespace RoslynMcp.Tools.Infrastructure.Services;
 
 public class Workspace : IAsyncDisposable
 {
-    private static readonly SemaphoreSlim Gate = new(1, 1);
     private static readonly Lock RegistrationLock = new();
     private static bool _msbuildRegistered;
 
+    private readonly SemaphoreSlim _gate = new(1, 1);
     private Session? _current;
     private int _version;
     private readonly Dictionary<string, string> _symbolAliases = new(StringComparer.Ordinal);
@@ -28,7 +28,7 @@ public class Workspace : IAsyncDisposable
             var solution = await workspace.OpenSolutionAsync(solutionPath, progress: null, cancellationToken: cancellationToken).ConfigureAwait(false);
             var session = new Session(Path.GetFullPath(Directory.GetCurrentDirectory()), solutionPath, workspace, solution);
 
-            await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 var previous = _current;
@@ -43,7 +43,7 @@ public class Workspace : IAsyncDisposable
             }
             finally
             {
-                Gate.Release();
+                _gate.Release();
             }
         }
         catch
@@ -55,20 +55,20 @@ public class Workspace : IAsyncDisposable
 
     internal async Task<Session?> GetCurrentAsync(CancellationToken cancellationToken)
     {
-        await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             return _current;
         }
         finally
         {
-            Gate.Release();
+            _gate.Release();
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        await Gate.WaitAsync().ConfigureAwait(false);
+        await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
             _current?.Dispose();
@@ -76,7 +76,7 @@ public class Workspace : IAsyncDisposable
         }
         finally
         {
-            Gate.Release();
+            _gate.Release();
         }
     }
 
@@ -99,7 +99,7 @@ public class Workspace : IAsyncDisposable
 
     internal async Task<bool> ApplyChangesAsync(Solution solution, CancellationToken cancellationToken)
     {
-        await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (_current is null)
@@ -114,14 +114,14 @@ public class Workspace : IAsyncDisposable
         }
         finally
         {
-            Gate.Release();
+            _gate.Release();
         }
     }
 
     internal async Task<bool> ReloadAsync(CancellationToken cancellationToken)
     {
         Session? current;
-        await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             current = _current;
@@ -130,7 +130,7 @@ public class Workspace : IAsyncDisposable
         }
         finally
         {
-            Gate.Release();
+            _gate.Release();
         }
 
         MSBuildWorkspace? reloadedWorkspace = null;
@@ -141,7 +141,7 @@ public class Workspace : IAsyncDisposable
             var reloadedSolution = await reloadedWorkspace.OpenSolutionAsync(current.SelectedSolutionPath, progress: null, cancellationToken: cancellationToken).ConfigureAwait(false);
             var replacement = new Session(current.WorkspaceRoot, current.SelectedSolutionPath, reloadedWorkspace, reloadedSolution);
 
-            await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 var previous = _current;
@@ -155,7 +155,7 @@ public class Workspace : IAsyncDisposable
             }
             finally
             {
-                Gate.Release();
+                _gate.Release();
             }
         }
         catch
@@ -170,20 +170,20 @@ public class Workspace : IAsyncDisposable
 
     internal async Task<string?> ResolveAliasedSymbolIdAsync(string symbolId, CancellationToken cancellationToken)
     {
-        await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             return _symbolAliases.TryGetValue(symbolId, out var mapped) ? mapped : null;
         }
         finally
         {
-            Gate.Release();
+            _gate.Release();
         }
     }
 
     internal async Task SetAliasedSymbolIdAsync(string originalSymbolId, string currentSymbolId, CancellationToken cancellationToken)
     {
-        await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             _symbolAliases[originalSymbolId] = currentSymbolId;
@@ -191,20 +191,20 @@ public class Workspace : IAsyncDisposable
         }
         finally
         {
-            Gate.Release();
+            _gate.Release();
         }
     }
 
     internal async Task<string> GetCanonicalSymbolIdAsync(string symbolId, CancellationToken cancellationToken)
     {
-        await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             return _canonicalSymbolIds.TryGetValue(symbolId, out var canonical) ? canonical : symbolId;
         }
         finally
         {
-            Gate.Release();
+            _gate.Release();
         }
     }
 }

@@ -1,31 +1,14 @@
 using Is.Assertions;
 using RoslynMcp.Tools.Tests.Inspections;
+using RoslynMcp.Tools.Tests.Mutations;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Tests.Inspections.Tools;
 
-[Collection(CurrentDirectorySensitiveCollection.Name)]
 public sealed class FindUsagesToolTests(SharedSandboxFixture fixture, ITestOutputHelper output)
     : SharedToolTests<RoslynMcp.Tools.Inspection.FindUsages.Tool>(fixture, output), IClassFixture<SharedSandboxFixture>
 {
-    [Fact]
-    public async Task Run_WithWorkspaceRelativeDocumentPath_ReturnsRelativeReferences()
-    {
-        await using var context = await WorkspaceRootSandboxContext.CreateAsync();
-        var resolver = context.GetRequiredService<RoslynMcp.Tools.Inspection.ResolveSymbol.Tool>();
-        var sut = context.GetRequiredService<RoslynMcp.Tools.Inspection.FindUsages.Tool>();
-        var symbol = await resolver.Run(CancellationToken.None, path: Path.Combine("ProjectCore", "Contracts.cs"), line: 31, column: 24);
-
-        symbol.Error.IsNull();
-
-        var result = await sut.Run(CancellationToken.None, symbol.Symbol!.SymbolId, scope: "document", path: Path.Combine("ProjectApp", "AppOrchestrator.cs"));
-
-        result.Error.IsNull();
-        result.ReferenceFiles.Count.Is(1);
-        result.ReferenceFiles[0].FilePath.Is(Path.Combine("ProjectApp", "AppOrchestrator.cs"));
-    }
-
     [Fact]
     public async Task Run_WithSolutionScope_ReturnsOrderedReferences()
     {
@@ -125,6 +108,28 @@ public sealed class FindUsagesToolTests(SharedSandboxFixture fixture, ITestOutpu
         resolved.Error.IsNull();
         resolved.Symbol.IsNotNull();
         return resolved.Symbol!.SymbolId;
+    }
+}
+
+[Collection(CurrentDirectorySensitiveCollection.Name)]
+public sealed class FindUsagesToolCurrentDirectoryTests(ITestOutputHelper output)
+    : IsolatedToolTests<RoslynMcp.Tools.Inspection.FindUsages.Tool>(output)
+{
+    [Fact]
+    public async Task Run_WithWorkspaceRelativeDocumentPath_ReturnsRelativeReferences()
+    {
+        await using var context = await WorkspaceRootSandboxContext.CreateAsync();
+        var resolver = context.GetRequiredService<RoslynMcp.Tools.Inspection.ResolveSymbol.Tool>();
+        var sut = context.GetRequiredService<RoslynMcp.Tools.Inspection.FindUsages.Tool>();
+        var symbol = await resolver.Run(CancellationToken.None, path: Path.Combine("ProjectCore", "Contracts.cs"), line: 31, column: 24);
+
+        symbol.Error.IsNull();
+
+        var result = await sut.Run(CancellationToken.None, symbol.Symbol!.SymbolId, scope: "document", path: Path.Combine("ProjectApp", "AppOrchestrator.cs"));
+
+        result.Error.IsNull();
+        result.ReferenceFiles.Count.Is(1);
+        result.ReferenceFiles[0].FilePath.Is(Path.Combine("ProjectApp", "AppOrchestrator.cs"));
     }
 }
 

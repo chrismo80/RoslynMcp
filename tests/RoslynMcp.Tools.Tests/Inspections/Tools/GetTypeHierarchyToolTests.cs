@@ -5,6 +5,7 @@ using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Tests.Inspections.Tools;
 
+[Collection(SharedSandboxCollections.AnalysisCollectionName)]
 public sealed class GetTypeHierarchyToolTests(SharedSandboxFixture fixture, ITestOutputHelper output)
     : SharedToolTests<RoslynMcp.Tools.Inspection.GetTypeHierarchy.Tool>(fixture, output), IClassFixture<SharedSandboxFixture>
 {

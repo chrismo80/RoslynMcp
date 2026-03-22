@@ -7,6 +7,7 @@ using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Tests.Inspections.Tools;
 
+[Collection(SharedSandboxCollections.GraphCollectionName)]
 public sealed class FindCalleesToolTests(SharedSandboxFixture fixture, ITestOutputHelper output)
     : SharedToolTests<RoslynMcp.Tools.Inspection.FindCallees.Tool>(fixture, output), IClassFixture<SharedSandboxFixture>
 {

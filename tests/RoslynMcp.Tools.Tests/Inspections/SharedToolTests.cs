@@ -1,9 +1,7 @@
-using Xunit;
 using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Tests.Inspections;
 
-[Collection(SharedSandboxToolsTestsCollection.CollectionName)]
 public abstract class SharedToolTests<TTool> where TTool : notnull
 {
     private readonly ITestOutputHelper _output;

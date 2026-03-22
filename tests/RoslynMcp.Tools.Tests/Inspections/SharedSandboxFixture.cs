@@ -2,10 +2,26 @@ using Xunit;
 
 namespace RoslynMcp.Tools.Tests.Inspections;
 
-[CollectionDefinition(CollectionName)]
-public sealed class SharedSandboxToolsTestsCollection : ICollectionFixture<SharedSandboxFixture>
+[CollectionDefinition(SharedSandboxCollections.CoreCollectionName)]
+public sealed class SharedSandboxCoreToolsTestsCollection : ICollectionFixture<SharedSandboxFixture>
 {
-    public const string CollectionName = "ToolsTests";
+}
+
+[CollectionDefinition(SharedSandboxCollections.AnalysisCollectionName)]
+public sealed class SharedSandboxAnalysisToolsTestsCollection : ICollectionFixture<SharedSandboxFixture>
+{
+}
+
+[CollectionDefinition(SharedSandboxCollections.GraphCollectionName)]
+public sealed class SharedSandboxGraphToolsTestsCollection : ICollectionFixture<SharedSandboxFixture>
+{
+}
+
+public static class SharedSandboxCollections
+{
+    public const string CoreCollectionName = "ToolsTests.Core";
+    public const string AnalysisCollectionName = "ToolsTests.Analysis";
+    public const string GraphCollectionName = "ToolsTests.Graph";
 }
 
 public sealed class SharedSandboxFixture : IAsyncLifetime
