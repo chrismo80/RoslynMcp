@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using RoslynMcp.Tools.Infrastructure.Services;
+using RoslynMcp.Tools.Inspection.ExplainSymbol;
 using RoslynMcp.Tools.Inspection.ListMembers;
 using RoslynMcp.Tools.Inspection.ListTypes;
 using RoslynMcp.Tools.Inspection.LoadSolution;
@@ -24,6 +25,7 @@ public static class ServiceExtensions
         private IServiceCollection AddTools() => services
             .AddLoadSolutionTool()
             .AddUnderstandProjectsTool()
+            .AddExplainSymbolTool()
             .AddListMembersTool()
             .AddResolveSymbolTool()
             .AddResolveSymbolsTool()
