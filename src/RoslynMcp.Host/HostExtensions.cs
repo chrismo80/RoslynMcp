@@ -1,13 +1,10 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Protocol;
-using RoslynMcp.Features;
-using RoslynMcp.Infrastructure;
+using RoslynMcp.Tools;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using RoslynMcp.Features.Tools;
-using Tool = RoslynMcp.Features.Tools.Tool;
 
 namespace RoslynMcp.Host;
 
@@ -21,8 +18,7 @@ public static class HostExtensions
     extension(IServiceCollection services)
     {
         public void Compose() => services
-            .AddInfrastructure()
-            .AddImplementations<Tool>()
+            .WithRoslynMcp()
             .AddMcpRuntime();
 
         private void AddMcpRuntime()
@@ -45,7 +41,7 @@ public static class HostExtensions
             });
 
             builder.WithStdioServerTransport();
-            builder.WithTools(FeatureExtensions.GetImplementations<Tool>(), serializerOptions);
+            builder.WithTools(ServiceExtensions.GetTools(), serializerOptions);
         }
     }
 }

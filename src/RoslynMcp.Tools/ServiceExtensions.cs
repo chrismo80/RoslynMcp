@@ -26,6 +26,31 @@ namespace RoslynMcp.Tools;
 
 public static class ServiceExtensions
 {
+    public static IEnumerable<Type> GetTools()
+    {
+        yield return typeof(Inspection.LoadSolution.Tool);
+        yield return typeof(Inspection.UnderstandProjects.Tool);
+        yield return typeof(Inspection.ResolveSymbol.Tool);
+        yield return typeof(Inspection.ResolveSymbols.Tool);
+        yield return typeof(Inspection.ExplainSymbol.Tool);
+        yield return typeof(Inspection.FindCallers.Tool);
+        yield return typeof(Inspection.FindCallees.Tool);
+        yield return typeof(Inspection.FindCodeSmells.Tool);
+        yield return typeof(Inspection.FindImplementations.Tool);
+        yield return typeof(Inspection.FindUsages.Tool);
+        yield return typeof(Inspection.GetTypeHierarchy.Tool);
+        yield return typeof(Inspection.ListMembers.Tool);
+        yield return typeof(Inspection.ListTypes.Tool);
+        yield return typeof(Inspection.RunTests.Tool);
+        yield return typeof(Inspection.TraceCallFlow.Tool);
+        yield return typeof(Mutation.AddMethod.Tool);
+        yield return typeof(Mutation.DeleteMethod.Tool);
+        yield return typeof(Mutation.FormatDocument.Tool);
+        yield return typeof(Mutation.RenameSymbol.Tool);
+        yield return typeof(Mutation.ReplaceMethod.Tool);
+        yield return typeof(Mutation.ReplaceMethodBody.Tool);
+    }
+
     extension(IServiceCollection services)
     {
         public IServiceCollection WithRoslynMcp() => services
