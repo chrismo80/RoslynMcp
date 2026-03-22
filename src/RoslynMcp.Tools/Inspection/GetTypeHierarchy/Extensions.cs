@@ -29,7 +29,7 @@ internal static class Extensions
             var (filePath, line, column) = symbol.GetDeclarationPosition();
             return new CompactSymbol(
                 symbol.ToStableId(),
-                symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+                symbol is INamedTypeSymbol namedType ? namedType.Name : symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
                 symbol.Kind.ToString(),
                 CreateOptionalSourceLocation(filePath, line, column),
                 symbol.ContainingType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
@@ -56,7 +56,7 @@ internal static class Extensions
             }
 
             return [.. result.Values
-                .OrderBy(static symbol => symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), StringComparer.Ordinal)
+                .OrderBy(static symbol => symbol, TypeHierarchySymbolComparer.Instance)
                 .Select(static symbol => symbol.ToCompactSymbol())];
         }
 
@@ -72,7 +72,7 @@ internal static class Extensions
             }
 
             return [.. result.Values
-                .OrderBy(static symbol => symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), StringComparer.Ordinal)
+                .OrderBy(static symbol => symbol, TypeHierarchySymbolComparer.Instance)
                 .Select(static symbol => symbol.ToCompactSymbol())];
         }
 
@@ -100,7 +100,7 @@ internal static class Extensions
             }
 
             return [.. unique.Values
-                .OrderBy(static symbol => symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), StringComparer.Ordinal)
+                .OrderBy(static symbol => symbol, TypeHierarchySymbolComparer.Instance)
                 .Take(maxDerived)
                 .Select(static symbol => symbol.ToCompactSymbol())];
 
@@ -142,7 +142,7 @@ internal static class Extensions
         => symbol?.WithWorkspaceRelativePathValues();
 
     private static CompactSymbol WithWorkspaceRelativePathValues(this CompactSymbol symbol)
-        => symbol with { Location = symbol.Location.WithWorkspaceRelativePaths(), Owner = symbol.Owner?.Replace("global::", string.Empty, StringComparison.Ordinal) };
+        => symbol with { Location = symbol.Location.WithWorkspaceRelativePaths() };
 
     private static SourceLocation? WithWorkspaceRelativePaths(this SourceLocation? location)
         => location is null ? null : location with { FilePath = location.FilePath.ToWorkspaceRelativePathIfPossible() };
@@ -171,4 +171,48 @@ internal static class Extensions
 
     private static SourceLocation? CreateOptionalSourceLocation(string filePath, int? line, int? column)
         => string.IsNullOrWhiteSpace(filePath) || !line.HasValue || !column.HasValue ? null : new(filePath, line.Value, column.Value);
+
+    private sealed class TypeHierarchySymbolComparer : IComparer<INamedTypeSymbol>
+    {
+        internal static readonly TypeHierarchySymbolComparer Instance = new();
+
+        public int Compare(INamedTypeSymbol? x, INamedTypeSymbol? y)
+        {
+            if (ReferenceEquals(x, y))
+                return 0;
+            if (x is null)
+                return -1;
+            if (y is null)
+                return 1;
+
+            var byNameIgnoreCase = StringComparer.OrdinalIgnoreCase.Compare(x.Name, y.Name);
+            if (byNameIgnoreCase != 0)
+                return byNameIgnoreCase;
+
+            var byName = StringComparer.Ordinal.Compare(x.Name, y.Name);
+            if (byName != 0)
+                return byName;
+
+            var byNamespace = StringComparer.Ordinal.Compare(x.ContainingNamespace.NormalizeNamespace() ?? string.Empty, y.ContainingNamespace.NormalizeNamespace() ?? string.Empty);
+            if (byNamespace != 0)
+                return byNamespace;
+
+            var (xPath, xLine, xColumn) = x.GetDeclarationPosition();
+            var (yPath, yLine, yColumn) = y.GetDeclarationPosition();
+
+            var byPath = StringComparer.Ordinal.Compare(xPath, yPath);
+            if (byPath != 0)
+                return byPath;
+
+            var byLine = Nullable.Compare(xLine, yLine);
+            if (byLine != 0)
+                return byLine;
+
+            var byColumn = Nullable.Compare(xColumn, yColumn);
+            if (byColumn != 0)
+                return byColumn;
+
+            return StringComparer.Ordinal.Compare(x.ToStableId(), y.ToStableId());
+        }
+    }
 }

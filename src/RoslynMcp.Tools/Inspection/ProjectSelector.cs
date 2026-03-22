@@ -57,6 +57,7 @@ internal static class ProjectSelector
                         normalizedName is null ? null : $"projectName={normalizedName}",
                         normalizedId is null ? null : $"projectId={normalizedId}"
                     }.Where(static value => value is not null)!),
+                    ["projectIdScope"] = normalizedId is null ? string.Empty : "snapshot-local",
                     ["nextAction"] = normalizedId is null
                         ? "Use load_solution output to provide an exact projectPath, projectName, or projectId."
                         : "projectId values are snapshot-local and can change after reload. Refresh selectors from the current snapshot or prefer projectPath for automation."
