@@ -3,6 +3,7 @@ using RoslynMcp.Tools.Infrastructure.Services;
 using RoslynMcp.Tools.Inspection.ExplainSymbol;
 using RoslynMcp.Tools.Inspection.FindCallees;
 using RoslynMcp.Tools.Inspection.FindCallers;
+using RoslynMcp.Tools.Inspection.FindCodeSmells;
 using RoslynMcp.Tools.Inspection.FindImplementations;
 using RoslynMcp.Tools.Inspection.FindUsages;
 using RoslynMcp.Tools.Inspection.GetTypeHierarchy;
@@ -35,6 +36,7 @@ public static class ServiceExtensions
             .AddExplainSymbolTool()
             .AddFindCallersTool()
             .AddFindCalleesTool()
+            .AddFindCodeSmellsTool()
             .AddFindImplementationsTool()
             .AddFindUsagesTool()
             .AddGetTypeHierarchyTool()
