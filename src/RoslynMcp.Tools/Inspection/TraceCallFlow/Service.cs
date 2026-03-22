@@ -1,0 +1,58 @@
+using Microsoft.CodeAnalysis;
+using RoslynMcp.Tools.Infrastructure.Services;
+
+namespace RoslynMcp.Tools.Inspection.TraceCallFlow;
+
+public sealed class Service(RoslynMcp.Tools.Infrastructure.Services.Workspace workspace, SymbolLookup symbolLookup)
+{
+	public async Task<Result> RunAsync(Request request, CancellationToken cancellationToken)
+	{
+		var (direction, directionError) = request.Direction.NormalizeDirection();
+		var depth = Math.Max(request.Depth ?? 2, 1);
+		if (directionError is not null)
+			return new Result(null, null, direction, depth, null, [], null, null, null, directionError);
+
+		var session = await workspace.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
+		if (session is null)
+			return new Result(null, null, direction, depth, null, [], null, null, null, new ErrorInfo("no_solution_loaded", "No solution is currently loaded."));
+
+		var root = await ResolveRootAsync(request, session.Solution, cancellationToken).ConfigureAwait(false);
+		if (root is null)
+			return new Result(null, null, direction, depth, null, [], null, null, null, new ErrorInfo("invalid_input", "Call trace_call_flow with a resolvable symbolId or source position."));
+
+		var edges = direction switch
+		{
+			FlowDirections.Upstream => await root.GetCallersAsync(session.Solution, depth, cancellationToken).ConfigureAwait(false),
+			FlowDirections.Downstream => await root.GetCalleesAsync(session.Solution, depth, cancellationToken).ConfigureAwait(false),
+			_ => (await root.GetCallersAsync(session.Solution, depth, cancellationToken).ConfigureAwait(false))
+				.Concat(await root.GetCalleesAsync(session.Solution, depth, cancellationToken).ConfigureAwait(false))
+				.ToArray()
+		};
+
+		var edgeList = edges.Select(static edge => new TraceFlowEdge(edge.From.ToStableId(), edge.To.ToStableId(), edge.Location, FlowEvidenceKinds.DirectStatic)).ToArray();
+		var symbolTable = edges
+			.SelectMany(static edge => new[] { edge.From, edge.To })
+			.Append(root)
+			.GroupBy(static symbol => symbol.ToStableId(), StringComparer.Ordinal)
+			.ToDictionary(static group => group.Key, static group => group.First().ToTraceSymbolEntry(), StringComparer.Ordinal);
+
+		var transitions = edges
+			.GroupBy(static edge => (From: edge.From.ContainingAssembly?.Name ?? "unresolved_project", To: edge.To.ContainingAssembly?.Name ?? "unresolved_project"))
+			.Select(static group => new FlowTransition(group.Key.From, group.Key.To, group.Count()))
+			.OrderByDescending(static group => group.Count)
+			.ToArray();
+
+		return new Result(root.ToStableId(), root.ToRootSummary(), direction, depth, symbolTable, edgeList, null, transitions.Length == 0 ? null : transitions, null).WithWorkspaceRelativePaths();
+	}
+
+	private async Task<ISymbol?> ResolveRootAsync(Request request, Solution solution, CancellationToken cancellationToken)
+	{
+		if (!string.IsNullOrWhiteSpace(request.SymbolId))
+			return await symbolLookup.ResolveSymbolAsync(request.SymbolId!, solution, cancellationToken).ConfigureAwait(false);
+
+		if (!string.IsNullOrWhiteSpace(request.Path) && request.Line.HasValue && request.Column.HasValue)
+			return await symbolLookup.GetSymbolAtPositionAsync(solution, request.Path!, request.Line.Value, request.Column.Value, cancellationToken).ConfigureAwait(false);
+
+		return null;
+	}
+}
