@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 
 namespace RoslynMcp.Tools.Managers;
 
-public sealed class SymbolManager
+public sealed class SymbolManager : Manager
 {
     private int _counter;
     

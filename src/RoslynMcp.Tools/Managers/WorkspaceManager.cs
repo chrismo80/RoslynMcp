@@ -1,6 +1,6 @@
 namespace RoslynMcp.Tools.Managers;
 
-public sealed class WorkspaceManager
+public sealed class WorkspaceManager : Manager
 {
     internal string WorkspaceDirectory { get; private set; } = Directory.GetCurrentDirectory();
     

@@ -16,7 +16,7 @@ internal static class Extensions
     extension(Project project)
     {
         public ProjectSummary ToSummary(WorkspaceManager workspaceManager) =>
-            new ProjectSummary(project.Name, workspaceManager.ToRelativePathIfPossible(project.FilePath));
+            new(project.Name, workspaceManager.ToRelativePathIfPossible(project.FilePath));
 
         public async IAsyncEnumerable<Diagnostic> Diagnose(CancellationToken cancellationToken)
         {

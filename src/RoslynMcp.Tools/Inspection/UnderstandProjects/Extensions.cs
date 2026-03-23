@@ -11,23 +11,7 @@ internal static class Extensions
     extension(IServiceCollection services)
     {
         public IServiceCollection AddUnderstandProjectsTool() => services
-            .AddSingleton<Service>()
             .AddSingleton<Tool>();
-    }
-
-    extension(string? profile)
-    {
-        public Request ToRequest() => new(profile.NormalizeProfile());
-
-        private string NormalizeProfile()
-            => string.IsNullOrWhiteSpace(profile)
-                ? Profiles.Standard
-                : profile.Trim().ToLowerInvariant() switch
-                {
-                    Profiles.Quick => Profiles.Quick,
-                    Profiles.Deep => Profiles.Deep,
-                    _ => Profiles.Standard
-                };
     }
 
     extension(ProjectSummary project)
@@ -41,51 +25,13 @@ internal static class Extensions
             };
     }
 
-    extension(SourceLocation? location)
-    {
-        public SourceLocation? WithWorkspaceRelativePaths()
-            => location is null ? null : location with { FilePath = location.FilePath.ToWorkspaceRelativePathIfPossible() };
-    }
-
-    extension(Hotspot hotspot)
-    {
-        public Hotspot WithWorkspaceRelativePaths()
-            => hotspot with { Location = hotspot.Location.WithWorkspaceRelativePaths() };
-    }
-
-    extension(ErrorInfo? error)
-    {
-        public ErrorInfo? WithWorkspaceRelativePaths()
-        {
-            if (error?.Details is null || error.Details.Count == 0)
-                return error;
-
-            Dictionary<string, string>? updated = null;
-            foreach (var pair in error.Details)
-            {
-                if (!PathDetailKeys.Contains(pair.Key))
-                    continue;
-
-                var outward = pair.Value.ToWorkspaceRelativePathIfPossible();
-                if (string.Equals(outward, pair.Value, StringComparison.Ordinal))
-                    continue;
-
-                updated ??= new Dictionary<string, string>(error.Details, StringComparer.Ordinal);
-                updated[pair.Key] = outward;
-            }
-
-            return updated is null ? error : error with { Details = updated };
-        }
-    }
-
     extension(Result result)
     {
         public Result WithWorkspaceRelativePaths()
             => result with
             {
                 Projects = [.. result.Projects.Select(project => project.WithWorkspaceRelativePaths())],
-                Hotspots = [.. result.Hotspots.Select(hotspot => hotspot.WithWorkspaceRelativePaths())],
-                Error = result.Error.WithWorkspaceRelativePaths()
+                Error = result.Error
             };
     }
 
@@ -130,17 +76,8 @@ internal static class Extensions
     public static string ToStableId(this ISymbol symbol)
         => $"{symbol.Kind}:{symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)}";
 
-    private static readonly HashSet<string> PathDetailKeys =
-    [
-        "path",
-        "filepath",
-        "projectpath",
-        "workspaceRoot"
-    ];
-
     internal static class Profiles
     {
-        public const string Quick = "quick";
         public const string Standard = "standard";
         public const string Deep = "deep";
     }

@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis.MSBuild;
 
 namespace RoslynMcp.Tools.Managers;
 
-public sealed class SolutionManager : IAsyncDisposable
+public sealed class SolutionManager : Manager, IAsyncDisposable
 {
     private record Session(MSBuildWorkspace Workspace, Solution Solution, int Version);
 
