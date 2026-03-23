@@ -14,7 +14,7 @@ internal sealed class WorkspaceManager
         Path.IsPathRooted(path) ? path : Path.Combine(WorkspaceDirectory, path);
 
     internal string ToRelativePathIfPossible(string path) =>
-        path.Contains(WorkspaceDirectory) ? Path.GetRelativePath(WorkspaceDirectory, path) : path;
+        path.StartsWith(WorkspaceDirectory + Path.DirectorySeparatorChar) ? Path.GetRelativePath(WorkspaceDirectory, path) : path;
 
     internal IReadOnlyList<string> DiscoverSolutionPaths() =>
         DiscoverSolutionPaths("*.sln", "*.slnx").Order().ToList();

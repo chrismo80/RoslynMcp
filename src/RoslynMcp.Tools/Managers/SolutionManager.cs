@@ -9,9 +9,9 @@ internal sealed class SolutionManager : IAsyncDisposable
 {
     private record Session(MSBuildWorkspace Workspace, Solution Solution, int Version);
 
-    private readonly ConcurrentQueue<Session> _states = new();
+    private Session? _session;
     
-    internal Solution? Solution => _states.LastOrDefault()?.Solution;
+    internal Solution? Solution => _session?.Solution;
 
     static SolutionManager()
     {
@@ -41,7 +41,7 @@ internal sealed class SolutionManager : IAsyncDisposable
     internal void ApplyChanges(Solution solution)
     {
         if (Solution?.Workspace.TryApplyChanges(solution) == true)
-            Update(_states.Last().Workspace, solution);
+            Update(_session!.Workspace, solution);
     }
 
     internal async Task<bool> Reload(CancellationToken cancellationToken)
@@ -61,14 +61,10 @@ internal sealed class SolutionManager : IAsyncDisposable
 
     private void Update(MSBuildWorkspace workspace, Solution solution)
     {
-        if (_states.IsEmpty)
-        {
-            _states.Enqueue(new Session(workspace, solution, 0));
-        }
-        else
-        {
-            _states.Enqueue(new Session(workspace, solution, _states.Last().Version + 1));
-            _states.TryDequeue(out _);
-        }
+        var session = new Session(workspace, solution, (_session?.Version ?? 0) + 1);
+
+        var old = Interlocked.Exchange(ref _session, session);
+        
+        old?.Workspace.Dispose();
     }
 }
