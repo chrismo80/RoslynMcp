@@ -7,7 +7,7 @@ using RoslynMcp.Tools.Managers;
 namespace RoslynMcp.Tools.Inspection.UnderstandProjects;
 
 [McpServerToolType]
-public sealed class Tool(SolutionManager solutionManager, SymbolManager symbolManager)
+public sealed class UnderstandProjectsTool(SolutionManager solutionManager, SymbolManager symbolManager) : Tool
 {
     [McpServerTool(Name = "understand_projects", Title = "Understand Projects", ReadOnly = true, Idempotent = true)]
     [Description("Use this tool when you need a quick overview of the loaded solution's project landscape. It returns real project relationships with projectPath lists, compact per-project type summaries for standard/deep profiles, and hotspots only for deep analysis.")]

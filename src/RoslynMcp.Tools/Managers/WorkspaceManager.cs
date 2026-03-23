@@ -3,8 +3,8 @@ namespace RoslynMcp.Tools.Managers;
 public sealed class WorkspaceManager : Manager
 {
     internal string WorkspaceDirectory { get; private set; } = Directory.GetCurrentDirectory();
-    
-    internal void SetWorkspaceDirectory(string dir)
+
+    public void SetWorkspaceDirectory(string dir)
     {
         if (Path.IsPathRooted(dir) && Directory.Exists(dir))
             WorkspaceDirectory = dir;

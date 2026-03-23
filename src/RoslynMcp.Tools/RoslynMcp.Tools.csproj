@@ -14,5 +14,5 @@
       <PackageReference Include="ModelContextProtocol" Version="1.1.0" />
       <PackageReference Include="Roslynator.Analyzers" Version="4.15.0" />
     </ItemGroup>
-
+	
 </Project>
