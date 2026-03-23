@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;

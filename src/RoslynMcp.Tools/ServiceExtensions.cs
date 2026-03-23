@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using RoslynMcp.Tools.Infrastructure.Services;
 using RoslynMcp.Tools.Inspection.ExplainSymbol;
 using RoslynMcp.Tools.Inspection.FindCallees;
 using RoslynMcp.Tools.Inspection.FindCallers;
@@ -15,6 +14,7 @@ using RoslynMcp.Tools.Inspection.ResolveSymbols;
 using RoslynMcp.Tools.Inspection.RunTests;
 using RoslynMcp.Tools.Inspection.TraceCallFlow;
 using RoslynMcp.Tools.Inspection.UnderstandProjects;
+using RoslynMcp.Tools.Managers;
 using RoslynMcp.Tools.Mutation.AddMethod;
 using RoslynMcp.Tools.Mutation.DeleteMethod;
 using RoslynMcp.Tools.Mutation.FormatDocument;
@@ -58,8 +58,9 @@ public static class ServiceExtensions
             .AddTools();
 
         private IServiceCollection AddInfrastructure() => services
-            .AddSingleton<Workspace>()
-            .AddSingleton<SymbolLookup>();
+            .AddSingleton<WorkspaceManager>()
+            .AddSingleton<SolutionManager>()
+            .AddSingleton<SymbolManager>();
 
         private IServiceCollection AddTools() => services
             .AddLoadSolutionTool()
