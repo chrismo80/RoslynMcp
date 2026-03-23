@@ -14,7 +14,7 @@ public sealed class LoadSolutionTool(WorkspaceManager workspaceManager, Solution
         string? solutionHintPath = null
     )
     {
-        var solutionPath = solutionHintPath ?? workspaceManager.DiscoverSolutionPaths().OrderDescending().FirstOrDefault();
+        var solutionPath = solutionHintPath ?? workspaceManager.DiscoverSolutionPaths().FirstOrDefault();
 
         if (solutionPath is null)
             return new Result(null, [], null, new ErrorInfo("no solution found"));

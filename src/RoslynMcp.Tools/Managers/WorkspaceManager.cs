@@ -16,9 +16,10 @@ public sealed class WorkspaceManager : Manager
     internal string ToRelativePathIfPossible(string path) =>
         path.StartsWith(WorkspaceDirectory + Path.DirectorySeparatorChar) ? Path.GetRelativePath(WorkspaceDirectory, path) : path;
 
-    internal IReadOnlyList<string> DiscoverSolutionPaths() =>
-        DiscoverSolutionPaths("*.sln", "*.slnx").Order().ToList();
-    
+    internal IReadOnlyList<string> DiscoverSolutionPaths() => DiscoverSolutionPaths("*.sln", "*.slnx")
+        .OrderBy(path => path.Length)
+        .ToList();
+
     private IEnumerable<string> DiscoverSolutionPaths(params string[] patterns)
     {
         foreach (var pattern in patterns)

@@ -1,13 +1,13 @@
-﻿using System.Diagnostics;
-using Is.Assertions;
+﻿using Is.Assertions;
 using RoslynMcp.Tools.Inspection.LoadSolution;
 using RoslynMcp.Tools.Inspection.UnderstandProjects;
 using RoslynMcp.Tools.Managers;
 using Xunit.Abstractions;
 
-namespace RoslynMcp.Tools.Test;
+namespace RoslynMcp.Tools.Test.Inspections;
 
-public class UnitTest1(ITestOutputHelper output)
+public class UnderStandProjects(ITestOutputHelper output)
+	: InspectionTests(output)
 {
 	[Fact]
 	public async Task Test1()
@@ -34,6 +34,6 @@ public class UnitTest1(ITestOutputHelper output)
 
 		foreach(var project in result2.Projects)
 		foreach(var type in project.Types)
-			output.WriteLine(project.Name + " - " + type);
+			Output.WriteLine(project.Name + " - " + type);
 	}
 }
