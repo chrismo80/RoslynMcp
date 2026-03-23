@@ -8,6 +8,5 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/RoslynMcp.Features.Tests/RoslynMcp.Features.Tests.csproj" />
-    <Project Path="tests/RoslynMcp.Tools.Tests/RoslynMcp.Tools.Tests.csproj" />
   </Folder>
 </Solution>

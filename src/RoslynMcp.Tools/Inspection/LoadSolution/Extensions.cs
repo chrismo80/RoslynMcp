@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.CodeAnalysis;
 using RoslynMcp.Tools.Infrastructure;
+using RoslynMcp.Tools.Managers;
 
 namespace RoslynMcp.Tools.Inspection.LoadSolution;
 
@@ -9,61 +10,25 @@ internal static class Extensions
     extension(IServiceCollection services)
     {
         public IServiceCollection AddLoadSolutionTool() => services
-            .AddSingleton<Service>()
             .AddSingleton<Tool>();
     }
-
-    internal static bool IsExplicitSolutionPath(this string? path) => !string.IsNullOrWhiteSpace(path) &&
-        (path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase));
-
-    extension(string? solutionHintPath)
+    
+    extension(Project project)
     {
-        public Request ToRequest() => new(solutionHintPath.NormalizeOptional());
-    }
+        public ProjectSummary ToSummary(WorkspaceManager workspaceManager) =>
+            new ProjectSummary(project.Name, workspaceManager.ToRelativePathIfPossible(project.FilePath));
 
-    extension(ProjectSummary project)
-    {
-        public ProjectSummary WithWorkspaceRelativePaths(string workspaceRoot)
-            => project with { Path = project.Path?.ToWorkspaceRelativePathIfPossible(workspaceRoot) };
-    }
-
-    extension(ErrorInfo? error)
-    {
-        public ErrorInfo? WithWorkspaceRelativePaths(string workspaceRoot)
+        public async IAsyncEnumerable<Diagnostic> Diagnose(CancellationToken cancellationToken)
         {
-            if (error?.Details is null || error.Details.Count == 0)
-                return error;
+            var compilation = await project
+                .GetCompilationAsync(cancellationToken)
+                .ConfigureAwait(false);
 
-            Dictionary<string, string>? updatedDetails = null;
-            foreach (var pair in error.Details)
-            {
-                if (!ShouldRewritePathDetail(pair.Key, error.Details))
-                    continue;
-
-                var outwardPath = pair.Value.ToWorkspaceRelativePathIfPossible(workspaceRoot);
-                if (string.Equals(outwardPath, pair.Value, StringComparison.Ordinal))
-                    continue;
-
-                updatedDetails ??= new Dictionary<string, string>(error.Details, StringComparer.Ordinal);
-                updatedDetails[pair.Key] = outwardPath;
-            }
-
-            return updatedDetails is null ? error : error with { Details = updatedDetails };
+            foreach (var diagnostic in compilation.GetDiagnostics(cancellationToken))
+                yield return diagnostic;
         }
     }
-
-    extension(Result result)
-    {
-        public Result WithWorkspaceRelativePaths(string workspaceRoot)
-            => result with
-            {
-                SelectedSolutionPath = result.SelectedSolutionPath?.ToWorkspaceRelativePathIfPossible(workspaceRoot),
-                WorkspaceId = result.WorkspaceId.ToWorkspaceRelativePathIfPossible(workspaceRoot),
-                Projects = [.. result.Projects.Select(project => project.WithWorkspaceRelativePaths(workspaceRoot))],
-                Error = result.Error.WithWorkspaceRelativePaths(workspaceRoot)
-            };
-    }
-
+    
     extension(IReadOnlyList<Diagnostic> diagnostics)
     {
         public DiagnosticsSummary ToDiagnosticsSummary()
@@ -75,46 +40,8 @@ internal static class Extensions
             return new DiagnosticsSummary(
                 filtered.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error),
                 filtered.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Warning),
-                filtered.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Info || diagnostic.Severity == DiagnosticSeverity.Hidden),
+                filtered.Count(static diagnostic => diagnostic.Severity is DiagnosticSeverity.Info or DiagnosticSeverity.Hidden),
                 filtered.Length);
         }
     }
-
-    private static readonly HashSet<string> PathDetailKeys =
-    [
-        "path",
-        "file",
-        "filepath",
-        "projectpath",
-        "solutionpath",
-        "selectedsolutionpath",
-        "workspaceroot",
-        "target",
-        "targetpath"
-    ];
-
-    private static readonly HashSet<string> PathFieldNames =
-    [
-        "path",
-        "filepath",
-        "projectpath",
-        "solutionhintpath",
-        "solutionpath",
-        "selectedsolutionpath",
-        "target",
-        "workspaceroot"
-    ];
-
-    private static bool ShouldRewritePathDetail(string key, IReadOnlyDictionary<string, string> details)
-    {
-        if (PathDetailKeys.Contains(key))
-            return true;
-
-        if (!string.Equals(key, "provided", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        return (details.TryGetValue("field", out var field) && PathFieldNames.Contains(field))
-            || (details.TryGetValue("parameter", out var parameter) && PathFieldNames.Contains(parameter));
-    }
-
 }

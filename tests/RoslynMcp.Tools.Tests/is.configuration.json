@@ -1,9 +1,0 @@
-{
-  "AssertionObserver": "Is.AssertionObservers.JsonObserver, Is",
-  "TestAdapter": "Is.TestAdapters.DefaultAdapter, Is",
-  "AppendCodeLine": true,
-  "ColorizeMessages": false,
-  "FloatingPointComparisonPrecision": 1E-06,
-  "MaxRecursionDepth": 20,
-  "ParsingFlags": 52
-}

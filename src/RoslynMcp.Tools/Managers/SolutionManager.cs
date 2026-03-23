@@ -4,20 +4,21 @@ using Microsoft.CodeAnalysis.MSBuild;
 
 namespace RoslynMcp.Tools.Managers;
 
-internal sealed class SolutionManager : IAsyncDisposable
+public sealed class SolutionManager : IAsyncDisposable
 {
     private record Session(MSBuildWorkspace Workspace, Solution Solution, int Version);
 
     private Session? _session;
     
     internal Solution? Solution => _session?.Solution;
+    internal int? WorkspaceId => _session?.Version;
 
     static SolutionManager()
     {
         MSBuildLocator.RegisterDefaults();
     }
     
-    internal async Task Load(string path, CancellationToken cancellationToken)
+    internal async Task<Solution> Load(string path, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
@@ -28,6 +29,8 @@ internal sealed class SolutionManager : IAsyncDisposable
             .ConfigureAwait(false);
         
         Update(msBuildWorkspace, solution);
+        
+        return solution;
     }
 
     public ValueTask DisposeAsync()
