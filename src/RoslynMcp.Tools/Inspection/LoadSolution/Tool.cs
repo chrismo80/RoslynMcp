@@ -14,19 +14,19 @@ public sealed class LoadSolutionTool(WorkspaceManager workspaceManager, Solution
         string? solutionHintPath = null
     )
     {
-        var solutionPath = solutionHintPath ?? workspaceManager.DiscoverSolutionPaths().FirstOrDefault();
+        var solutionPath = solutionHintPath ?? workspaceManager.DiscoverSolutionPaths().OrderDescending().FirstOrDefault();
 
         if (solutionPath is null)
             return new Result(null, [], null, new ErrorInfo("no solution found"));
-        
+
         var solution = await solutionManager.Load(solutionPath, cancellationToken);
 
         var projects = solution.Projects.ToList();
-        
+
         var diagnostics = await projects.ToAsyncEnumerable()
             .SelectMany(p => p.Diagnose(cancellationToken))
             .ToArrayAsync(cancellationToken);
-        
+
         return new Result(
             workspaceManager.ToRelativePathIfPossible(solutionPath),
             projects.ConvertAll(p => p.ToSummary(workspaceManager)),

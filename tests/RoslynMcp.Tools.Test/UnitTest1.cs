@@ -3,36 +3,37 @@ using Is.Assertions;
 using RoslynMcp.Tools.Inspection.LoadSolution;
 using RoslynMcp.Tools.Inspection.UnderstandProjects;
 using RoslynMcp.Tools.Managers;
+using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Test;
 
-public class Tests
+public class UnitTest1(ITestOutputHelper output)
 {
-    [Test]
-    public async Task Test1()
-    {
-        var ct = new CancellationTokenSource();
-        
-        var workspaceManager = new WorkspaceManager();
-        var solutionManager = new SolutionManager();
-        var symbolManager = new SymbolManager();
+	[Fact]
+	public async Task Test1()
+	{
+		var ct = new CancellationTokenSource();
 
-        workspaceManager.SetWorkspaceDirectory(@"D:\code\Private\Github\RoslynMcp\tests\TestSolution");
-        
-        var loadSolutionTool = new LoadSolutionTool(workspaceManager, solutionManager);
+		var workspaceManager = new WorkspaceManager();
+		var solutionManager = new SolutionManager();
+		var symbolManager = new SymbolManager();
 
-        var result1 = await loadSolutionTool.Execute(ct.Token);
+		workspaceManager.SetWorkspaceDirectory("/Users/moldi/Documents/Repos/RoslynMcp/tests/TestSolution");
 
-        result1.IsNotNull();
-        
-        var understandProjectsTool = new UnderstandProjectsTool(solutionManager, symbolManager);
-        
-        var result2 = await understandProjectsTool.Execute(ct.Token, "deep");
-        
-        result2.IsNotNull();
-        
-        foreach(var project in result2.Projects)
-        foreach(var type in project.Types)
-            Console.WriteLine(project.Name + " - " + type);
-    }
+		var loadSolutionTool = new LoadSolutionTool(workspaceManager, solutionManager);
+
+		var result1 = await loadSolutionTool.Execute(ct.Token);
+
+		result1.Projects.Count.Is(7);
+
+		var understandProjectsTool = new UnderstandProjectsTool(solutionManager, symbolManager);
+
+		var result2 = await understandProjectsTool.Execute(ct.Token, "deep");
+
+		result2.IsNotNull();
+
+		foreach(var project in result2.Projects)
+		foreach(var type in project.Types)
+			output.WriteLine(project.Name + " - " + type);
+	}
 }
