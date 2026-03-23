@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.CodeAnalysis;
 
 namespace RoslynMcp.Tools.Managers;
 
@@ -6,12 +7,12 @@ public sealed class SymbolManager : Manager
 {
     private int _counter;
     
-    private readonly ConcurrentDictionary<string, string> _outerSymbolIds = new();
-    private readonly ConcurrentDictionary<string, string> _innerSymbolIds = new();
+    private readonly ConcurrentDictionary<ISymbol, string> _outerSymbolIds = new(SymbolEqualityComparer.Default);
+    private readonly ConcurrentDictionary<string, ISymbol> _innerSymbolIds = new();
 
-    internal string ToInnerSymbolId(string outerSymbolId) => _innerSymbolIds[outerSymbolId];
+    internal ISymbol ToInnerSymbolId(string outerSymbolId) => _innerSymbolIds[outerSymbolId];
 
-    internal string ToOuterSymbolId(string innerSymbolId)
+    internal string ToOuterSymbolId(ISymbol innerSymbolId)
     {
         if(_outerSymbolIds.TryGetValue(innerSymbolId, out var outerSymbolId))
             return outerSymbolId;
