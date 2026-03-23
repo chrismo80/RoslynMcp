@@ -5,15 +5,13 @@ using Microsoft.CodeAnalysis.MSBuild;
 
 namespace RoslynMcp.Tools.Managers;
 
-public sealed class SolutionManager : IAsyncDisposable
+internal sealed class SolutionManager : IAsyncDisposable
 {
     private record Session(MSBuildWorkspace Workspace, Solution Solution, int Version);
 
     private readonly ConcurrentQueue<Session> _states = new();
     
-    public string WorkspaceDirectory { get; set; } = Path.GetFullPath(Directory.GetCurrentDirectory());
-
-    public Solution? Solution => _states.LastOrDefault()?.Solution;
+    internal Solution? Solution => _states.LastOrDefault()?.Solution;
 
     static SolutionManager()
     {

@@ -1,20 +1,20 @@
 namespace RoslynMcp.Tools.Managers;
 
-public sealed class WorkspaceManager
+internal sealed class WorkspaceManager
 {
-    public string WorkspaceDirectory { get; private set; } = Directory.GetCurrentDirectory();
+    internal string WorkspaceDirectory { get; private set; } = Directory.GetCurrentDirectory();
     
-    public void SetWorkspaceDirectory(string dir)
+    internal void SetWorkspaceDirectory(string dir)
     {
         if (Path.IsPathRooted(dir) && Directory.Exists(dir))
             WorkspaceDirectory = dir;
     }
 
-    public string ToAbsolutePath(string relativePath) =>
-        Path.Combine(WorkspaceDirectory, relativePath);
+    internal string ToAbsolutePath(string path) =>
+        Path.IsPathRooted(path) ? path : Path.Combine(WorkspaceDirectory, path);
 
-    public string ToRelativePath(string path) =>
-        Path.GetRelativePath(WorkspaceDirectory, path);
+    internal string ToRelativePathIfPossible(string path) =>
+        path.Contains(WorkspaceDirectory) ? Path.GetRelativePath(WorkspaceDirectory, path) : path;
 
     internal IReadOnlyList<string> DiscoverSolutionPaths() =>
         DiscoverSolutionPaths("*.sln", "*.slnx").Order().ToList();

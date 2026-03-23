@@ -16,7 +16,7 @@ internal sealed class SymbolManager
         if(_outerSymbolIds.TryGetValue(innerSymbolId, out var outerSymbolId))
             return outerSymbolId;
         
-        outerSymbolId =  NewOuterSymbol(innerSymbolId);
+        outerSymbolId =  NewOuterSymbol();
         
         _outerSymbolIds[innerSymbolId] = outerSymbolId;
         _innerSymbolIds[outerSymbolId] = innerSymbolId;
@@ -30,10 +30,10 @@ internal sealed class SymbolManager
         _innerSymbolIds.Clear();
     }
     
-    private string NewOuterSymbol(string innerSymbolId)
+    private string NewOuterSymbol()
     {
         Interlocked.Increment(ref _counter);
         
-        return $"S-{_counter:0000}";
+        return $"S-{_counter:00000}";
     }
 }
