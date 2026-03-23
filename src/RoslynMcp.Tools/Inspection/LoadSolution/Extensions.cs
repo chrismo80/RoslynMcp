@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.CodeAnalysis;
 using RoslynMcp.Tools.Infrastructure;
 using RoslynMcp.Tools.Managers;
@@ -7,12 +6,6 @@ namespace RoslynMcp.Tools.Inspection.LoadSolution;
 
 internal static class Extensions
 {
-    extension(IServiceCollection services)
-    {
-        public IServiceCollection AddLoadSolutionTool() => services
-            .AddSingleton<Tool>();
-    }
-    
     extension(Project project)
     {
         public ProjectSummary ToSummary(WorkspaceManager workspaceManager) =>
@@ -28,7 +21,7 @@ internal static class Extensions
                 yield return diagnostic;
         }
     }
-    
+
     extension(IReadOnlyList<Diagnostic> diagnostics)
     {
         public DiagnosticsSummary ToDiagnosticsSummary()

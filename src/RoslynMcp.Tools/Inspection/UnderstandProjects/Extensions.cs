@@ -1,40 +1,9 @@
 using Microsoft.CodeAnalysis;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using RoslynMcp.Tools.Infrastructure;
 
 namespace RoslynMcp.Tools.Inspection.UnderstandProjects;
 
 internal static class Extensions
 {
-    extension(IServiceCollection services)
-    {
-        public IServiceCollection AddUnderstandProjectsTool() => services
-            .AddSingleton<Tool>();
-    }
-
-    extension(ProjectSummary project)
-    {
-        public ProjectSummary WithWorkspaceRelativePaths()
-            => project with
-            {
-                ProjectPath = project.ProjectPath?.ToWorkspaceRelativePathIfPossible(),
-                OutgoingDependencyProjectPaths = [.. project.OutgoingDependencyProjectPaths.Select(path => path.ToWorkspaceRelativePathIfPossible())],
-                IncomingDependencyProjectPaths = [.. project.IncomingDependencyProjectPaths.Select(path => path.ToWorkspaceRelativePathIfPossible())]
-            };
-    }
-
-    extension(Result result)
-    {
-        public Result WithWorkspaceRelativePaths()
-            => result with
-            {
-                Projects = [.. result.Projects.Select(project => project.WithWorkspaceRelativePaths())],
-                Error = result.Error
-            };
-    }
-
     public static IEnumerable<INamedTypeSymbol> EnumerateTypes(this INamespaceSymbol root)
     {
         var stack = new Stack<INamespaceOrTypeSymbol>();
