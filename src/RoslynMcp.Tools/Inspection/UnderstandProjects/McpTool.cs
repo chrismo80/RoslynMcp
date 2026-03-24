@@ -15,7 +15,7 @@ public sealed class McpTool(
     [McpServerTool(Name = "understand_projects", Title = "Understand Projects", ReadOnly = true, Idempotent = true)]
     [Description("Use this tool when you need a quick overview of the loaded solution's project landscape. It returns real project relationships with projectPath lists, compact per-project type summaries for standard/deep profiles, and hotspots only for deep analysis.")]
     public async Task<Result> Execute(CancellationToken cancellationToken,
-        [Description("Analysis depth. quick omits types and hotspots, standard includes types, deep includes types and 10 hotspots. Defaults to standard.")]
+        [Description("Analysis depth. standard only project references, deep includes types. Defaults to standard.")]
         string? profile = null)
     {
         if (solutionManager.Solution is null)
@@ -26,12 +26,12 @@ public sealed class McpTool(
             }));
         }
 
-        var projects = await BuildAsync(solutionManager.Solution, profile is Extensions.Profiles.Deep, cancellationToken)
+        var projects = await BuildAsync(solutionManager.Solution, profile is "deep", cancellationToken)
             .ConfigureAwait(false);
 
         return new Result(projects);
     }
-    
+
     private async Task<IReadOnlyList<ProjectSummary>> BuildAsync(Solution solution, bool includeTypes, CancellationToken cancellationToken)
     {
         var outgoingByPath = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -40,7 +40,7 @@ public sealed class McpTool(
         foreach (var project in solution.Projects)
         {
             var projectPath = project.FilePath ?? string.Empty;
-            
+
             outgoingByPath.TryAdd(projectPath, []);
             incomingByPath.TryAdd(projectPath, []);
         }
@@ -88,10 +88,9 @@ public sealed class McpTool(
         if (compilation is null)
             return [];
 
-        var types = compilation.Assembly.GlobalNamespace.EnumerateTypes()
-            .Where(type => type.Locations.Any(location => location.IsInSource))
-            .Select(type => $"{symbolManager.ToId(type)}: {type.ToQualifiedDisplayName()}");
-        
-        return [.. types.OrderBy(static type => type, StringComparer.Ordinal)];
+        return compilation!.GlobalNamespace.GetTypes()
+            .Select(symbol => TypeSymbol.From(symbol, symbolManager))
+            .Select(type => type.ToLine())
+            .ToList();
     }
 }

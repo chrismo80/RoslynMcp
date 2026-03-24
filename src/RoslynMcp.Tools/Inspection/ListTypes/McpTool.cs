@@ -27,7 +27,9 @@ public sealed class McpTool(
         if(await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false) is not { } compilation)
             return new Result([], new ErrorInfo("no compilation found"));
 
-        var types = compilation.Assembly.GlobalNamespace.EnumerateTypes().Select(ToEntry);
+        var types = compilation!.GlobalNamespace.GetTypes()
+            .Select(ToEntry)
+            .ToList();
 
         return new Result(types.ToArray());
     }

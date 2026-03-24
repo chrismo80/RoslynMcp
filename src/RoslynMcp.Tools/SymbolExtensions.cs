@@ -4,6 +4,20 @@ namespace RoslynMcp.Tools;
 
 internal static class SymbolExtensions
 {
+    extension(INamespaceSymbol namespaceSymbol)
+    {
+        internal IEnumerable<INamedTypeSymbol> GetTypes()
+        {
+            return namespaceSymbol.GetNamespaceMembers()
+                .SelectMany(GetAllTypes)
+                .Where(symbol => symbol.Locations.Any(location => location.IsInSource));
+        }
+
+        private IEnumerable<INamedTypeSymbol> GetAllTypes() => namespaceSymbol
+            .GetTypeMembers()
+            .Concat(namespaceSymbol.GetNamespaceMembers().SelectMany(GetAllTypes));
+    }
+
     extension(ITypeSymbol symbol)
     {
         internal string ToTypeKind()

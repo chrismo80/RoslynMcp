@@ -1,5 +1,4 @@
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using RoslynMcp.Tools.Managers;
 
 namespace RoslynMcp.Tools;
