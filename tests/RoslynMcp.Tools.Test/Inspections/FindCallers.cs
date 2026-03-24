@@ -29,6 +29,6 @@ public class FindCallers(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		var result = await ServiceProvider.GetRequiredService<Inspection.ListMembers.McpTool>()
 			.Execute(CancellationToken.None, typeSymbolId);
 
-		return result.Members.Single(member => member.DisplayName == displayName).SymbolId;
+		return result.Members.Single(member => member.DisplayName.Contains(displayName)).SymbolId;
 	}
 }

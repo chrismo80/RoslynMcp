@@ -20,9 +20,14 @@ public sealed class McpTool(
         string? symbolId = null
         )
     {
+        var symbol = symbolManager.ToSymbol(symbolId);
 
-        IEnumerable<SymbolCallerInfo> callers = await SymbolFinder.FindCallersAsync(symbolManager.ToSymbol(symbolId), solutionManager.Solution, cancellationToken);
-       
-        return new Result(null, null, null, 0, null, [], [], [], []);
+        var calls = await SymbolFinder.FindCallersAsync(symbolManager.ToSymbol(symbolId), solutionManager.Solution, cancellationToken);
+
+        var callers = calls
+            .Select(call => MemberSymbol.From(call.CallingSymbol, symbolManager))
+            .ToList();
+
+        return new Result(MemberSymbol.From(symbol, symbolManager), callers);
     }
 }
