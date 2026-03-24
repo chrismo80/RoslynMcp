@@ -100,7 +100,7 @@ public sealed class McpTool(
             var (filePath, _, _) = type.GetDeclarationPosition();
 
             visibleTypes.Add(compactType);
-                
+
             //generatedFallbackTypes.Add(compactType);
         }
 
