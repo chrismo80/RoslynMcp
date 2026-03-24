@@ -17,11 +17,11 @@ public class ListMembers(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		result.Members.Count.Is(12);
 	}
 	
-	private async Task<string> GetTypeSymbolIdAsync(string projectName, string typeDisplayName)
+	private async Task<string> GetTypeSymbolIdAsync(string projectName, string displayName)
 	{
-		var typesResult = await ServiceProvider.GetRequiredService<Inspection.ListTypes.McpTool>()
+		var result = await ServiceProvider.GetRequiredService<Inspection.ListTypes.McpTool>()
 			.Execute(CancellationToken.None, projectName);
 
-		return typesResult.Types.Single(type => type.DisplayName == typeDisplayName).SymbolId;
+		return result.Types.Single(type => type.DisplayName == displayName).SymbolId;
 	}
 }

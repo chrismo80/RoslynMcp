@@ -88,24 +88,10 @@ public sealed class McpTool(
         if (compilation is null)
             return [];
 
-        var visibleTypes = new List<string>();
-        var generatedFallbackTypes = new List<string>();
-
-        foreach (var type in compilation.Assembly.GlobalNamespace.EnumerateTypes())
-        {
-            if (!type.Locations.Any(static location => location.IsInSource))
-                continue;
-
-            var compactType = $"{symbolManager.ToOuterSymbolId(type)}: {type.ToQualifiedDisplayName()}";
-            var (filePath, _, _) = type.GetDeclarationPosition();
-
-            visibleTypes.Add(compactType);
-
-            //generatedFallbackTypes.Add(compactType);
-        }
-
-        var selected = visibleTypes.Count > 0 ? visibleTypes : generatedFallbackTypes;
-
-        return [.. selected.OrderBy(static type => type, StringComparer.Ordinal)];
+        var types = compilation.Assembly.GlobalNamespace.EnumerateTypes()
+            .Where(type => type.Locations.Any(location => location.IsInSource))
+            .Select(type => $"{symbolManager.ToOuterSymbolId(type)}: {type.ToQualifiedDisplayName()}");
+        
+        return [.. types.OrderBy(static type => type, StringComparer.Ordinal)];
     }
 }
