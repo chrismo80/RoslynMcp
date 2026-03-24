@@ -39,44 +39,18 @@ public sealed class McpTool(
 
     private Entry ToEntry(INamedTypeSymbol symbol)
     {
-        return new Entry(
-            symbol.Name,
-            symbolManager.ToId(symbol),
-            GetDeclarationPosition(symbol),
-            symbol.ToTypeKind(),
-            symbol.Arity,
-            null,
-            GetDeclaredLightweightMembers(symbol)
-            );
-    }
-
-    private Location GetDeclarationPosition(INamedTypeSymbol symbol)
-    {
-        var location = symbol.Locations.FirstOrDefault(static location => location.IsInSource);
-
-        if (location is null)
-            return new Location(string.Empty, 0, 0);
-
-        var span = location.GetLineSpan();
-        var start = span.StartLinePosition;
-
-        return new Location(workspaceManager.ToRelativePathIfPossible(span.Path), start.Line + 1, start.Character + 1);
+        return new Entry(TypeSymbol.From(symbol, symbolManager), GetDeclaredLightweightMembers(symbol));
     }
 
     private IReadOnlyList<string> GetDeclaredLightweightMembers(INamedTypeSymbol type)
     {
         return type.GetMembers()
-            .Where(member => member.DeclaredAccessibility > Accessibility.Private)
-            .Select(member => new
-            {
-                Symbol = symbolManager.ToId(member),
-                Kind = member.ToMemberKind(),
-                DisplayName = $"{member.DeclaredAccessibility.ToText()} {member.ToLightweightMemberSignature()}"
-            })
-            .Where(static item => item.Kind != null)
-            .OrderBy(static item => item.Kind, StringComparer.Ordinal)
-            .ThenBy(static item => item.DisplayName, StringComparer.Ordinal)
-            .Select(static item => $"{item.Symbol}: {item.DisplayName}")
+            .Where(m => m.DeclaredAccessibility > Accessibility.Private)
+            .Select(m => MemberSymbol.From(m, symbolManager))
+            .Where(m => m.Kind != null)
+            .OrderBy(m => m.Kind, StringComparer.Ordinal)
+            .ThenBy(m => m.DisplayName, StringComparer.Ordinal)
+            .Select(m => m.ToLine())
             .ToArray();
     }
 }

@@ -5,10 +5,5 @@ public sealed record Result(
     ErrorInfo? Error = null);
 
 public sealed record Entry(
-    string DisplayName,
-    string SymbolId,
-    Location? Location,
-    string Kind,
-    int? Arity,
-    string? Summary = null,
+    TypeSymbol? Type = null,
     IReadOnlyList<string>? Members = null);

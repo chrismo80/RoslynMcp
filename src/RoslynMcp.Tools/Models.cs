@@ -33,3 +33,32 @@ public sealed record TypeSymbol(
 		return $"{Id}: {Kind} {DisplayName}";
 	}
 }
+
+
+public sealed record MemberSymbol(
+	ISymbol Symbol,
+	string SymbolId,
+	Location? Location,
+	string DisplayName,
+	string? Kind,
+	string Accessibility,
+	bool IsStatic)
+{
+	public static MemberSymbol From(ISymbol symbol, SymbolManager symbolManager)
+	{
+		return new MemberSymbol(
+			symbol,
+			symbolManager.ToId(symbol),
+			symbol.GetLocation(),
+			symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+			symbol.ToMemberKind(),
+			symbol.DeclaredAccessibility.ToText(),
+			symbol.IsStatic
+		);
+	}
+
+	public string ToLine()
+	{
+		return $"{Accessibility} {Symbol.ToLightweightMemberSignature()}";
+	}
+}

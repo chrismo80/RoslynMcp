@@ -10,19 +10,19 @@ public sealed class SymbolManager : Manager
     private readonly ConcurrentDictionary<ISymbol, string> _ids = new(SymbolEqualityComparer.Default);
     private readonly ConcurrentDictionary<string, ISymbol> _symbols = new();
 
-    internal ISymbol ToSymbol(string outerSymbolId) => _symbols[outerSymbolId];
+    internal ISymbol ToSymbol(string id) => _symbols[id];
 
-    internal string ToId(ISymbol innerSymbolId)
+    internal string ToId(ISymbol symbol)
     {
-        if(_ids.TryGetValue(innerSymbolId, out var outerSymbolId))
-            return outerSymbolId;
+        if(_ids.TryGetValue(symbol, out var id))
+            return id;
 
-        outerSymbolId =  NewId();
+        id =  NewId();
 
-        _ids[innerSymbolId] = outerSymbolId;
-        _symbols[outerSymbolId] = innerSymbolId;
+        _ids[symbol] = id;
+        _symbols[id] = symbol;
 
-        return outerSymbolId;
+        return id;
     }
 
     internal void Clear()

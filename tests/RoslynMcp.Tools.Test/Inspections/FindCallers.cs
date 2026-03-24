@@ -12,18 +12,18 @@ public class FindCallers(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 	{
 		var typeSymbolId = await GetTypeSymbolIdAsync("ProjectApp", "AppOrchestrator");
 		var memberSymbolId = await GetMemberSymbolIdAsync(typeSymbolId, "RunAsync");
-        
+
 		var result = await Sut.Execute(CancellationToken.None, memberSymbolId);
 	}
-	
+
 	private async Task<string> GetTypeSymbolIdAsync(string projectName, string displayName)
 	{
 		var result = await ServiceProvider.GetRequiredService<Inspection.ListTypes.McpTool>()
 			.Execute(CancellationToken.None, projectName);
 
-		return result.Types.Single(type => type.DisplayName == displayName).SymbolId;
+		return result.Types.Single(type => type.Type.DisplayName == displayName).Type.Id;
 	}
-	
+
 	private async Task<string> GetMemberSymbolIdAsync(string typeSymbolId, string displayName)
 	{
 		var result = await ServiceProvider.GetRequiredService<Inspection.ListMembers.McpTool>()
