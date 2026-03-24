@@ -93,7 +93,7 @@ public abstract class Tests<T> where T : notnull
 	
 	protected void LoadSolution()
 	{
-		ServiceProvider.GetRequiredService<LoadSolutionTool>()
+		ServiceProvider.GetRequiredService<McpTool>()
 			.Execute(CancellationToken.None).Wait();
 	}
 

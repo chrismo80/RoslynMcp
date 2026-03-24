@@ -6,7 +6,7 @@ using RoslynMcp.Tools.Managers;
 namespace RoslynMcp.Tools.Inspection.ListTypes;
 
 [McpServerToolType]
-public sealed class ListTypesTool(
+public sealed class McpTool(
     WorkspaceManager workspaceManager,
     SolutionManager solutionManager,
     SymbolManager symbolManager
@@ -23,7 +23,7 @@ public sealed class ListTypesTool(
             "When true, includes a lightweight preview of declared members for each returned type entry. This is not full member metadata: each member is returned as a single normalized accessibility-plus-signature string, and only members declared on that type are included. Enrichment is applied only to the returned type entries. Use list_members as the detailed follow-up tool. When omitted or false, members are omitted.")]
         bool? includeMembers = null)
     {
-        if (solutionManager.Solution?.Projects.FirstOrDefault(p => p.Name == projectPath) is not { } project)
+        if (solutionManager.Solution?.Projects.FirstOrDefault(p => Matches(p, projectPath)) is not { } project)
             return new Result([], new ErrorInfo("no project found"));
         
         if(await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false) is not { } compilation)
@@ -34,6 +34,11 @@ public sealed class ListTypesTool(
         return new Result(types.ToArray());
     }
 
+    private bool Matches(Project project, string input)
+    {
+        return project.Name == input || project.FilePath == workspaceManager.ToAbsolutePath(input);
+    }
+    
     private Entry ToEntry(INamedTypeSymbol symbol)
     {
         return new Entry(

@@ -39,7 +39,7 @@ public sealed class SolutionManager : Manager, IAsyncDisposable
         
         return ValueTask.CompletedTask;
     }
-
+    
     internal void ApplyChanges(Solution solution)
     {
         if (Solution?.Workspace.TryApplyChanges(solution) == true)

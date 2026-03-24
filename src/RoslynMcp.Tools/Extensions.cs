@@ -5,7 +5,7 @@ namespace RoslynMcp.Tools;
 internal static class Extensions
 {
     internal static string WorkspaceRoot => Path.GetFullPath(Directory.GetCurrentDirectory());
-
+    
     extension(string? input)
     {
         internal string? NormalizeOptional() =>

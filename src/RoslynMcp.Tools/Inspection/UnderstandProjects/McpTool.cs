@@ -6,7 +6,7 @@ using RoslynMcp.Tools.Managers;
 namespace RoslynMcp.Tools.Inspection.UnderstandProjects;
 
 [McpServerToolType]
-public sealed class UnderstandProjectsTool(
+public sealed class McpTool(
     SolutionManager solutionManager,
     WorkspaceManager workspaceManager,
     SymbolManager symbolManager)

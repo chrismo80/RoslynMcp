@@ -5,8 +5,8 @@ using RoslynMcp.Tools.Managers;
 namespace RoslynMcp.Tools.Inspection.LoadSolution;
 
 [McpServerToolType]
-public sealed class LoadSolutionTool(
-    WorkspaceManager workspaceManager, 
+public sealed class McpTool(
+    WorkspaceManager workspaceManager,
     SolutionManager solutionManager)
     : Tool
 {

@@ -11,8 +11,6 @@ public sealed record ProjectSummary(
     IReadOnlyList<string> IncomingDependencyProjectPaths,
     IReadOnlyList<string> Types);
 
-public sealed record SourceLocation(string FilePath, int Line, int Column);
-
 public sealed record ErrorInfo(
     string Message,
     IReadOnlyDictionary<string, string>? Details = null);

@@ -3,7 +3,7 @@ using RoslynMcp.Tools.Inspection.LoadSolution;
 
 namespace RoslynMcp.Tools.Test.Inspections;
 
-public class LoadSolution : Tests<LoadSolutionTool>
+public class LoadSolution : Tests<McpTool>
 {
 	[Fact]
 	public async Task HappyPath_WithoutFile()
