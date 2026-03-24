@@ -12,9 +12,14 @@ public class ListTypes(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		var result = await Sut.Execute(CancellationToken.None, Path.Combine("ProjectCore", "ProjectCore.csproj"));
 
 		result.Types.Count.Is(16);
-	
-		foreach(var type in result.Types)
+
+		foreach (var type in result.Types)
+		{
 			o.WriteLine(type.ToString());
+			
+			foreach(var member in type.Members)
+				o.WriteLine(member.ToString());
+		}
 	}
 	
 	[Fact]

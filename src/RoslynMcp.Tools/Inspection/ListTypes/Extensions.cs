@@ -4,36 +4,6 @@ namespace RoslynMcp.Tools.Inspection.ListTypes;
 
 internal static partial class Extensions
 {
-    internal static bool TryNormalizeTypeKind(this string? kind, out string? normalized)
-    {
-        normalized = kind.NormalizeOptional()?.ToLowerInvariant();
-
-        switch (normalized)
-        {
-            case null:
-            case "class" or "record" or "interface" or "enum" or "struct":
-                return true;
-            default:
-                normalized = null;
-                return false;
-        }
-    }
-
-    internal static bool TryNormalizeAccessibility(this string? accessibility, out string? normalized)
-    {
-        normalized = accessibility.NormalizeOptional()?.Replace('-', '_').ToLowerInvariant();
-
-        switch (normalized)
-        {
-            case null:
-            case "public" or "internal" or "protected" or "private" or "protected_internal" or "private_protected":
-                return true;
-            default:
-                normalized = null;
-                return false;
-        }
-    }
-
     internal static string NormalizeAccessibility(this Accessibility accessibility) => accessibility switch
     {
         Accessibility.Public => "public",
@@ -45,19 +15,40 @@ internal static partial class Extensions
         _ => "not_applicable"
     };
 
-    internal static string ToTypeKind(this INamedTypeSymbol symbol)
+    extension(INamedTypeSymbol symbol)
     {
-        if (symbol.IsRecord)
-            return "record";
-
-        return symbol.TypeKind switch
+        internal string ToTypeKind()
         {
-            TypeKind.Class => "class",
-            TypeKind.Interface => "interface",
-            TypeKind.Enum => "enum",
-            TypeKind.Struct => "struct",
-            _ => "unknown"
-        };
+            if (symbol.IsRecord)
+                return "record";
+
+            return symbol.TypeKind switch
+            {
+                TypeKind.Class => "class",
+                TypeKind.Interface => "interface",
+                TypeKind.Enum => "enum",
+                TypeKind.Struct => "struct",
+                _ => "unknown"
+            };
+        }
+    }
+
+    extension(ISymbol symbol)
+    {
+        public string? ToMemberKind()
+        {
+            return symbol switch
+            {
+                IMethodSymbol { MethodKind: MethodKind.Constructor or MethodKind.StaticConstructor } => "ctor",
+                IMethodSymbol method when method.MethodKind == MethodKind.Ordinary || method.MethodKind == MethodKind.UserDefinedOperator
+                                                                                   || method.MethodKind == MethodKind.Conversion || method.MethodKind == MethodKind.ReducedExtension
+                                                                                   || method.MethodKind == MethodKind.DelegateInvoke => "method",
+                IPropertySymbol => "property",
+                IFieldSymbol field when !field.IsImplicitlyDeclared => "field",
+                IEventSymbol => "event",
+                _ => null
+            };
+        }
     }
 
     internal static IReadOnlyList<string> GetDeclaredLightweightMembers(this INamedTypeSymbol type)
@@ -81,22 +72,10 @@ internal static partial class Extensions
 
     extension(ISymbol member)
     {
-        private string? ToMemberKind()
-            => member switch
-            {
-                IMethodSymbol { MethodKind: MethodKind.Constructor or MethodKind.StaticConstructor } => "ctor",
-                IMethodSymbol method when method.MethodKind == MethodKind.Ordinary || method.MethodKind == MethodKind.UserDefinedOperator || method.MethodKind == MethodKind.Conversion || method.MethodKind == MethodKind.ReducedExtension || method.MethodKind == MethodKind.DelegateInvoke => "method",
-                IPropertySymbol => "property",
-                IFieldSymbol field when !field.IsImplicitlyDeclared => "field",
-                IEventSymbol => "event",
-                _ => null
-            };
+        internal string? ToLightweightMemberEntry() =>
+            member.ToMemberKind() is null ? null : $"{member.ToStableId()}: {member.DeclaredAccessibility.NormalizeAccessibility()} {member.ToLightweightMemberSignature()}";
 
-        private string? ToLightweightMemberEntry()
-            => member.ToMemberKind() is null ? null : $"{member.ToStableId()}: {member.DeclaredAccessibility.NormalizeAccessibility()} {member.ToLightweightMemberSignature()}";
-
-        private string ToLightweightMemberSignature()
-            => member switch
+        internal string ToLightweightMemberSignature() => member switch
             {
                 IMethodSymbol { MethodKind: MethodKind.Constructor or MethodKind.StaticConstructor } ctor => $"{ctor.ContainingType.Name}({string.Join(", ", ctor.Parameters.Select(FormatParameter))})",
                 IMethodSymbol method => $"{method.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {method.Name}({string.Join(", ", method.Parameters.Select(FormatParameter))})",

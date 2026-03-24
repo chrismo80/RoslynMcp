@@ -46,7 +46,9 @@ public sealed class McpTool(
             symbolManager.ToOuterSymbolId(symbol),
             GetDeclarationPosition(symbol),
             symbol.ToTypeKind(),
-            symbol.Arity
+            symbol.Arity,
+            null,
+            GetDeclaredLightweightMembers(symbol)
             );
     }
     
@@ -61,5 +63,22 @@ public sealed class McpTool(
         var start = span.StartLinePosition;
 
         return new Location(workspaceManager.ToRelativePathIfPossible(span.Path), start.Line + 1, start.Character + 1);
+    }
+    
+    private IReadOnlyList<string> GetDeclaredLightweightMembers(INamedTypeSymbol type)
+    {
+        return type.GetMembers()
+            .Where(member => member.DeclaredAccessibility > Accessibility.Private)
+            .Select(member => new
+            {
+                Symbol = symbolManager.ToOuterSymbolId(member),
+                Kind = member.ToMemberKind(),
+                DisplayName = $"{member.DeclaredAccessibility.NormalizeAccessibility()} {member.ToLightweightMemberSignature()}"
+            })
+            .Where(static item => item.Kind != null)
+            .OrderBy(static item => item.Kind, StringComparer.Ordinal)
+            .ThenBy(static item => item.DisplayName, StringComparer.Ordinal)
+            .Select(static item => $"{item.Symbol}: {item.DisplayName}")
+            .ToArray();
     }
 }
