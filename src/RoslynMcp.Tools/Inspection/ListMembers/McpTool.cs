@@ -18,7 +18,7 @@ public sealed class McpTool(
         [Description("The stable symbol ID of a type, obtained from list_types.")]
         string? typeSymbolId = null)
     {
-        if (symbolManager.ToInnerSymbolId(typeSymbolId) is not INamedTypeSymbol symbol)
+        if (symbolManager.ToSymbol(typeSymbolId) is not INamedTypeSymbol symbol)
             return new Result([], 0, new ErrorInfo("type not found"));
 
         var members = symbol.GetMembers().Select(ToMemberEntry).ToList();
@@ -30,7 +30,7 @@ public sealed class McpTool(
     {
         return new MemberEntry(
             symbol.Name,
-            symbolManager.ToOuterSymbolId(symbol),
+            symbolManager.ToId(symbol),
             symbol.ToMemberKind() ?? string.Empty,
             symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
             GetDeclarationPosition(symbol),

@@ -21,7 +21,7 @@ public sealed class McpTool(
         )
     {
 
-        IEnumerable<SymbolCallerInfo> callers = await SymbolFinder.FindCallersAsync(symbolManager.ToInnerSymbolId(symbolId), solutionManager.Solution, cancellationToken);
+        IEnumerable<SymbolCallerInfo> callers = await SymbolFinder.FindCallersAsync(symbolManager.ToSymbol(symbolId), solutionManager.Solution, cancellationToken);
        
         return new Result(null, null, null, 0, null, [], [], [], []);
     }

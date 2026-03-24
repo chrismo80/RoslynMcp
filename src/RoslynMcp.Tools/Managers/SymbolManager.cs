@@ -6,35 +6,35 @@ namespace RoslynMcp.Tools.Managers;
 public sealed class SymbolManager : Manager
 {
     private int _counter;
-    
-    private readonly ConcurrentDictionary<ISymbol, string> _outerSymbolIds = new(SymbolEqualityComparer.Default);
-    private readonly ConcurrentDictionary<string, ISymbol> _innerSymbolIds = new();
 
-    internal ISymbol ToInnerSymbolId(string outerSymbolId) => _innerSymbolIds[outerSymbolId];
+    private readonly ConcurrentDictionary<ISymbol, string> _ids = new(SymbolEqualityComparer.Default);
+    private readonly ConcurrentDictionary<string, ISymbol> _symbols = new();
 
-    internal string ToOuterSymbolId(ISymbol innerSymbolId)
+    internal ISymbol ToSymbol(string outerSymbolId) => _symbols[outerSymbolId];
+
+    internal string ToId(ISymbol innerSymbolId)
     {
-        if(_outerSymbolIds.TryGetValue(innerSymbolId, out var outerSymbolId))
+        if(_ids.TryGetValue(innerSymbolId, out var outerSymbolId))
             return outerSymbolId;
-        
-        outerSymbolId =  NewOuterSymbol();
-        
-        _outerSymbolIds[innerSymbolId] = outerSymbolId;
-        _innerSymbolIds[outerSymbolId] = innerSymbolId;
-        
+
+        outerSymbolId =  NewId();
+
+        _ids[innerSymbolId] = outerSymbolId;
+        _symbols[outerSymbolId] = innerSymbolId;
+
         return outerSymbolId;
     }
 
     internal void Clear()
     {
-        _outerSymbolIds.Clear();
-        _innerSymbolIds.Clear();
+        _ids.Clear();
+        _symbols.Clear();
     }
-    
-    private string NewOuterSymbol()
+
+    private string NewId()
     {
         Interlocked.Increment(ref _counter);
-        
+
         return $"S-{_counter:00000}";
     }
 }

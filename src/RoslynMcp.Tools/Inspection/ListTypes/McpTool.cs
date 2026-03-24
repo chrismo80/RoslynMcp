@@ -23,12 +23,12 @@ public sealed class McpTool(
     {
         if (solutionManager.Solution?.Projects.FirstOrDefault(p => Matches(p, projectPath)) is not { } project)
             return new Result([], new ErrorInfo("no project found"));
-        
+
         if(await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false) is not { } compilation)
             return new Result([], new ErrorInfo("no compilation found"));
-        
+
         var types = compilation.Assembly.GlobalNamespace.EnumerateTypes().Select(ToEntry);
-        
+
         return new Result(types.ToArray());
     }
 
@@ -36,12 +36,12 @@ public sealed class McpTool(
     {
         return project.Name == input || project.FilePath == workspaceManager.ToAbsolutePath(input);
     }
-    
+
     private Entry ToEntry(INamedTypeSymbol symbol)
     {
         return new Entry(
             symbol.Name,
-            symbolManager.ToOuterSymbolId(symbol),
+            symbolManager.ToId(symbol),
             GetDeclarationPosition(symbol),
             symbol.ToTypeKind(),
             symbol.Arity,
@@ -49,7 +49,7 @@ public sealed class McpTool(
             GetDeclaredLightweightMembers(symbol)
             );
     }
-    
+
     private Location GetDeclarationPosition(INamedTypeSymbol symbol)
     {
         var location = symbol.Locations.FirstOrDefault(static location => location.IsInSource);
@@ -62,16 +62,16 @@ public sealed class McpTool(
 
         return new Location(workspaceManager.ToRelativePathIfPossible(span.Path), start.Line + 1, start.Character + 1);
     }
-    
+
     private IReadOnlyList<string> GetDeclaredLightweightMembers(INamedTypeSymbol type)
     {
         return type.GetMembers()
             .Where(member => member.DeclaredAccessibility > Accessibility.Private)
             .Select(member => new
             {
-                Symbol = symbolManager.ToOuterSymbolId(member),
+                Symbol = symbolManager.ToId(member),
                 Kind = member.ToMemberKind(),
-                DisplayName = $"{member.DeclaredAccessibility.NormalizeAccessibility()} {member.ToLightweightMemberSignature()}"
+                DisplayName = $"{member.DeclaredAccessibility.ToText()} {member.ToLightweightMemberSignature()}"
             })
             .Where(static item => item.Kind != null)
             .OrderBy(static item => item.Kind, StringComparer.Ordinal)

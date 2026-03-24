@@ -4,7 +4,7 @@ namespace RoslynMcp.Tools.Inspection.ListTypes;
 
 internal static partial class Extensions
 {
-    internal static string NormalizeAccessibility(this Accessibility accessibility) => accessibility switch
+    internal static string ToText(this Accessibility accessibility) => accessibility switch
     {
         Accessibility.Public => "public",
         Accessibility.Internal => "internal",
@@ -73,7 +73,7 @@ internal static partial class Extensions
     extension(ISymbol member)
     {
         internal string? ToLightweightMemberEntry() =>
-            member.ToMemberKind() is null ? null : $"{member.ToStableId()}: {member.DeclaredAccessibility.NormalizeAccessibility()} {member.ToLightweightMemberSignature()}";
+            member.ToMemberKind() is null ? null : $"{member.ToStableId()}: {member.DeclaredAccessibility.ToText()} {member.ToLightweightMemberSignature()}";
 
         internal string ToLightweightMemberSignature() => member switch
             {
@@ -125,7 +125,7 @@ internal static partial class Extensions
             }
         }
     }
-    
+
     extension(ErrorInfo? error)
     {
         private ErrorInfo? WithWorkspaceRelativePaths()

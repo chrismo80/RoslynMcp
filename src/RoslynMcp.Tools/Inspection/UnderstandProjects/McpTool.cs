@@ -90,7 +90,7 @@ public sealed class McpTool(
 
         var types = compilation.Assembly.GlobalNamespace.EnumerateTypes()
             .Where(type => type.Locations.Any(location => location.IsInSource))
-            .Select(type => $"{symbolManager.ToOuterSymbolId(type)}: {type.ToQualifiedDisplayName()}");
+            .Select(type => $"{symbolManager.ToId(type)}: {type.ToQualifiedDisplayName()}");
         
         return [.. types.OrderBy(static type => type, StringComparer.Ordinal)];
     }
