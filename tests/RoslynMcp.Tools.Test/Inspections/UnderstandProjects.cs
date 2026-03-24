@@ -6,7 +6,7 @@ namespace RoslynMcp.Tools.Test.Inspections;
 public class UnderStandProjects : LoadedSolutionTests<UnderstandProjectsTool>
 {
 	[Fact]
-	public async Task Deep()
+	public async Task HappyPath_Deep()
 	{
 		var result = await Sut.Execute(CancellationToken.None, "deep");
 

@@ -62,6 +62,8 @@ public abstract class LoadedSolutionTests<T> : Tests<T> where T : notnull
 
 public abstract class Tests<T> where T : notnull
 {
+	protected string WorkspaceDirectory { get; set; }
+	
 	protected string TestSolutionDirectory { get; set; }
 	
 	protected ServiceProvider ServiceProvider { get; }
@@ -85,6 +87,8 @@ public abstract class Tests<T> where T : notnull
 	{
 		ServiceProvider.GetRequiredService<WorkspaceManager>()
 			.SetWorkspaceDirectory(directory);
+
+		WorkspaceDirectory = directory;
 	}
 	
 	protected void LoadSolution()

@@ -6,7 +6,7 @@ namespace RoslynMcp.Tools.Test.Inspections;
 public class LoadSolution : Tests<LoadSolutionTool>
 {
 	[Fact]
-	public async Task WithoutFile()
+	public async Task HappyPath_WithoutFile()
 	{
 		var result = await Sut.Execute(CancellationToken.None);
 
@@ -14,7 +14,7 @@ public class LoadSolution : Tests<LoadSolutionTool>
 	}
 
 	[Fact]
-	public async Task WithFile()
+	public async Task HappyPath_WithFile()
 	{
 		var result = await Sut.Execute(CancellationToken.None, "TestSolution.sln");
 
