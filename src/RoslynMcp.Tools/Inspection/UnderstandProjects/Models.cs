@@ -10,7 +10,3 @@ public sealed record ProjectSummary(
     IReadOnlyList<string> OutgoingDependencyProjectPaths,
     IReadOnlyList<string> IncomingDependencyProjectPaths,
     IReadOnlyList<string> Types);
-
-public sealed record ErrorInfo(
-    string Message,
-    IReadOnlyDictionary<string, string>? Details = null);

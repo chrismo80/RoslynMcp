@@ -65,6 +65,11 @@ internal sealed class SymbolLookupService : ISymbolLookupService
         return (null, null);
     }
 
+    public Task<ISymbol?> GetSymbolAtPositionAsync(Solution solution, string path, int line, int column, CancellationToken ct)
+    {
+        throw new NotImplementedException();
+    }
+
     public async Task<(IReadOnlyList<SymbolDescriptor> Symbols, int TotalCount)> SearchSymbolsAsync(
         Solution solution,
         string query,
@@ -106,57 +111,6 @@ internal sealed class SymbolLookupService : ISymbolLookupService
         var total = ordered.Count;
         var descriptors = ordered.Skip(offset).Take(limit).ToArray();
         return (descriptors, total);
-    }
-
-    public async Task<ISymbol?> GetSymbolAtPositionAsync(Solution solution, string path, int line, int column, CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return null;
-        }
-
-        var document = solution.Projects
-            .SelectMany(static p => p.Documents)
-            .FirstOrDefault(d => d.FilePath.MatchesByNormalizedPath(path));
-        if (document == null)
-        {
-            return null;
-        }
-
-        var root = await document.GetSyntaxRootAsync(ct).ConfigureAwait(false);
-        var model = await document.GetSemanticModelAsync(ct).ConfigureAwait(false);
-        if (root == null || model == null)
-        {
-            return null;
-        }
-
-        var text = await document.GetTextAsync(ct).ConfigureAwait(false);
-        if (line <= 0 || column <= 0 || line > text.Lines.Count)
-        {
-            return null;
-        }
-
-        var textLine = text.Lines[line - 1];
-        var position = textLine.Start + Math.Min(column - 1, textLine.End - textLine.Start);
-        var token = root.FindToken(position);
-        if (token.RawKind == 0)
-        {
-            return null;
-        }
-
-        var node = token.Parent;
-        while (node != null)
-        {
-            var symbol = model.GetDeclaredSymbol(node, ct) ?? model.GetSymbolInfo(node, ct).Symbol;
-            if (symbol != null)
-            {
-                return symbol.OriginalDefinition ?? symbol;
-            }
-
-            node = node.Parent;
-        }
-
-        return null;
     }
 
     public async Task<(IReadOnlyList<SymbolDescriptor> Symbols, int TotalCount)> SearchSymbolsScopedAsync(

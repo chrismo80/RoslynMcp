@@ -12,7 +12,3 @@ public sealed record Entry(
     int? Arity,
     string? Summary = null,
     IReadOnlyList<string>? Members = null);
-
-public sealed record ErrorInfo(
-    string Message,
-    IReadOnlyDictionary<string, string>? Details = null);
