@@ -1,25 +1,25 @@
 using Microsoft.Extensions.DependencyInjection;
+using RoslynMcp.Tools.Managers;
 
 namespace RoslynMcp.Tools.Test;
 
-public abstract class Tests<T>
+public abstract class Tests<T> where T : notnull
 {
-	private static string _testSOlutionDirectory;
+	protected string TestSolutionDirectory { get; }
 
-    private ServiceProvider? _provider;
+	protected ServiceProvider ServiceProvider { get; }
 
 	public T Sut { get; }
 
-	public string TestSolutionDirectory { get; } = _testSOlutionDirectory;
-
-	static Tests()
+	protected Tests(bool load = true)
 	{
-		_testSOlutionDirectory = GetTestSolutionDirectory();
-	}
+		TestSolutionDirectory = GetTestSolutionDirectory();
+		ServiceProvider = CreateServiceProvider();
+		Sut = ServiceProvider.GetRequiredService<T>();
 
-	protected virtual ServiceProvider CreateServiceProvider() => new ServiceCollection()
-		.WithRoslynMcp()
-		.BuildServiceProvider();
+		if (load)
+			LoadTestSolution();
+	}
 
 	private static string GetTestSolutionDirectory()
 	{
@@ -33,6 +33,17 @@ public abstract class Tests<T>
 			current = current.Parent;
 		}
 
-		throw new DirectoryNotFoundException("Could not locate test solution root from AppContext.");
+		throw new DirectoryNotFoundException("Could not locate test solution.");
+	}
+
+	private static ServiceProvider CreateServiceProvider() => new ServiceCollection()
+		.WithRoslynMcp()
+		.BuildServiceProvider();
+
+	private void  LoadTestSolution()
+	{
+		var manager = ServiceProvider.GetRequiredService<SolutionManager>();
+
+		manager.Load(TestSolutionDirectory, CancellationToken.None).Wait();
 	}
 }
