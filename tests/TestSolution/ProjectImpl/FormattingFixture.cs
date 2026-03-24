@@ -4,6 +4,6 @@ public sealed class FormattingFixture
 {
 public int Add( int left,int right )
     {
-            return left+right;
+            return left+right ;
     }
 }

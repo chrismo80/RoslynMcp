@@ -12,12 +12,13 @@ public class FormatDocument : SandboxTests<FormatDocumentTool>
 		
 		var before = await File.ReadAllTextAsync(Path.Combine(WorkspaceDirectory, file));
 
+		before.IsContaining("public int Add( int left,int right )");
+		before.IsContaining("return left+right ;");
+		
 		var result = await Sut.Execute(CancellationToken.None, file);
 		
 		var after = await File.ReadAllTextAsync(Path.Combine(WorkspaceDirectory, file));
 
-		after.IsNot(before);
-		
 		after.IsContaining("public int Add(int left, int right)");
 		after.IsContaining("return left + right;");
 	}
