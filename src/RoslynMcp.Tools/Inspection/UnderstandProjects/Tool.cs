@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using Microsoft.CodeAnalysis;
 using ModelContextProtocol.Server;
-using RoslynMcp.Tools.Infrastructure;
 using RoslynMcp.Tools.Managers;
 
 namespace RoslynMcp.Tools.Inspection.UnderstandProjects;
@@ -100,13 +99,9 @@ public sealed class UnderstandProjectsTool(
             var compactType = $"{symbolManager.ToOuterSymbolId(type)}: {type.ToQualifiedDisplayName()}";
             var (filePath, _, _) = type.GetDeclarationPosition();
 
-            if (SourceVisibility.ShouldIncludeInHumanResults(filePath))
-            {
-                visibleTypes.Add(compactType);
-                continue;
-            }
-
-            generatedFallbackTypes.Add(compactType);
+            visibleTypes.Add(compactType);
+                
+            //generatedFallbackTypes.Add(compactType);
         }
 
         var selected = visibleTypes.Count > 0 ? visibleTypes : generatedFallbackTypes;

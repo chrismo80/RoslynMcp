@@ -1,34 +1,60 @@
 using System.ComponentModel;
+using Microsoft.CodeAnalysis;
 using ModelContextProtocol.Server;
+using RoslynMcp.Tools.Managers;
 
 namespace RoslynMcp.Tools.Inspection.ListTypes;
 
 [McpServerToolType]
-public sealed class Tool(Service service)
+public sealed class ListTypesTool(
+    WorkspaceManager workspaceManager,
+    SolutionManager solutionManager,
+    SymbolManager symbolManager
+    ) : Tool
 {
     [McpServerTool(Name = "list_types", Title = "List Types", ReadOnly = true, Idempotent = true)]
-    [Description("Use this tool when you need to list types declared in a specific loaded project. It is useful for project-scoped discovery, for finding type symbols before follow-up calls such as list_members or resolve_symbol, and for optionally enriching only the returned type entries with XML summaries or lightweight declared-member previews. For automation, prefer projectPath as the stable selector; projectId is snapshot-local to the active workspace snapshot. Results prefer handwritten declarations by default and report source bias, completeness, and degraded discovery hints.")]
-    public Task<Result> Run(
+    [Description(
+        "Use this tool when you need to list types declared in a specific loaded project. It is useful for project-scoped discovery, for finding type symbols before follow-up calls such as list_members or resolve_symbol, and for optionally enriching only the returned type entries with XML summaries or lightweight declared-member previews. For automation, prefer projectPath as the stable selector; projectId is snapshot-local to the active workspace snapshot. Results prefer handwritten declarations by default and report source bias, completeness, and degraded discovery hints.")]
+    public async Task<Result> Execute(
         CancellationToken cancellationToken,
         [Description("Exact path to a project file (.csproj). Specify only one of projectPath, projectName, or projectId.")]
         string? projectPath = null,
-        [Description("Name of a project. Specify only one of projectPath, projectName, or projectId.")]
-        string? projectName = null,
-        [Description("Project identifier from the current loaded workspace snapshot. projectId values are snapshot-local and can change after reload, so prefer projectPath for durable automation. Specify only one of projectPath, projectName, or projectId.")]
-        string? projectId = null,
-        [Description("Filter to only types in namespaces starting with this prefix.")]
-        string? namespacePrefix = null,
-        [Description("Filter by type kind: class, record, interface, enum, or struct.")]
-        string? kind = null,
-        [Description("Filter by accessibility: public, internal, protected, private, protected_internal, or private_protected.")]
-        string? accessibility = null,
-        [Description("When omitted or true, includes XML documentation summaries for returned type entries when available. Pass false to omit summaries.")]
-        bool? includeSummary = null,
-        [Description("When true, includes a lightweight preview of declared members for each returned type entry. This is not full member metadata: each member is returned as a single normalized accessibility-plus-signature string, and only members declared on that type are included. Enrichment is applied only to the returned type entries. Use list_members as the detailed follow-up tool. When omitted or false, members are omitted.")]
-        bool? includeMembers = null,
-        [Description("Maximum number of results to return. Defaults to 100, maximum 500.")]
-        int? limit = null,
-        [Description("Number of results to skip for pagination. Defaults to 0.")]
-        int? offset = null)
-        => service.RunAsync(projectPath.ToRequest(projectName, projectId, namespacePrefix, kind, accessibility, includeSummary, includeMembers, limit, offset), cancellationToken);
+        [Description(
+            "When true, includes a lightweight preview of declared members for each returned type entry. This is not full member metadata: each member is returned as a single normalized accessibility-plus-signature string, and only members declared on that type are included. Enrichment is applied only to the returned type entries. Use list_members as the detailed follow-up tool. When omitted or false, members are omitted.")]
+        bool? includeMembers = null)
+    {
+        if (solutionManager.Solution?.Projects.FirstOrDefault(p => p.Name == projectPath) is not { } project)
+            return new Result([], new ErrorInfo("no project found"));
+        
+        if(await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false) is not { } compilation)
+            return new Result([], new ErrorInfo("no compilation found"));
+        
+        var types = compilation.Assembly.GlobalNamespace.EnumerateTypes().Select(ToEntry);
+        
+        return new Result(types.ToArray());
+    }
+
+    private Entry ToEntry(INamedTypeSymbol symbol)
+    {
+        return new Entry(
+            symbol.Name,
+            symbolManager.ToOuterSymbolId(symbol),
+            GetDeclarationPosition(symbol),
+            symbol.ToTypeKind(),
+            symbol.Arity
+            );
+    }
+    
+    private Location GetDeclarationPosition(INamedTypeSymbol symbol)
+    {
+        var location = symbol.Locations.FirstOrDefault(static location => location.IsInSource);
+
+        if (location is null)
+            return new Location(string.Empty, 0, 0);
+
+        var span = location.GetLineSpan();
+        var start = span.StartLinePosition;
+
+        return new Location(workspaceManager.ToRelativePathIfPossible(span.Path), start.Line + 1, start.Character + 1);
+    }
 }

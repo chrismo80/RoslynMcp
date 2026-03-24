@@ -1,47 +1,9 @@
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Xml;
-using System.Xml.Linq;
 using Microsoft.CodeAnalysis;
-using Microsoft.Extensions.DependencyInjection;
-using RoslynMcp.Tools.Infrastructure;
 
 namespace RoslynMcp.Tools.Inspection.ListTypes;
 
 internal static partial class Extensions
 {
-    extension(IServiceCollection services)
-    {
-        public IServiceCollection AddListTypesTool() => services
-            .AddSingleton<Service>()
-            .AddSingleton<Tool>();
-    }
-
-    extension(string? projectPath)
-    {
-        public Request ToRequest(
-            string? projectName,
-            string? projectId,
-            string? namespacePrefix,
-            string? kind,
-            string? accessibility,
-            bool? includeSummary,
-            bool? includeMembers,
-            int? limit,
-            int? offset)
-            => new(
-                projectPath.NormalizeOptional(),
-                projectName.NormalizeOptional(),
-                projectId.NormalizeOptional(),
-                namespacePrefix.NormalizeOptional(),
-                kind.NormalizeOptional(),
-                accessibility.NormalizeOptional(),
-                includeSummary ?? true,
-                includeMembers ?? false,
-                limit,
-                offset);
-    }
-
     internal static bool TryNormalizeTypeKind(this string? kind, out string? normalized)
     {
         normalized = kind.NormalizeOptional()?.ToLowerInvariant();
@@ -72,13 +34,6 @@ internal static partial class Extensions
         }
     }
 
-    internal static (int Offset, int Limit) NormalizePaging(this int? offset, int? limit)
-    {
-        var normalizedOffset = Math.Max(offset ?? 0, 0);
-        var normalizedLimit = limit.HasValue ? Math.Clamp(limit.Value, 0, 500) : 100;
-        return (normalizedOffset, normalizedLimit);
-    }
-
     internal static string NormalizeAccessibility(this Accessibility accessibility) => accessibility switch
     {
         Accessibility.Public => "public",
@@ -90,10 +45,7 @@ internal static partial class Extensions
         _ => "not_applicable"
     };
 
-    internal static string NormalizeNamespace(this INamespaceSymbol? ns)
-        => ns?.IsGlobalNamespace != false ? string.Empty : ns.ToDisplayString();
-
-    internal static string? ToTypeKind(this INamedTypeSymbol symbol)
+    internal static string ToTypeKind(this INamedTypeSymbol symbol)
     {
         if (symbol.IsRecord)
             return "record";
@@ -104,16 +56,8 @@ internal static partial class Extensions
             TypeKind.Interface => "interface",
             TypeKind.Enum => "enum",
             TypeKind.Struct => "struct",
-            _ => null
+            _ => "unknown"
         };
-    }
-
-    internal static Entry Enrich(this Discovery discovery, bool includeSummary, bool includeMembers)
-    {
-        var summary = includeSummary ? discovery.Symbol.GetDocumentation()?.Summary : discovery.Entry.Summary;
-        var members = includeMembers ? discovery.Symbol.GetDeclaredLightweightMembers() : discovery.Entry.Members;
-
-        return discovery.Entry with { Summary = summary, Members = members };
     }
 
     internal static IReadOnlyList<string> GetDeclaredLightweightMembers(this INamedTypeSymbol type)
@@ -128,7 +72,7 @@ internal static partial class Extensions
                 Signature = member.ToLightweightMemberSignature(),
                 Member = member
             })
-            .Where(static item => item.Kind is not null && SourceVisibility.ShouldIncludeInHumanResults(item.FilePath))
+            .Where(static item => item.Kind is not null)
             .OrderBy(static item => item.Kind, StringComparer.Ordinal)
             .ThenBy(static item => item.DisplayName, StringComparer.Ordinal)
             .ThenBy(static item => item.Signature, StringComparer.Ordinal)
@@ -202,57 +146,7 @@ internal static partial class Extensions
             }
         }
     }
-
-    extension(IEnumerable<string?> paths)
-    {
-        internal VisibilityAssessment AssessPaths()
-        {
-            var handwritten = 0;
-            var generated = 0;
-            var unknown = 0;
-
-            foreach (var path in paths)
-            {
-                if (string.IsNullOrWhiteSpace(path))
-                {
-                    unknown++;
-                    continue;
-                }
-
-                if (SourceVisibility.IsGeneratedLike(path))
-                    generated++;
-                else
-                    handwritten++;
-            }
-
-            var visibility = handwritten > 0 && generated > 0 ? SourceBiases.Mixed : handwritten > 0 ? SourceBiases.Handwritten : generated > 0 ? SourceBiases.Generated : SourceBiases.Unknown;
-
-            return new VisibilityAssessment(visibility, handwritten, generated, unknown);
-        }
-    }
-
-    extension(Result result)
-    {
-        internal Result WithWorkspaceRelativePaths()
-            => result with
-            {
-                Types = [.. result.Types.Select(type => type.WithWorkspaceRelativePaths())],
-                Error = result.Error.WithWorkspaceRelativePaths()
-            };
-    }
-
-    extension(Entry entry)
-    {
-        private Entry WithWorkspaceRelativePaths()
-            => entry with { Location = entry.Location.WithWorkspaceRelativePaths() };
-    }
-
-    extension(SourceLocation? location)
-    {
-        private SourceLocation? WithWorkspaceRelativePaths()
-            => location is null ? null : location with { FilePath = location.FilePath.ToWorkspaceRelativePathIfPossible() };
-    }
-
+    
     extension(ErrorInfo? error)
     {
         private ErrorInfo? WithWorkspaceRelativePaths()
@@ -277,83 +171,4 @@ internal static partial class Extensions
             return updated is null ? error : error with { Details = updated };
         }
     }
-
-    internal static SymbolDocumentation? GetDocumentation(this ISymbol symbol)
-    {
-        var xml = symbol.GetDocumentationCommentXml(cancellationToken: CancellationToken.None);
-        if (string.IsNullOrWhiteSpace(xml))
-            return null;
-
-        XElement root;
-        try
-        {
-            root = XElement.Parse($"<root>{xml}</root>", LoadOptions.PreserveWhitespace);
-        }
-        catch (XmlException)
-        {
-            return null;
-        }
-
-        var summary = NormalizeElementText(root.Descendants("summary").FirstOrDefault());
-        var returns = NormalizeElementText(root.Descendants("returns").FirstOrDefault());
-        var parameters = root.Descendants("param")
-            .Select(CreateParameterDocumentation)
-            .Where(static parameter => parameter is not null)
-            .Cast<SymbolParameterDocumentation>()
-            .ToArray();
-
-        return summary is null && returns is null && parameters.Length == 0 ? null : new SymbolDocumentation(summary, returns, parameters);
-    }
-
-    private static SymbolParameterDocumentation? CreateParameterDocumentation(XElement element)
-    {
-        var name = NormalizeText(element.Attribute("name")?.Value);
-        var description = NormalizeElementText(element);
-        return name is null || description is null ? null : new SymbolParameterDocumentation(name, description);
-    }
-
-    private static string? NormalizeElementText(XElement? element)
-    {
-        if (element is null)
-            return null;
-
-        var builder = new StringBuilder();
-        AppendNodeText(element, builder);
-        return NormalizeText(builder.ToString());
-    }
-
-    private static void AppendNodeText(XNode node, StringBuilder builder)
-    {
-        switch (node)
-        {
-            case XText text:
-                builder.Append(text.Value);
-                return;
-            case XElement element when element.Name.LocalName is "see" or "seealso":
-                builder.Append(NormalizeSymbolReference(element.Attribute("cref")?.Value));
-                return;
-            case XElement element when element.Name.LocalName is "paramref" or "typeparamref":
-                builder.Append(element.Attribute("name")?.Value);
-                return;
-            case XElement element:
-                foreach (var child in element.Nodes())
-                    AppendNodeText(child, builder);
-                return;
-        }
-    }
-
-    private static string? NormalizeSymbolReference(string? cref)
-    {
-        var normalized = NormalizeText(cref);
-        if (normalized is null)
-            return null;
-
-        return normalized.Length > 2 && normalized[1] == ':' ? normalized[2..] : normalized;
-    }
-
-    private static string? NormalizeText(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : WhitespacePattern().Replace(value.Trim(), " ");
-
-    [GeneratedRegex("\\s+")]
-    private static partial Regex WhitespacePattern();
 }

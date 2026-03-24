@@ -13,8 +13,7 @@ public sealed record ProjectSummary(
 public sealed record DiagnosticsSummary(
     int ErrorCount,
     int WarningCount,
-    int InfoCount,
-    int TotalCount);
+    int InfoCount);
 
 public sealed record ErrorInfo(
     string Message,

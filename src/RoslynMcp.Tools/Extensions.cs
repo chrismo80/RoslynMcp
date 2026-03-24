@@ -130,17 +130,17 @@ internal static class Extensions
 
     extension(ISymbol symbol)
     {
-        internal (string FilePath, int? Line, int? Column) GetDeclarationPosition()
+        internal Location GetDeclarationPosition()
         {
             var location = symbol.Locations.FirstOrDefault(static location => location.IsInSource);
 
             if (location is null)
-                return (string.Empty, null, null);
+                return new Location(string.Empty, 0, 0);
 
             var span = location.GetLineSpan();
             var start = span.StartLinePosition;
 
-            return (span.Path ?? string.Empty, start.Line + 1, start.Character + 1);
+            return new Location(span.Path, start.Line + 1, start.Character + 1);
         }
 
         internal string ToStableId() =>
