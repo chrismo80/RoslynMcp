@@ -7,7 +7,11 @@ using RoslynMcp.Tools.Managers;
 namespace RoslynMcp.Tools.Inspection.UnderstandProjects;
 
 [McpServerToolType]
-public sealed class UnderstandProjectsTool(SolutionManager solutionManager, SymbolManager symbolManager) : Tool
+public sealed class UnderstandProjectsTool(
+    SolutionManager solutionManager,
+    WorkspaceManager workspaceManager,
+    SymbolManager symbolManager)
+    : Tool
 {
     [McpServerTool(Name = "understand_projects", Title = "Understand Projects", ReadOnly = true, Idempotent = true)]
     [Description("Use this tool when you need a quick overview of the loaded solution's project landscape. It returns real project relationships with projectPath lists, compact per-project type summaries for standard/deep profiles, and hotspots only for deep analysis.")]
@@ -67,9 +71,9 @@ public sealed class UnderstandProjectsTool(SolutionManager solutionManager, Symb
 
             summaries.Add(new ProjectSummary(
                 project.Name,
-                project.FilePath,
-                [.. outgoingByPath[projectPath].OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)],
-                [.. incomingByPath[projectPath].OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)],
+                workspaceManager.ToRelativePathIfPossible(project?.FilePath ?? string.Empty),
+                [.. outgoingByPath[projectPath].Select(workspaceManager.ToRelativePathIfPossible).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)],
+                [.. incomingByPath[projectPath].Select(workspaceManager.ToRelativePathIfPossible).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)],
                 types));
         }
 

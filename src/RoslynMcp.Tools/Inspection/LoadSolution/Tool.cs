@@ -19,7 +19,7 @@ public sealed class LoadSolutionTool(WorkspaceManager workspaceManager, Solution
         if (solutionPath is null)
             return new Result(null, [], null, new ErrorInfo("no solution found"));
 
-        var solution = await solutionManager.Load(solutionPath, cancellationToken);
+        var solution = await solutionManager.Load(workspaceManager.ToAbsolutePath(solutionPath), cancellationToken);
 
         var projects = solution.Projects.ToList();
 
