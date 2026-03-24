@@ -7,7 +7,7 @@ using Xunit.Abstractions;
 namespace RoslynMcp.Tools.Test.Inspections;
 
 public class UnderStandProjects(ITestOutputHelper output)
-	: InspectionTests(output)
+	: Tests<UnderstandProjectsTool>
 {
 	[Fact]
 	public async Task Test1()
@@ -34,6 +34,6 @@ public class UnderStandProjects(ITestOutputHelper output)
 
 		foreach(var project in result2.Projects)
 		foreach(var type in project.Types)
-			Output.WriteLine(project.Name + " - " + type);
+			output.WriteLine(project.Name + " - " + type);
 	}
 }

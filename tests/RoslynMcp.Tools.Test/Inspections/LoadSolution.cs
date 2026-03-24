@@ -1,13 +1,12 @@
 ﻿using Is.Assertions;
 using RoslynMcp.Tools.Inspection.LoadSolution;
-using RoslynMcp.Tools.Inspection.UnderstandProjects;
 using RoslynMcp.Tools.Managers;
 using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Test.Inspections;
 
 public class LoadSolution(ITestOutputHelper output)
-	: InspectionTests(output)
+	: Tests<LoadSolutionTool>
 {
 	[Fact]
 	public async Task WithoutFile()
