@@ -36,11 +36,12 @@ public sealed class McpTool(
 
         var types = compilation!.GlobalNamespace.GetTypes()
             .Select(ToEntry)
-            .Where(entry => entry.Type?.Location.IsHandwritten() ?? false)
-            .OrderByDescending(e => e.Members?.Count)
             .ToList();
 
-        return new Result(types);
+        if (types.Any(entry => entry.Type?.Location.IsHandwritten() ?? false))
+            types.RemoveAll(entry => entry.Type?.Location.IsHandwritten() != true);
+
+        return new Result(types.OrderByDescending(e => e.Members?.Count).ToList());
     }
 
     private bool Matches(Project project, string input)
