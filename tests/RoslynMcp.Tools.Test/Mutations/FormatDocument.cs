@@ -3,7 +3,7 @@ using RoslynMcp.Tools.Mutation.FormatDocument;
 
 namespace RoslynMcp.Tools.Test.Mutations;
 
-public class FormatDocument : SandboxTests<FormatDocumentTool>
+public class FormatDocument : SandboxTests<McpTool>
 {
 	[Fact]
 	public async Task HappyPath_DocuemntChanged()

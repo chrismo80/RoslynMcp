@@ -7,8 +7,14 @@ using RoslynMcp.Tools.Managers;
 
 namespace RoslynMcp.Tools.Mutation.FormatDocument;
 
+public sealed record Result(string Path, ErrorInfo? Error = null);
+
+public sealed record ErrorInfo(
+    string Message,
+    IReadOnlyDictionary<string, string>? Details = null);
+
 [McpServerToolType]
-public sealed class FormatDocumentTool(
+public sealed class McpTool(
     SolutionManager solutionManager,
     WorkspaceManager workspaceManager)
     : Tool
