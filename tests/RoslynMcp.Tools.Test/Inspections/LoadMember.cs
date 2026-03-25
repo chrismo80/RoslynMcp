@@ -27,6 +27,16 @@ public class LoadMember(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		o.WriteLine(result.ToJson());
 	}
 	
+	[Fact]
+	public async Task HappyPath_WithDocumentation()
+	{
+		var typeSymbolId = await GetTypeSymbolIdAsync("ProjectCore", "Documentation");
+		var memberSymbolId = await GetMemberSymbolIdAsync(typeSymbolId, "Add");
+
+		var result = await Sut.Execute(CancellationToken.None, memberSymbolId);
+		o.WriteLine(result.ToJson());
+	}
+	
 	private async Task<string> GetTypeSymbolIdAsync(string projectName, string displayName)
 	{
 		var result = await ServiceProvider.GetRequiredService<Inspection.LoadProject.McpTool>()

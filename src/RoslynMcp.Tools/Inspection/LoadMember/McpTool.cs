@@ -4,12 +4,14 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.FindSymbols;
 using ModelContextProtocol.Server;
+using RoslynMcp.Tools.Extensions;
 using RoslynMcp.Tools.Managers;
 
 namespace RoslynMcp.Tools.Inspection.LoadMember;
 
 public sealed record Result(
     MemberSymbol? Symbol,
+    SymbolDocumentation? Documentation,
     IReadOnlyList<MemberSymbol> References,
     IReadOnlyList<MemberSymbol> Callers,
     IReadOnlyList<MemberSymbol> Callees,
@@ -32,10 +34,10 @@ public sealed class McpTool(
         )
     {
         if (solutionManager.Solution is not { } solution)
-            return new Result(null, [], [], [], [], [], new ErrorInfo("load solution first"));
+            return new Result(null, null, [], [], [], [], [], new ErrorInfo("load solution first"));
         
         if (symbolManager.ToSymbol(symbolId) is not ISymbol symbol)
-            return new Result(null, [], [], [], [], [], new ErrorInfo("symbol not found"));
+            return new Result(null, null, [], [], [], [], [], new ErrorInfo("symbol not found"));
         
         var references = await SymbolFinder.FindReferencesAsync(symbol, solutionManager.Solution, cancellationToken)
             .ConfigureAwait(false);
@@ -56,9 +58,12 @@ public sealed class McpTool(
             .Concat(overrides.Select(o => MemberSymbol.From(o, symbolManager, workspaceManager)))
             .Concat(implementations.Select(i => MemberSymbol.From(i, symbolManager, workspaceManager)))
             .ToList();
+
+        var documentation = symbol.GetDocumentation();
         
         return new Result(
             MemberSymbol.From(symbol, symbolManager, workspaceManager),
+            documentation,
             references.Where(r => r.Definition != symbol).Select(r => MemberSymbol.From(r.Definition, symbolManager, workspaceManager)).ToList(),
             callers.Select(c => MemberSymbol.From(c.CallingSymbol, symbolManager, workspaceManager)).ToList(),
             callees.Select(c => MemberSymbol.From(c.Symbol, symbolManager, workspaceManager)).ToList(),

@@ -2,12 +2,14 @@ using System.ComponentModel;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.FindSymbols;
 using ModelContextProtocol.Server;
+using RoslynMcp.Tools.Extensions;
 using RoslynMcp.Tools.Managers;
 
 namespace RoslynMcp.Tools.Inspection.LoadType;
 
 public sealed record Result(
     TypeSymbol Symbol,
+    string? Documentation,
     IReadOnlyList<TypeSymbol> Derived,
     IReadOnlyList<TypeSymbol> Implementations,
     IReadOnlyList<MemberSymbol> Members,
@@ -27,10 +29,10 @@ public sealed class McpTool(
         string? typeSymbolId = null)
     {
         if (solutionManager.Solution is not { } solution)
-            return new Result(null, [], [], [], new ErrorInfo("load solution first"));
+            return new Result(null, null, [], [], [], new ErrorInfo("load solution first"));
         
         if (symbolManager.ToSymbol(typeSymbolId) is not INamedTypeSymbol symbol)
-            return new Result(null, [], [], [], new ErrorInfo("type not found"));
+            return new Result(null, null, [], [], [], new ErrorInfo("type not found"));
 
         var deriveClassed = await SymbolFinder.FindDerivedClassesAsync(symbol, solution, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
@@ -44,7 +46,10 @@ public sealed class McpTool(
         var members = symbol.GetMembers()
             .Select(symbol => MemberSymbol.From(symbol, symbolManager, workspaceManager)).ToList();
 
+        var documentation = symbol.GetDocumentation();
+        
         return new Result(TypeSymbol.From(symbol, symbolManager, workspaceManager),
+            documentation?.Summary,
             deriveClassed.Concat(derivedInterfaces).Select(d => TypeSymbol.From(d, symbolManager, workspaceManager)).ToList(),
             implementations.Select(i => TypeSymbol.From(i, symbolManager, workspaceManager)).ToList(),
             members);
