@@ -1,5 +1,4 @@
 ﻿using Is.Assertions;
-using RoslynMcp.Tools.Inspection;
 using RoslynMcp.Tools.Inspection.LoadProject;
 using Xunit.Abstractions;
 
@@ -13,14 +12,8 @@ public class LoadProject(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		var result = await Sut.Execute(CancellationToken.None, Path.Combine("ProjectCore", "ProjectCore.csproj"));
 
 		result.Types.Count.Is(16);
-
-		foreach (var type in result.Types)
-		{
-			o.WriteLine(type.ToString());
-
-			foreach(var member in type.Members)
-				o.WriteLine(member.ToString());
-		}
+		
+		o.WriteLine(result.ToJson());
 	}
 
 	[Fact]

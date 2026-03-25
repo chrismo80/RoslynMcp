@@ -6,8 +6,8 @@ using RoslynMcp.Tools.Managers;
 namespace RoslynMcp.Tools.Inspection.LoadType;
 
 public sealed record Result(
-    IReadOnlyList<MemberSymbol> Members,
     int Count,
+    IReadOnlyList<MemberSymbol> Members,
     ErrorInfo? Error = null);
 
 [McpServerToolType]
@@ -24,11 +24,11 @@ public sealed class McpTool(
         string? typeSymbolId = null)
     {
         if (symbolManager.ToSymbol(typeSymbolId) is not INamedTypeSymbol symbol)
-            return new Result([], 0, new ErrorInfo("type not found"));
+            return new Result(0, [], new ErrorInfo("type not found"));
 
         var members = symbol.GetMembers()
-            .Select(symbol => MemberSymbol.From(symbol, symbolManager)).ToList();
+            .Select(symbol => MemberSymbol.From(symbol, symbolManager, workspaceManager)).ToList();
 
-        return new Result(members,  members.Count);
+        return new Result(members.Count, members);
     }
 }

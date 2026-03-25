@@ -10,54 +10,42 @@ public sealed record ErrorInfo(
     IReadOnlyDictionary<string, string>? Details = null);
 
 public sealed record TypeSymbol(
-	INamedTypeSymbol Symbol,
 	string Id,
-	Location? Location,
+	string? Location,
 	string DisplayName,
 	string Kind)
 {
-	public static TypeSymbol From(INamedTypeSymbol symbol, SymbolManager symbolManager)
+	internal string Text => $"{Id}: {Kind} {DisplayName}";
+	
+	public static TypeSymbol From(INamedTypeSymbol symbol, SymbolManager symbolManager, WorkspaceManager workspaceManager)
 	{
 		return new TypeSymbol(
-			symbol,
 			symbolManager.ToId(symbol),
-			symbol.GetLocation(),
+			symbol.GetLocation(workspaceManager),
 			symbol.Name,
 			symbol.ToTypeKind()
 		);
-	}
-
-	public string ToLine()
-	{
-		return $"{Id}: {Kind} {DisplayName}";
 	}
 }
 
 
 public sealed record MemberSymbol(
-	ISymbol Symbol,
 	string SymbolId,
-	Location? Location,
+	string? Location,
 	string DisplayName,
 	string? Kind,
-	string Accessibility,
-	bool IsStatic)
+	string Accessibility)
 {
-	public static MemberSymbol From(ISymbol symbol, SymbolManager symbolManager)
+	internal string Text => $"{Accessibility} {DisplayName}";
+	
+	public static MemberSymbol From(ISymbol symbol, SymbolManager symbolManager, WorkspaceManager workspaceManager)
 	{
 		return new MemberSymbol(
-			symbol,
 			symbolManager.ToId(symbol),
-			symbol.GetLocation(),
-			symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+			symbol.GetLocation(workspaceManager),
+			symbol.ToLightweightMemberSignature(),
 			symbol.ToMemberKind(),
-			symbol.DeclaredAccessibility.ToText(),
-			symbol.IsStatic
+			symbol.DeclaredAccessibility.ToText()
 		);
-	}
-
-	public string ToLine()
-	{
-		return $"{Accessibility} {Symbol.ToLightweightMemberSignature()}";
 	}
 }

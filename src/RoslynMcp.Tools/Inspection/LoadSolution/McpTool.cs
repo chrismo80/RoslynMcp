@@ -6,19 +6,15 @@ using RoslynMcp.Tools.Managers;
 namespace RoslynMcp.Tools.Inspection.LoadSolution;
 
 public sealed record Result(
-    string? SolutionPath,
+    string? Path,
     IReadOnlyList<ProjectSummary> Projects,
-    DiagnosticsSummary? BaselineDiagnostics,
     ErrorInfo? Error = null);
 
 public sealed record ProjectSummary(
     string Name,
-    string? Path);
-
-public sealed record DiagnosticsSummary(
-    int ErrorCount,
-    int WarningCount,
-    int InfoCount);
+    string? ProjectPath,
+    IReadOnlyList<string> References,
+    IReadOnlyList<string> ReferencedBy);
 
 [McpServerToolType]
 public sealed class McpTool(
@@ -36,50 +32,59 @@ public sealed class McpTool(
         var solutionPath = solutionHintPath ?? workspaceManager.DiscoverSolutionPaths().FirstOrDefault();
 
         if (solutionPath is null)
-            return new Result(null, [], null, new ErrorInfo("no solution found"));
+            return new Result(null, [], new ErrorInfo("no solution found"));
 
         var solution = await solutionManager.Load(workspaceManager.ToAbsolutePath(solutionPath), cancellationToken);
 
-        var projects = solution.Projects.ToList();
-
-        var diagnostics = await projects.ToAsyncEnumerable()
-            .SelectMany(p => p.Diagnose(cancellationToken))
-            .ToArrayAsync(cancellationToken);
-
         return new Result(
             workspaceManager.ToRelativePathIfPossible(solutionPath),
-            projects.ConvertAll(p => p.ToSummary(workspaceManager)),
-            diagnostics.ToDiagnosticsSummary());
+            BuildAsync(solutionManager.Solution));
     }
-}
-
-file static class Extensions
-{
-    extension(Project project)
+    
+    private IReadOnlyList<ProjectSummary> BuildAsync(Solution solution)
     {
-        public ProjectSummary ToSummary(WorkspaceManager workspaceManager) =>
-            new(project.Name, workspaceManager.ToRelativePathIfPossible(project.FilePath));
+        var outgoingByPath = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var incomingByPath = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
-        public async IAsyncEnumerable<Diagnostic> Diagnose(CancellationToken cancellationToken)
+        foreach (var project in solution.Projects)
         {
-            var compilation = await project
-                .GetCompilationAsync(cancellationToken)
-                .ConfigureAwait(false);
+            var projectPath = project.FilePath ?? string.Empty;
 
-            foreach (var diagnostic in compilation.GetDiagnostics(cancellationToken))
-                yield return diagnostic;
+            outgoingByPath.TryAdd(projectPath, []);
+            incomingByPath.TryAdd(projectPath, []);
         }
-    }
 
-    extension(IReadOnlyList<Diagnostic> diagnostics)
-    {
-        public DiagnosticsSummary ToDiagnosticsSummary()
+        foreach (var project in solution.Projects)
         {
-            return new DiagnosticsSummary(
-                diagnostics.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error),
-                diagnostics.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Warning),
-                diagnostics.Count(static diagnostic => diagnostic.Severity is DiagnosticSeverity.Info or DiagnosticSeverity.Hidden)
-            );
+            var sourcePath = project.FilePath ?? string.Empty;
+
+            foreach (var reference in project.ProjectReferences)
+            {
+                var dependency = solution.GetProject(reference.ProjectId);
+
+                if (dependency?.FilePath is null)
+                    continue;
+
+                outgoingByPath[sourcePath].Add(dependency.FilePath);
+                incomingByPath[dependency.FilePath].Add(sourcePath);
+            }
         }
+
+        var summaries = new List<ProjectSummary>();
+
+        foreach (var project in solution.Projects)
+        {
+            var projectPath = project.FilePath ?? string.Empty;
+
+            summaries.Add(new ProjectSummary(
+                project.Name,
+                workspaceManager.ToRelativePathIfPossible(project?.FilePath ?? string.Empty),
+                [.. outgoingByPath[projectPath].Select(workspaceManager.ToRelativePathIfPossible).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)],
+                [.. incomingByPath[projectPath].Select(workspaceManager.ToRelativePathIfPossible).OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)]));
+        }
+
+        return [.. summaries
+            .OrderByDescending(static project => project.ReferencedBy.Count)
+            .ThenBy(static project => project.Name, StringComparer.Ordinal)];
     }
 }

@@ -34,8 +34,8 @@ public sealed class McpTool(
             .ConfigureAwait(false);
 
         return new Result(
-            MemberSymbol.From(symbol, symbolManager),
-            callers.Select(call => MemberSymbol.From(call.CallingSymbol, symbolManager)).ToList(),
-            implementations.Select(s => MemberSymbol.From(s, symbolManager)).ToList());
+            MemberSymbol.From(symbol, symbolManager, workspaceManager),
+            callers.Select(call => MemberSymbol.From(call.CallingSymbol, symbolManager, workspaceManager)).ToList(),
+            implementations.Select(s => MemberSymbol.From(s, symbolManager, workspaceManager)).ToList());
     }
 }

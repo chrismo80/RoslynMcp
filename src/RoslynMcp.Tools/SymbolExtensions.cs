@@ -36,15 +36,15 @@ internal static class SymbolExtensions
             };
         }
 
-        internal IReadOnlyList<string> MembersPreview(SymbolManager symbolManager)
+        internal IReadOnlyList<string> MembersPreview(SymbolManager symbolManager, WorkspaceManager workspaceManager)
         {
             return symbol.GetMembers()
                 .Where(m => m.DeclaredAccessibility > Accessibility.Private)
-                .Select(m => MemberSymbol.From(m, symbolManager))
+                .Select(m => MemberSymbol.From(m, symbolManager, workspaceManager))
                 .Where(m => m.Kind != null)
                 .OrderBy(m => m.Kind, StringComparer.Ordinal)
                 .ThenBy(m => m.DisplayName, StringComparer.Ordinal)
-                .Select(m => m.ToLine())
+                .Select(m => m.Text)
                 .ToArray();
         }
     }
@@ -66,17 +66,17 @@ internal static class SymbolExtensions
             };
         }
 
-        internal Location GetLocation()
+        internal string? GetLocation(WorkspaceManager workspaceManager)
         {
             var location = symbol.Locations.FirstOrDefault(static location => location.IsInSource);
 
             if (location is null)
-                return new Location(string.Empty, 0, 0);
+                return null;
 
             var span = location.GetLineSpan();
             var start = span.StartLinePosition;
 
-            return new Location(span.Path, start.Line + 1, start.Character + 1);
+            return workspaceManager.ToRelativePathIfPossible(span.Path);
         }
 
         internal string ToLightweightMemberSignature() => symbol switch

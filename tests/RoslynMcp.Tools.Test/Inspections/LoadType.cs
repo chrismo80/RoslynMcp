@@ -15,6 +15,8 @@ public class LoadType(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		var result = await Sut.Execute(CancellationToken.None, id);
 
 		result.Members.Count.Is(12);
+		
+		o.WriteLine(result.ToJson());
 	}
 
 	private async Task<string> GetTypeSymbolIdAsync(string projectName, string displayName)
