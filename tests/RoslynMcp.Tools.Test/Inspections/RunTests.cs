@@ -13,6 +13,16 @@ public class RunTests(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		o.WriteLine(result.ToJson());
 	}
 	
+	[Fact]
+	public async Task HappyPath_WithFilter()
+	{
+		var result = await Sut.Execute(CancellationToken.None, filter: "Passing_filter_test");
+		o.WriteLine(result.ToJson());
+		
+		result.Outcome.Is("passed");
+		result.Counts.Passed.Is(1);
+		result.Counts.Failed.Is(0);
+	}
 	
 	[Fact]
 	public async Task HappyPath_WithTarget_BuildFailed()
@@ -33,8 +43,6 @@ public class RunTests(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		result.Counts.Passed.Is(0);
 		result.Counts.Failed.Is(1);
 	}
-	
-	
 	
 	[Fact]
 	public async Task HappyPath_WithTarget_MixedOutcome()
