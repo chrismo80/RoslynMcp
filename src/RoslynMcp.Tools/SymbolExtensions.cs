@@ -42,7 +42,7 @@ internal static class SymbolExtensions
                 .Where(m => m.DeclaredAccessibility > Accessibility.Private)
                 .Select(m => MemberSymbol.From(m, symbolManager, workspaceManager))
                 .Where(m => m.Kind != null)
-                .Take(10)
+                .Take(3)
                 .OrderBy(m => m.Kind, StringComparer.Ordinal)
                 .ThenBy(m => m.DisplayName, StringComparer.Ordinal)
                 .Select(m => m.Text)
@@ -69,15 +69,7 @@ internal static class SymbolExtensions
 
         internal string? GetLocation(WorkspaceManager workspaceManager)
         {
-            var location = symbol.Locations.FirstOrDefault(static location => location.IsInSource);
-
-            if (location is null)
-                return null;
-
-            var span = location.GetLineSpan();
-            var start = span.StartLinePosition;
-
-            return workspaceManager.ToRelativePathIfPossible(span.Path);
+            return string.Join(", ", symbol.Locations.Select(l => workspaceManager.ToRelativePathIfPossible(l.GetLineSpan().Path)));
         }
 
         internal string ToLightweightMemberSignature() => symbol switch

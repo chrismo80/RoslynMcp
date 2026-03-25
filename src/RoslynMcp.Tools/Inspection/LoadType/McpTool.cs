@@ -34,13 +34,13 @@ public sealed class McpTool(
         var members = symbol.GetMembers()
             .Select(symbol => MemberSymbol.From(symbol, symbolManager, workspaceManager)).ToList();
 
-        IEnumerable<INamedTypeSymbol> deriveClassed = await SymbolFinder.FindDerivedClassesAsync(symbol, solution, cancellationToken: cancellationToken)
+        var deriveClassed = await SymbolFinder.FindDerivedClassesAsync(symbol, solution, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
         
-        IEnumerable<INamedTypeSymbol> derivedInterfaces = await SymbolFinder.FindDerivedInterfacesAsync(symbol, solution, cancellationToken: cancellationToken)
+        var derivedInterfaces = await SymbolFinder.FindDerivedInterfacesAsync(symbol, solution, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
         
-        IEnumerable<INamedTypeSymbol> implementations = await SymbolFinder.FindImplementationsAsync(symbol, solution, cancellationToken: cancellationToken)
+        var implementations = await SymbolFinder.FindImplementationsAsync(symbol, solution, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
         var usages = deriveClassed.Select(d => TypeSymbol.From(d, symbolManager, workspaceManager))

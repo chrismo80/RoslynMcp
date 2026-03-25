@@ -22,7 +22,7 @@ public class LoadMember(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		var result = await ServiceProvider.GetRequiredService<Inspection.LoadProject.McpTool>()
 			.Execute(CancellationToken.None, projectName);
 
-		return result.Types.Single(type => type.Type.DisplayName == displayName).Type.Id;
+		return result.Types.Single(type => type.Type.DisplayName == displayName).Type.SymbolId;
 	}
 
 	private async Task<string> GetMemberSymbolIdAsync(string typeSymbolId, string displayName)

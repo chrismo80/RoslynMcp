@@ -10,12 +10,12 @@ public sealed record ErrorInfo(
     IReadOnlyDictionary<string, string>? Details = null);
 
 public sealed record TypeSymbol(
-	string Id,
+	string SymbolId,
 	string? Location,
 	string DisplayName,
 	string Kind)
 {
-	internal string Text => $"{Id}: {Kind} {DisplayName}";
+	internal string Text => $"{SymbolId}: {Kind} {DisplayName}";
 	
 	public static TypeSymbol From(INamedTypeSymbol symbol, SymbolManager symbolManager, WorkspaceManager workspaceManager)
 	{
@@ -36,7 +36,7 @@ public sealed record MemberSymbol(
 	string? Kind,
 	string Accessibility)
 {
-	internal string Text => $"{Accessibility} {DisplayName}";
+	internal string Text => $"{SymbolId}: {Accessibility} {DisplayName}";
 	
 	public static MemberSymbol From(ISymbol symbol, SymbolManager symbolManager, WorkspaceManager workspaceManager)
 	{

@@ -26,13 +26,13 @@ public class LoadType(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		var result = await Sut.Execute(CancellationToken.None, symbolId);
 		o.WriteLine(result.ToJson());
 	}
-
+	
 	private async Task<string> GetTypeSymbolIdAsync(string projectName, string displayName)
 	{
 		var result = await ServiceProvider.GetRequiredService<Inspection.LoadProject.McpTool>()
 			.Execute(CancellationToken.None, projectName);
 		o.WriteLine(result.ToJson());
 
-		return result.Types.Single(type => type.Type?.DisplayName == displayName).Type.Id;
+		return result.Types.Single(type => type.Type?.DisplayName == displayName).Type.SymbolId;
 	}
 }

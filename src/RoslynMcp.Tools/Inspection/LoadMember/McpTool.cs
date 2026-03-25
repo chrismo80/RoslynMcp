@@ -31,16 +31,16 @@ public sealed class McpTool(
         if (symbolManager.ToSymbol(symbolId) is not ISymbol symbol)
             return new Result(null, [], new ErrorInfo("symbol not found"));
         
-        IEnumerable<SymbolCallerInfo> callers = await SymbolFinder.FindCallersAsync(symbol, solutionManager.Solution, cancellationToken)
+        var callers = await SymbolFinder.FindCallersAsync(symbol, solutionManager.Solution, cancellationToken)
             .ConfigureAwait(false);
         
-        IEnumerable<ReferencedSymbol> references = await SymbolFinder.FindReferencesAsync(symbol, solutionManager.Solution, cancellationToken)
+        var references = await SymbolFinder.FindReferencesAsync(symbol, solutionManager.Solution, cancellationToken)
             .ConfigureAwait(false);
 
-        IEnumerable<ISymbol> overrides = await SymbolFinder.FindOverridesAsync(symbol, solutionManager.Solution, null, cancellationToken)
+        var overrides = await SymbolFinder.FindOverridesAsync(symbol, solutionManager.Solution, null, cancellationToken)
             .ConfigureAwait(false);
         
-        IEnumerable<ISymbol> implementations = await SymbolFinder.FindImplementedInterfaceMembersAsync(symbol, solutionManager.Solution, null, cancellationToken)
+        var implementations = await SymbolFinder.FindImplementedInterfaceMembersAsync(symbol, solutionManager.Solution, null, cancellationToken)
             .ConfigureAwait(false);
 
         var usages = callers.Select(c => MemberSymbol.From(c.CallingSymbol, symbolManager, workspaceManager))
