@@ -55,7 +55,7 @@ internal static class SymbolExtensions
             };
         }
 
-        internal string? GetLocation(WorkspaceManager workspaceManager)
+        internal string GetLocation(WorkspaceManager workspaceManager)
         {
             return string.Join(", ", symbol.Locations.Select(l => workspaceManager.ToRelativePathIfPossible(l.GetLineSpan().Path)));
         }

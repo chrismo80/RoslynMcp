@@ -30,62 +30,71 @@ public sealed class McpTool(
     [Description("Use this tool when you need callers/calles or overrides/implementations of a symbol.")]
     public async Task<Result> Execute(CancellationToken cancellationToken,
         [Description("The stable symbol ID, obtained from load_type.")]
-        string? symbolId = null
+        string? memberSymbolId = null
         )
     {
         try
         {
-        if (solutionManager.Solution is not { } solution)
-            return new Result(null, null, [], [], [], [], [], new ErrorInfo("load solution first"));
-        
-        if (symbolManager.ToSymbol(symbolId) is not ISymbol symbol)
-            return new Result(null, null, [], [], [], [], [], new ErrorInfo("symbol not found"));
-        
-        var references = await SymbolFinder.FindReferencesAsync(symbol, solutionManager.Solution, cancellationToken)
-            .ConfigureAwait(false);
+            if (solutionManager.Solution is not { } solution)
+                return new Result(null, null, [], [], [], [], [], new ErrorInfo("load solution first"));
+            
+            if (symbolManager.ToSymbol(memberSymbolId) is not ISymbol symbol)
+                return new Result(null, null, [], [], [], [], [], new ErrorInfo("symbol not found"));
+            
+            if (symbolManager.ToSymbol(memberSymbolId) is ITypeSymbol typeSymbol)
+                return new Result(null, null, [], [], [], [], [], new ErrorInfo("no type symbol please"));
+            
+            var references = await SymbolFinder.FindReferencesAsync(symbol, solutionManager.Solution, cancellationToken)
+                .ConfigureAwait(false);
 
-        var callers = await SymbolFinder.FindCallersAsync(symbol, solutionManager.Solution, cancellationToken)
-            .ConfigureAwait(false);
+            var callers = await SymbolFinder.FindCallersAsync(symbol, solutionManager.Solution, cancellationToken)
+                .ConfigureAwait(false);
 
-        var callees = await CollectCalleesAsync(symbol, solution, cancellationToken);
-        
-        var overrides = await SymbolFinder.FindOverridesAsync(symbol, solutionManager.Solution, null, cancellationToken)
-            .ConfigureAwait(false);
-        
-        var implementations = await SymbolFinder.FindImplementedInterfaceMembersAsync(symbol, solutionManager.Solution, null, cancellationToken)
-            .ConfigureAwait(false);
+            var callees = await CollectCalleesAsync(symbol, solution, cancellationToken);
+            
+            var overrides = await SymbolFinder.FindOverridesAsync(symbol, solutionManager.Solution, null, cancellationToken)
+                .ConfigureAwait(false);
+            
+            var implementations = await SymbolFinder.FindImplementedInterfaceMembersAsync(symbol, solutionManager.Solution, null, cancellationToken)
+                .ConfigureAwait(false);
 
-        var documentation = symbol.GetDocumentation();
-        
-        return new Result(
-            MemberSymbol.From(symbol, symbolManager, workspaceManager),
-            documentation,
-            references
-                .Where(r => r.Definition != symbol)
-                .Select(r => MemberSymbol.From(r.Definition, symbolManager, workspaceManager))
-                .Where(symbol => symbol.Kind is not null)
-                .ToList(),
-            callers
-                .Select(c => MemberSymbol.From(c.CallingSymbol, symbolManager, workspaceManager))
-                .Where(symbol => symbol.Kind is not null)
-                .ToList(),
-            callees
-                .Select(c => MemberSymbol.From(c.Symbol, symbolManager, workspaceManager))
-                .Where(symbol => symbol.Kind is not null)
-                .ToList(),
-            overrides
-                .Select(o => MemberSymbol.From(o, symbolManager, workspaceManager))
-                .Where(symbol => symbol.Kind is not null)
-                .ToList(),
-            implementations
-                .Select(i => MemberSymbol.From(i, symbolManager, workspaceManager))
-                .Where(symbol => symbol.Kind is not null)
-                .ToList()
-            );
+            var documentation = symbol.GetDocumentation();
+            
+            return new Result(
+                MemberSymbol.From(symbol, symbolManager, workspaceManager),
+                documentation,
+                references
+                    .Where(r => r.Definition != symbol)
+                    .Select(r => MemberSymbol.From(r.Definition, symbolManager, workspaceManager))
+                    .Where(symbol => symbol.Kind is not null)
+                    .ToList(),
+                callers
+                    .Select(c => MemberSymbol.From(c.CallingSymbol, symbolManager, workspaceManager))
+                    .Where(symbol => symbol.Kind is not null)
+                    .ToList(),
+                callees
+                    .Select(c => MemberSymbol.From(c.Symbol, symbolManager, workspaceManager))
+                    .Where(symbol => symbol.Kind is not null)
+                    .ToList(),
+                overrides
+                    .Select(o => MemberSymbol.From(o, symbolManager, workspaceManager))
+                    .Where(symbol => symbol.Kind is not null)
+                    .ToList(),
+                implementations
+                    .Select(i => MemberSymbol.From(i, symbolManager, workspaceManager))
+                    .Where(symbol => symbol.Kind is not null)
+                    .ToList()
+                );
         }
         catch (Exception e)
         {
-            return new Result(null, null, [], [], [], [], [], new ErrorInfo(e.Message));
+            var dict = new Dictionary<string, string>
+            {
+                ["inner exception"] = e.InnerException?.Message ?? "",
+                ["stack trace"] = e?.StackTrace ?? ""
+            };
+
+            return new Result(null, null, [], [], [], [], [], new ErrorInfo(e?.Message ?? "", dict));
         }
     }
     

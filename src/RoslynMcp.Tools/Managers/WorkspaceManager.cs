@@ -12,11 +12,11 @@ public sealed class WorkspaceManager : Manager
             WorkspaceDirectory = dir;
     }
 
-    internal string ToAbsolutePath(string path) =>
-        Path.IsPathRooted(path) ? path : Path.Combine(WorkspaceDirectory, path);
+    internal string? ToAbsolutePath(string? path) =>
+        path is null ? path : Path.IsPathRooted(path) ? path : Path.Combine(WorkspaceDirectory, path);
 
-    internal string ToRelativePathIfPossible(string path) =>
-        path.StartsWith(WorkspaceDirectory + Path.DirectorySeparatorChar) ? Path.GetRelativePath(WorkspaceDirectory, path) : path;
+    internal string? ToRelativePathIfPossible(string? path) =>
+        path is null ? path : path.StartsWith(WorkspaceDirectory + Path.DirectorySeparatorChar) ? Path.GetRelativePath(WorkspaceDirectory, path) : path;
 
     internal IReadOnlyList<string> DiscoverSolutionPaths() => WorkspaceDirectory.DiscoverFiles("*.sln", "*.slnx")
         .OrderBy(path => path.Length)

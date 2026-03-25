@@ -13,7 +13,6 @@ public class LoadProject(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		o.WriteLine(result.ToJson());
 
 		result.Types.Count.Is(16);
-		
 	}
 
 	[Fact]

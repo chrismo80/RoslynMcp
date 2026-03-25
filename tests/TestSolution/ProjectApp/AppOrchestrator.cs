@@ -14,6 +14,10 @@ public sealed class AppOrchestrator(IWorkItemOperation operation)
 
     public string Name { get; set; }
 
+    public DateTime MyTime { get;  private set; }
+
+    public TimeSpan Duration { get; }
+
     public async Task<OperationResult> RunAsync(CancellationToken cancellationToken = default)
     {
         _operation.StepCompleted += OnStepCompleted;

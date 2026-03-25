@@ -10,7 +10,7 @@ public sealed class SymbolManager : Manager
     private readonly ConcurrentDictionary<ISymbol, string> _ids = new(SymbolEqualityComparer.Default);
     private readonly ConcurrentDictionary<string, ISymbol> _symbols = new();
 
-    internal ISymbol ToSymbol(string id) => _symbols[id];
+    internal ISymbol? ToSymbol(string id) => _symbols.GetValueOrDefault(id);
 
     internal string ToId(ISymbol symbol)
     {
