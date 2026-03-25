@@ -1,3 +1,5 @@
+using RoslynMcp.Tools.Extensions;
+
 namespace RoslynMcp.Tools.Managers;
 
 public sealed class WorkspaceManager : Manager
@@ -16,18 +18,7 @@ public sealed class WorkspaceManager : Manager
     internal string ToRelativePathIfPossible(string path) =>
         path.StartsWith(WorkspaceDirectory + Path.DirectorySeparatorChar) ? Path.GetRelativePath(WorkspaceDirectory, path) : path;
 
-    internal IReadOnlyList<string> DiscoverSolutionPaths() => DiscoverSolutionPaths("*.sln", "*.slnx")
+    internal IReadOnlyList<string> DiscoverSolutionPaths() => WorkspaceDirectory.DiscoverFiles("*.sln", "*.slnx")
         .OrderBy(path => path.Length)
         .ToList();
-
-    private IEnumerable<string> DiscoverSolutionPaths(params string[] patterns)
-    {
-        foreach (var pattern in patterns)
-        {
-            foreach (var solutionPath in Directory.EnumerateFiles(WorkspaceDirectory, pattern, SearchOption.AllDirectories))
-            {
-                yield return Path.GetFullPath(solutionPath);
-            }
-        }
-    }
 }

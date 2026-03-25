@@ -7,7 +7,7 @@ internal sealed record TestProcessResult(int ExitCode, string StandardOutput, st
 
 internal sealed class TestProcessRunner
 {
-    public async Task<TestProcessResult> RunAsync(string targetPath, string resultsDirectory, string? filter, CancellationToken cancellationToken)
+    public static async Task<TestProcessResult> RunAsync(string targetPath, string resultsDirectory, string? filter, CancellationToken cancellationToken)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -22,7 +22,11 @@ internal sealed class TestProcessRunner
         AddArguments(startInfo.ArgumentList, targetPath, resultsDirectory, filter);
         PrepareDotnetCliEnvironment(startInfo);
 
-        using var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
+        using var process = new Process();
+        
+        process.StartInfo = startInfo;
+        process.EnableRaisingEvents = true;
+        
         try
         {
             process.Start();

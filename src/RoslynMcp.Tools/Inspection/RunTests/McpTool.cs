@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
+using RoslynMcp.Tools.Extensions;
 using RoslynMcp.Tools.Managers;
 
 namespace RoslynMcp.Tools.Inspection.RunTests;
@@ -74,11 +75,10 @@ public sealed class McpTool(
         
             try
             {
-                var processResult = await new TestProcessRunner()
-                    .RunAsync(target, resultsDirectory, filter, cancellationToken)
+                var processResult = await TestProcessRunner.RunAsync(target, resultsDirectory, filter, cancellationToken)
                     .ConfigureAwait(false);
 
-                var trxReports = DiscoverTrxReports(resultsDirectory);
+                var trxReports = resultsDirectory.DiscoverFiles("*.trx").ToList();
 
                 var trxRun = TestResultInterpreter.ParseTrxRun(trxReports, workspaceManager);
                 
@@ -89,14 +89,5 @@ public sealed class McpTool(
                 if (Directory.Exists(resultsDirectory))
                     Directory.Delete(resultsDirectory, recursive: true);
             }
-    }
-
-    private static IReadOnlyList<string> DiscoverTrxReports(string resultsDirectory)
-    {
-        if (!Directory.Exists(resultsDirectory))
-            return [];
-
-        return Directory.EnumerateFiles(resultsDirectory, "*.trx", SearchOption.AllDirectories)
-            .ToArray();
     }
 }

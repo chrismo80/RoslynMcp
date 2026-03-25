@@ -1,7 +1,7 @@
 using Microsoft.CodeAnalysis;
 using RoslynMcp.Tools.Managers;
 
-namespace RoslynMcp.Tools;
+namespace RoslynMcp.Tools.Extensions;
 
 internal static class SymbolExtensions
 {

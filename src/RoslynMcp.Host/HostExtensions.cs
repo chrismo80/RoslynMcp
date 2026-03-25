@@ -1,10 +1,10 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Protocol;
-using RoslynMcp.Tools;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using RoslynMcp.Tools.Extensions;
 
 namespace RoslynMcp.Host;
 

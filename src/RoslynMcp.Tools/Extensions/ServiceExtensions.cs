@@ -1,7 +1,7 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace RoslynMcp.Tools;
+namespace RoslynMcp.Tools.Extensions;
 
 public static class ServiceExtensions
 {

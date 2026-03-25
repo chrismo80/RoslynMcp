@@ -10,63 +10,35 @@ internal sealed partial class TestResultInterpreter
     {
         if (trxRun.FailureGroups.Count > 0)
         {
-            return new Result(
-                RunTestOutcomes.TestFailures,
-                processResult.ExitCode,
-                trxRun.FailureGroups,
-                Summary: BuildFailureSummary(trxRun.Counts?.Failed ?? trxRun.TotalFailureCount),
-                Counts: trxRun.Counts);
+            return new Result(RunTestOutcomes.TestFailures, processResult.ExitCode, trxRun.FailureGroups, Summary: BuildFailureSummary(trxRun.Counts?.Failed ?? trxRun.TotalFailureCount), Counts: trxRun.Counts);
         }
 
         if (TryGetNoTestsMatchedSummary(processResult, trxRun, out var noTestsMatchedSummary))
         {
-            return new Result(
-                RunTestOutcomes.Passed,
-                processResult.ExitCode,
-                [],
-                Summary: noTestsMatchedSummary,
-                Counts: trxRun.Counts);
+            return new Result(RunTestOutcomes.Passed, processResult.ExitCode, [], Summary: noTestsMatchedSummary, Counts: trxRun.Counts);
         }
 
         if (processResult.ExitCode == 0)
         {
-            return new Result(
-                RunTestOutcomes.Passed,
-                processResult.ExitCode,
-                [],
-                Summary: "All tests passed.",
-                Counts: trxRun.Counts);
+            return new Result(RunTestOutcomes.Passed, processResult.ExitCode, [], Summary: "All tests passed.", Counts: trxRun.Counts);
         }
 
         var diagnostics = ParseBuildDiagnostics(processResult.StandardOutput, processResult.StandardError);
+        
         if (diagnostics.Count > 0)
         {
-            return new Result(
-                RunTestOutcomes.BuildFailed,
-                processResult.ExitCode,
-                [],
-                diagnostics,
-                Summary: diagnostics[0].Message);
+            return new Result(RunTestOutcomes.BuildFailed, processResult.ExitCode, [], diagnostics, Summary: diagnostics[0].Message);
         }
 
         if (TryGetInfrastructureFailureSummary(processResult.StandardOutput, processResult.StandardError, out var infrastructureSummary))
         {
-            return new Result(
-                RunTestOutcomes.InfrastructureError,
-                processResult.ExitCode,
-                [],
-                Summary: infrastructureSummary);
+            return new Result(RunTestOutcomes.InfrastructureError, processResult.ExitCode, [], Summary: infrastructureSummary);
         }
 
-        return new Result(
-            RunTestOutcomes.BuildFailed,
-            processResult.ExitCode,
-            [],
-            Summary: "dotnet test failed before reporting test results.");
+        return new Result(RunTestOutcomes.BuildFailed, processResult.ExitCode, [], Summary: "dotnet test failed before reporting test results.");
     }
 
-    private static string BuildFailureSummary(int count)
-        => count == 1 ? "1 test failed." : $"{count} tests failed.";
+    private static string BuildFailureSummary(int count) => count == 1 ? "1 test failed." : $"{count} tests failed.";
 
     internal static ParsedTrxRun ParseTrxRun(IReadOnlyList<string> trxFilePaths, WorkspaceManager workspaceManager)
     {
@@ -79,13 +51,8 @@ internal sealed partial class TestResultInterpreter
         var counts = new MutableCounts();
         var hasCounts = false;
 
-        foreach (var trxFilePath in trxFilePaths)
+        foreach (var trxFilePath in trxFilePaths.Where(File.Exists))
         {
-            if (!File.Exists(trxFilePath))
-            {
-                continue;
-            }
-
             try
             {
                 var document = XDocument.Load(trxFilePath);
@@ -129,17 +96,14 @@ internal sealed partial class TestResultInterpreter
             }
         }
 
-        return new ParsedTrxRun(
-            BuildFailureGroups(failures),
-            failures.Count,
-            hasCounts ? counts.ToImmutable() : null);
+        return new ParsedTrxRun(BuildFailureGroups(failures), failures.Count, hasCounts ? counts.ToImmutable() : null);
     }
 
     private static IReadOnlyList<TestFailureGroup> BuildFailureGroups(IReadOnlyList<ParsedFailure> failures)
     {
         if (failures.Count == 0)
         {
-            return Array.Empty<TestFailureGroup>();
+            return [];
         }
 
         return failures
@@ -160,49 +124,36 @@ internal sealed partial class TestResultInterpreter
 
     private static bool TryGetInfrastructureFailureSummary(string standardOutput, string standardError, out string? summary)
     {
-        foreach (var line in EnumerateOutputLines(standardOutput, standardError))
+        summary = null;
+        
+        foreach (var line in EnumerateOutputLines(standardOutput, standardError).Where(LooksLikeInfrastructureFailure))
         {
-            if (!LooksLikeInfrastructureFailure(line))
-            {
-                continue;
-            }
-
             summary = line;
-            return true;
         }
 
-        summary = null;
-        return false;
+        return summary is not null;
     }
 
     private static bool TryGetNoTestsMatchedSummary(TestProcessResult processResult, ParsedTrxRun trxRun, out string? summary)
     {
+        summary = null;
+        
         if (string.IsNullOrWhiteSpace(processResult.AppliedFilter))
         {
-            summary = null;
             return false;
         }
 
         if (trxRun.Counts is { Total: 0 })
         {
             summary = "No tests matched the filter.";
-            return true;
         }
 
-        foreach (var line in EnumerateOutputLines(processResult.StandardOutput, processResult.StandardError))
+        if (EnumerateOutputLines(processResult.StandardOutput, processResult.StandardError).Any(l => l.Contains("testcase filter", StringComparison.OrdinalIgnoreCase) && l.Contains("no test", StringComparison.OrdinalIgnoreCase)))
         {
-            if (!line.Contains("testcase filter", StringComparison.OrdinalIgnoreCase)
-                || !line.Contains("no test", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
             summary = "No tests matched the filter.";
-            return true;
         }
 
-        summary = null;
-        return false;
+        return summary is not null;
     }
 
     private static IReadOnlyList<BuildDiagnostic> ParseBuildDiagnostics(string standardOutput, string standardError)
@@ -229,8 +180,7 @@ internal sealed partial class TestResultInterpreter
     }
 
     private static IEnumerable<string> EnumerateOutputLines(string standardOutput, string standardError)
-        => (standardOutput + Environment.NewLine + standardError)
-            .Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        => (standardOutput + Environment.NewLine + standardError).Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     private static BuildDiagnostic? TryParseBuildDiagnostic(string line)
     {
@@ -278,11 +228,10 @@ internal sealed partial class TestResultInterpreter
     }
 
 
-    private static TestDefinition CreateTestDefinition(XElement element)
-        => new(
-            (string?)element.Attribute("id"),
-            (string?)element.Attribute("name"),
-            (string?)element.Element(element.Name.Namespace + "TestMethod")?.Attribute("name"));
+    private static TestDefinition CreateTestDefinition(XElement element) => new(
+        (string?)element.Attribute("id"),
+        (string?)element.Attribute("name"),
+        (string?)element.Element(element.Name.Namespace + "TestMethod")?.Attribute("name"));
 
     private static ParsedTestCase CreateTestCaseResult(XElement element, XNamespace ns, IReadOnlyDictionary<string, TestDefinition> testDefinitions)
     {
@@ -345,8 +294,7 @@ internal sealed partial class TestResultInterpreter
         return InfrastructureFailurePatterns().Any(pattern => line.Contains(pattern, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string[] InfrastructureFailurePatterns()
-        =>
+    private static string[] InfrastructureFailurePatterns() =>
         [
             "invalid format for testcasefilter",
             "the test case filter is not valid",
@@ -440,13 +388,12 @@ internal sealed partial class TestResultInterpreter
             }
         }
 
-        public TestRunCounts ToImmutable()
-            => new(Total, Executed, Passed, Failed, Skipped, NotExecuted);
+        public TestRunCounts ToImmutable() => new(Total, Executed, Passed, Failed, Skipped, NotExecuted);
 
         private static bool IsNotExecutedOutcome(string outcome)
             => string.Equals(outcome, "NotExecuted", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(outcome, "NotRunnable", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(outcome, "Disconnected", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(outcome, "Pending", StringComparison.OrdinalIgnoreCase);
+               || string.Equals(outcome, "NotRunnable", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(outcome, "Disconnected", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(outcome, "Pending", StringComparison.OrdinalIgnoreCase);
     }
 }
