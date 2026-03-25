@@ -8,7 +8,8 @@ namespace RoslynMcp.Tools.Inspection.LoadType;
 
 public sealed record Result(
     TypeSymbol Symbol,
-    IReadOnlyList<TypeSymbol> Usages,
+    IReadOnlyList<TypeSymbol> Derived,
+    IReadOnlyList<TypeSymbol> Implementations,
     IReadOnlyList<MemberSymbol> Members,
     ErrorInfo? Error = null);
 
@@ -26,13 +27,10 @@ public sealed class McpTool(
         string? typeSymbolId = null)
     {
         if (solutionManager.Solution is not { } solution)
-            return new Result(null, [], [], new ErrorInfo("load solution first"));
+            return new Result(null, [], [], [], new ErrorInfo("load solution first"));
         
         if (symbolManager.ToSymbol(typeSymbolId) is not INamedTypeSymbol symbol)
-            return new Result(null, [], [], new ErrorInfo("type not found"));
-
-        var members = symbol.GetMembers()
-            .Select(symbol => MemberSymbol.From(symbol, symbolManager, workspaceManager)).ToList();
+            return new Result(null, [], [], [], new ErrorInfo("type not found"));
 
         var deriveClassed = await SymbolFinder.FindDerivedClassesAsync(symbol, solution, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
@@ -43,11 +41,12 @@ public sealed class McpTool(
         var implementations = await SymbolFinder.FindImplementationsAsync(symbol, solution, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        var usages = deriveClassed.Select(d => TypeSymbol.From(d, symbolManager, workspaceManager))
-            .Concat(derivedInterfaces.Select(d => TypeSymbol.From(d, symbolManager, workspaceManager)))
-            .Concat(implementations.Select(i => TypeSymbol.From(i, symbolManager, workspaceManager)))
-            .ToList();
-        
-        return new Result(TypeSymbol.From(symbol, symbolManager, workspaceManager), usages, members);
+        var members = symbol.GetMembers()
+            .Select(symbol => MemberSymbol.From(symbol, symbolManager, workspaceManager)).ToList();
+
+        return new Result(TypeSymbol.From(symbol, symbolManager, workspaceManager),
+            deriveClassed.Concat(derivedInterfaces).Select(d => TypeSymbol.From(d, symbolManager, workspaceManager)).ToList(),
+            implementations.Select(i => TypeSymbol.From(i, symbolManager, workspaceManager)).ToList(),
+            members);
     }
 }

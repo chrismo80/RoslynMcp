@@ -31,7 +31,6 @@ public class LoadType(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 	{
 		var result = await ServiceProvider.GetRequiredService<Inspection.LoadProject.McpTool>()
 			.Execute(CancellationToken.None, projectName);
-		o.WriteLine(result.ToJson());
 
 		return result.Types.Single(type => type.Type?.DisplayName == displayName).Type.SymbolId;
 	}

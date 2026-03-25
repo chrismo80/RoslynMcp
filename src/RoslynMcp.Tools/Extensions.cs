@@ -128,24 +128,6 @@ internal static class Extensions
         }
     }
 
-    extension(ISymbol symbol)
-    {
-        internal Location GetDeclarationPosition()
-        {
-            var location = symbol.Locations.FirstOrDefault(static location => location.IsInSource);
-
-            if (location is null)
-                return new Location(string.Empty, 0, 0);
-
-            var span = location.GetLineSpan();
-            var start = span.StartLinePosition;
-
-            return new Location(span.Path, start.Line + 1, start.Character + 1);
-        }
-
-        internal string ToStableId() =>
-            $"{symbol.Kind}:{(symbol.OriginalDefinition ?? symbol).ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)}";
-    }
 
     internal static string? NormalizeNamespace(this INamespaceSymbol? symbol)
         => symbol?.IsGlobalNamespace != false
