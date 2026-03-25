@@ -3,7 +3,15 @@ using Microsoft.CodeAnalysis;
 using ModelContextProtocol.Server;
 using RoslynMcp.Tools.Managers;
 
-namespace RoslynMcp.Tools.Inspection.ListTypes;
+namespace RoslynMcp.Tools.Inspection.LoadProject;
+
+public sealed record Result(
+    IReadOnlyList<Entry> Types,
+    ErrorInfo? Error = null);
+
+public sealed record Entry(
+    TypeSymbol? Type = null,
+    IReadOnlyList<string>? Members = null);
 
 [McpServerToolType]
 public sealed class McpTool(

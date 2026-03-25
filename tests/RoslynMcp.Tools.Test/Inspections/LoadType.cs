@@ -1,12 +1,11 @@
 ﻿using Is.Assertions;
 using Microsoft.Extensions.DependencyInjection;
-using RoslynMcp.Tools.Inspection.ListMembers;
+using RoslynMcp.Tools.Inspection.LoadType;
 using Xunit.Abstractions;
-using Result = RoslynMcp.Tools.Inspection.ListTypes.Result;
 
 namespace RoslynMcp.Tools.Test.Inspections;
 
-public class ListMembers(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
+public class LoadType(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 {
 	[Fact]
 	public async Task HappyPath()
@@ -20,7 +19,7 @@ public class ListMembers(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 
 	private async Task<string> GetTypeSymbolIdAsync(string projectName, string displayName)
 	{
-		Result result = await ServiceProvider.GetRequiredService<Inspection.ListTypes.McpTool>()
+		var result = await ServiceProvider.GetRequiredService<Inspection.LoadProject.McpTool>()
 			.Execute(CancellationToken.None, projectName);
 
 		return result.Types.Single(type => type.Type?.DisplayName == displayName).Type.Id;

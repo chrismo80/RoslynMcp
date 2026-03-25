@@ -1,11 +1,11 @@
 ﻿using Is.Assertions;
 using Microsoft.Extensions.DependencyInjection;
-using RoslynMcp.Tools.Inspection.FindCallers;
+using RoslynMcp.Tools.Inspection.LoadSymbol;
 using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Test.Inspections;
 
-public class FindCallers(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
+public class LoadSymbol(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 {
 	[Fact]
 	public async Task HappyPath()
@@ -18,7 +18,7 @@ public class FindCallers(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 
 	private async Task<string> GetTypeSymbolIdAsync(string projectName, string displayName)
 	{
-		var result = await ServiceProvider.GetRequiredService<Inspection.ListTypes.McpTool>()
+		var result = await ServiceProvider.GetRequiredService<Inspection.LoadProject.McpTool>()
 			.Execute(CancellationToken.None, projectName);
 
 		return result.Types.Single(type => type.Type.DisplayName == displayName).Type.Id;
@@ -26,7 +26,7 @@ public class FindCallers(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 
 	private async Task<string> GetMemberSymbolIdAsync(string typeSymbolId, string displayName)
 	{
-		var result = await ServiceProvider.GetRequiredService<Inspection.ListMembers.McpTool>()
+		var result = await ServiceProvider.GetRequiredService<Inspection.LoadType.McpTool>()
 			.Execute(CancellationToken.None, typeSymbolId);
 
 		return result.Members.Single(member => member.DisplayName.Contains(displayName)).SymbolId;

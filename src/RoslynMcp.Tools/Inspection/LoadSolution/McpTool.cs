@@ -1,8 +1,24 @@
 using System.ComponentModel;
+using Microsoft.CodeAnalysis;
 using ModelContextProtocol.Server;
 using RoslynMcp.Tools.Managers;
 
 namespace RoslynMcp.Tools.Inspection.LoadSolution;
+
+public sealed record Result(
+    string? SolutionPath,
+    IReadOnlyList<ProjectSummary> Projects,
+    DiagnosticsSummary? BaselineDiagnostics,
+    ErrorInfo? Error = null);
+
+public sealed record ProjectSummary(
+    string Name,
+    string? Path);
+
+public sealed record DiagnosticsSummary(
+    int ErrorCount,
+    int WarningCount,
+    int InfoCount);
 
 [McpServerToolType]
 public sealed class McpTool(
@@ -34,5 +50,36 @@ public sealed class McpTool(
             workspaceManager.ToRelativePathIfPossible(solutionPath),
             projects.ConvertAll(p => p.ToSummary(workspaceManager)),
             diagnostics.ToDiagnosticsSummary());
+    }
+}
+
+file static class Extensions
+{
+    extension(Project project)
+    {
+        public ProjectSummary ToSummary(WorkspaceManager workspaceManager) =>
+            new(project.Name, workspaceManager.ToRelativePathIfPossible(project.FilePath));
+
+        public async IAsyncEnumerable<Diagnostic> Diagnose(CancellationToken cancellationToken)
+        {
+            var compilation = await project
+                .GetCompilationAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var diagnostic in compilation.GetDiagnostics(cancellationToken))
+                yield return diagnostic;
+        }
+    }
+
+    extension(IReadOnlyList<Diagnostic> diagnostics)
+    {
+        public DiagnosticsSummary ToDiagnosticsSummary()
+        {
+            return new DiagnosticsSummary(
+                diagnostics.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error),
+                diagnostics.Count(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Warning),
+                diagnostics.Count(static diagnostic => diagnostic.Severity is DiagnosticSeverity.Info or DiagnosticSeverity.Hidden)
+            );
+        }
     }
 }

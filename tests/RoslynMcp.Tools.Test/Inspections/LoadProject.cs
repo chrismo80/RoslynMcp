@@ -1,10 +1,11 @@
 ﻿using Is.Assertions;
-using RoslynMcp.Tools.Inspection.ListTypes;
+using RoslynMcp.Tools.Inspection;
+using RoslynMcp.Tools.Inspection.LoadProject;
 using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Test.Inspections;
 
-public class ListTypes(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
+public class LoadProject(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 {
 	[Fact]
 	public async Task HappyPath_WithProjectFile()
@@ -16,12 +17,12 @@ public class ListTypes(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		foreach (var type in result.Types)
 		{
 			o.WriteLine(type.ToString());
-			
+
 			foreach(var member in type.Members)
 				o.WriteLine(member.ToString());
 		}
 	}
-	
+
 	[Fact]
 	public async Task HappyPath_WithProjectName()
 	{
