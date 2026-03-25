@@ -1,21 +1,22 @@
 ﻿using Is.Assertions;
 using Microsoft.Extensions.DependencyInjection;
-using RoslynMcp.Tools.Inspection.LoadSymbol;
+using RoslynMcp.Tools.Inspection.LoadMember;
 using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Test.Inspections;
 
-public class LoadSymbol(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
+public class LoadMember(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 {
 	[Fact]
-	public async Task HappyPath()
+	public async Task HappyPath_Method()
 	{
 		var typeSymbolId = await GetTypeSymbolIdAsync("ProjectApp", "AppOrchestrator");
 		var memberSymbolId = await GetMemberSymbolIdAsync(typeSymbolId, "RunAsync");
 
 		var result = await Sut.Execute(CancellationToken.None, memberSymbolId);
+		o.WriteLine(result.ToJson());
 	}
-
+	
 	private async Task<string> GetTypeSymbolIdAsync(string projectName, string displayName)
 	{
 		var result = await ServiceProvider.GetRequiredService<Inspection.LoadProject.McpTool>()

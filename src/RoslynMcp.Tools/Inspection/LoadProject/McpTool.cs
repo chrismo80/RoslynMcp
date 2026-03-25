@@ -6,7 +6,6 @@ using RoslynMcp.Tools.Managers;
 namespace RoslynMcp.Tools.Inspection.LoadProject;
 
 public sealed record Result(
-    int Count,
     IReadOnlyList<Entry> Types,
     ErrorInfo? Error = null);
 
@@ -29,17 +28,17 @@ public sealed class McpTool(
         )
     {
         if (solutionManager.Solution?.Projects.FirstOrDefault(p => Matches(p, projectPath)) is not { } project)
-            return new Result(0, [], new ErrorInfo("no project found"));
+            return new Result([], new ErrorInfo("no project found"));
 
         if(await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false) is not { } compilation)
-            return new Result(0, [], new ErrorInfo("no compilation found"));
+            return new Result([], new ErrorInfo("no compilation found"));
 
         var types = compilation!.GlobalNamespace.GetTypes()
             .Select(ToEntry)
             .OrderByDescending(e => e.Members?.Count)
             .ToList();
 
-        return new Result(types.Count, types);
+        return new Result(types);
     }
 
     private bool Matches(Project project, string input)

@@ -10,16 +10,17 @@ public class LoadProject(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 	public async Task HappyPath_WithProjectFile()
 	{
 		var result = await Sut.Execute(CancellationToken.None, Path.Combine("ProjectCore", "ProjectCore.csproj"));
+		o.WriteLine(result.ToJson());
 
 		result.Types.Count.Is(16);
 		
-		o.WriteLine(result.ToJson());
 	}
 
 	[Fact]
 	public async Task HappyPath_WithProjectName()
 	{
 		var result = await Sut.Execute(CancellationToken.None, "ProjectCore");
+		o.WriteLine(result.ToJson());
 
 		result.Types.Count.Is(16);
 	}

@@ -13,9 +13,17 @@ public class LoadType(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		var id = await GetTypeSymbolIdAsync("ProjectApp", "AppOrchestrator");
 
 		var result = await Sut.Execute(CancellationToken.None, id);
+		o.WriteLine(result.ToJson());
 
 		result.Members.Count.Is(12);
-		
+	}
+	
+	[Fact]
+	public async Task HappyPath_Interface()
+	{
+		var symbolId = await GetTypeSymbolIdAsync("ProjectCore", "IOperation");
+
+		var result = await Sut.Execute(CancellationToken.None, symbolId);
 		o.WriteLine(result.ToJson());
 	}
 
@@ -23,6 +31,7 @@ public class LoadType(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 	{
 		var result = await ServiceProvider.GetRequiredService<Inspection.LoadProject.McpTool>()
 			.Execute(CancellationToken.None, projectName);
+		o.WriteLine(result.ToJson());
 
 		return result.Types.Single(type => type.Type?.DisplayName == displayName).Type.Id;
 	}

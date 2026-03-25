@@ -42,6 +42,7 @@ internal static class SymbolExtensions
                 .Where(m => m.DeclaredAccessibility > Accessibility.Private)
                 .Select(m => MemberSymbol.From(m, symbolManager, workspaceManager))
                 .Where(m => m.Kind != null)
+                .Take(10)
                 .OrderBy(m => m.Kind, StringComparer.Ordinal)
                 .ThenBy(m => m.DisplayName, StringComparer.Ordinal)
                 .Select(m => m.Text)
