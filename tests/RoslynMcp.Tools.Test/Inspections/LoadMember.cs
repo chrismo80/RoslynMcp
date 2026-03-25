@@ -28,6 +28,16 @@ public class LoadMember(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 	}
 	
 	[Fact]
+	public async Task HappyPath_Property()
+	{
+		var typeSymbolId = await GetTypeSymbolIdAsync("ProjectApp", "AppOrchestrator");
+		var memberSymbolId = await GetMemberSymbolIdAsync(typeSymbolId, "Name");
+
+		var result = await Sut.Execute(CancellationToken.None, memberSymbolId);
+		o.WriteLine(result.ToJson());
+	}
+	
+	[Fact]
 	public async Task HappyPath_WithDocumentation()
 	{
 		var typeSymbolId = await GetTypeSymbolIdAsync("ProjectCore", "Documentation");

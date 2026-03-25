@@ -45,7 +45,7 @@ public sealed class McpTool(
 
         var members = symbol.GetMembers()
             .Select(symbol => MemberSymbol.From(symbol, symbolManager, workspaceManager))
-            .Where(symbol => symbol.Location.IsHandwritten())
+            .Where(symbol => symbol.Kind is not null && symbol.Location.IsHandwritten())
             .ToList();
 
         var documentation = symbol.GetDocumentation();

@@ -12,6 +12,8 @@ public sealed class AppOrchestrator(IWorkItemOperation operation)
     private readonly CodeSmells _smells = new();
     private int _steps;
 
+    public string Name { get; set; }
+
     public async Task<OperationResult> RunAsync(CancellationToken cancellationToken = default)
     {
         _operation.StepCompleted += OnStepCompleted;
@@ -62,6 +64,8 @@ public sealed class AppOrchestrator(IWorkItemOperation operation)
         {
             _steps++;
         }
+
+        Name = "Done";
     }
 
     private void OnStateChanged(object? sender, string state)

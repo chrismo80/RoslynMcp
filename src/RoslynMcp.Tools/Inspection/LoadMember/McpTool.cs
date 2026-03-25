@@ -53,22 +53,32 @@ public sealed class McpTool(
         var implementations = await SymbolFinder.FindImplementedInterfaceMembersAsync(symbol, solutionManager.Solution, null, cancellationToken)
             .ConfigureAwait(false);
 
-        var usages = callers.Select(c => MemberSymbol.From(c.CallingSymbol, symbolManager, workspaceManager))
-            .Concat(references.Where(r => r.Definition != symbol).Select(r => MemberSymbol.From(r.Definition, symbolManager, workspaceManager)))
-            .Concat(overrides.Select(o => MemberSymbol.From(o, symbolManager, workspaceManager)))
-            .Concat(implementations.Select(i => MemberSymbol.From(i, symbolManager, workspaceManager)))
-            .ToList();
-
         var documentation = symbol.GetDocumentation();
         
         return new Result(
             MemberSymbol.From(symbol, symbolManager, workspaceManager),
             documentation,
-            references.Where(r => r.Definition != symbol).Select(r => MemberSymbol.From(r.Definition, symbolManager, workspaceManager)).ToList(),
-            callers.Select(c => MemberSymbol.From(c.CallingSymbol, symbolManager, workspaceManager)).ToList(),
-            callees.Select(c => MemberSymbol.From(c.Symbol, symbolManager, workspaceManager)).ToList(),
-            overrides.Select(o => MemberSymbol.From(o, symbolManager, workspaceManager)).ToList(),
-            implementations.Select(i => MemberSymbol.From(i, symbolManager, workspaceManager)).ToList()
+            references
+                .Where(r => r.Definition != symbol)
+                .Select(r => MemberSymbol.From(r.Definition, symbolManager, workspaceManager))
+                .Where(symbol => symbol.Kind is not null)
+                .ToList(),
+            callers
+                .Select(c => MemberSymbol.From(c.CallingSymbol, symbolManager, workspaceManager))
+                .Where(symbol => symbol.Kind is not null)
+                .ToList(),
+            callees
+                .Select(c => MemberSymbol.From(c.Symbol, symbolManager, workspaceManager))
+                .Where(symbol => symbol.Kind is not null)
+                .ToList(),
+            overrides
+                .Select(o => MemberSymbol.From(o, symbolManager, workspaceManager))
+                .Where(symbol => symbol.Kind is not null)
+                .ToList(),
+            implementations
+                .Select(i => MemberSymbol.From(i, symbolManager, workspaceManager))
+                .Where(symbol => symbol.Kind is not null)
+                .ToList()
             );
     }
     
