@@ -17,8 +17,8 @@ public sealed class SymbolManager : Manager
         if(_ids.TryGetValue(symbol, out var id))
             return id;
 
-        id =  NewId();
-
+        id = symbol is ITypeSymbol ? NewId('T') : NewId('M');
+        
         _ids[symbol] = id;
         _symbols[id] = symbol;
 
@@ -31,10 +31,10 @@ public sealed class SymbolManager : Manager
         _symbols.Clear();
     }
 
-    private string NewId()
+    private string NewId(char prefix)
     {
         Interlocked.Increment(ref _counter);
 
-        return $"S-{_counter:00000}";
+        return $"{prefix}-{_counter:00000}";
     }
 }

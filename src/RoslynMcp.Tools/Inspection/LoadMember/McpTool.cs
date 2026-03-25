@@ -33,6 +33,8 @@ public sealed class McpTool(
         string? symbolId = null
         )
     {
+        try
+        {
         if (solutionManager.Solution is not { } solution)
             return new Result(null, null, [], [], [], [], [], new ErrorInfo("load solution first"));
         
@@ -80,6 +82,11 @@ public sealed class McpTool(
                 .Where(symbol => symbol.Kind is not null)
                 .ToList()
             );
+        }
+        catch (Exception e)
+        {
+            return new Result(null, null, [], [], [], [], [], new ErrorInfo(e.Message));
+        }
     }
     
     private static async Task<IReadOnlyList<(ISymbol Symbol, Location Location)>> CollectCalleesAsync(ISymbol symbol, Solution solution, CancellationToken ct)

@@ -15,7 +15,7 @@ public class LoadType(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		var result = await Sut.Execute(CancellationToken.None, id);
 		o.WriteLine(result.ToJson());
 
-		result.Members.Count.Is(12);
+		result.Members.Count.Is(13);
 	}
 	
 	[Fact]
