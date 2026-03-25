@@ -24,10 +24,10 @@ public sealed class McpTool(
     SymbolManager symbolManager
     ) : Tool
 {
-    [McpServerTool(Name = "load_symbol", Title = "Load Symbol", ReadOnly = true, Idempotent = true)]
-    [Description("Use this tool when you need callers or implementations of a symbol.")]
+    [McpServerTool(Name = "load_member", Title = "Load Member", ReadOnly = true, Idempotent = true)]
+    [Description("Use this tool when you need callers/calles or overrides/implementations of a symbol.")]
     public async Task<Result> Execute(CancellationToken cancellationToken,
-        [Description("The stable symbol ID.")]
+        [Description("The stable symbol ID, obtained from load_type.")]
         string? symbolId = null
         )
     {

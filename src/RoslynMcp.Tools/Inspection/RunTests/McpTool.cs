@@ -73,21 +73,21 @@ public sealed class McpTool(
         
         Directory.CreateDirectory(resultsDirectory);
         
-            try
-            {
-                var processResult = await TestProcessRunner.RunAsync(target, resultsDirectory, filter, cancellationToken)
-                    .ConfigureAwait(false);
-
-                var trxReports = resultsDirectory.DiscoverFiles("*.trx").ToList();
-
-                var trxRun = TestResultInterpreter.ParseTrxRun(trxReports, workspaceManager);
-                
-                return TestResultInterpreter.Interpret(processResult, trxRun);
-            }
-            finally
-            {
-                if (Directory.Exists(resultsDirectory))
-                    Directory.Delete(resultsDirectory, recursive: true);
-            }
+        try
+        {
+            var processResult = await TestProcessRunner.RunAsync(target, resultsDirectory, filter, cancellationToken)
+                .ConfigureAwait(false);
+            
+            var trxReports = resultsDirectory.DiscoverFiles("*.trx").ToList();
+            
+            var trxRun = TestResultInterpreter.ParseTrxRun(trxReports, workspaceManager);
+            
+            return TestResultInterpreter.Interpret(processResult, trxRun);
+        }
+        finally
+        {
+            if (Directory.Exists(resultsDirectory))
+                Directory.Delete(resultsDirectory, recursive: true);
+        }
     }
 }

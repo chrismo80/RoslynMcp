@@ -21,10 +21,10 @@ public sealed class McpTool(
     SymbolManager symbolManager
     ) : Tool
 {
-    [McpServerTool(Name = "list_types", Title = "List Types", ReadOnly = true, Idempotent = true)]
-    [Description("Use this tool when you need to list types declared in a specific loaded project. It is useful for project-scoped discovery, for finding type symbols before follow-up calls such as list_members or resolve_symbol, and for optionally enriching only the returned type entries with XML summaries or lightweight declared-member previews. For automation, prefer projectPath as the stable selector; projectId is snapshot-local to the active workspace snapshot. Results prefer handwritten declarations by default and report source bias, completeness, and degraded discovery hints.")]
+    [McpServerTool(Name = "load_project", Title = "Load Project", ReadOnly = true, Idempotent = true)]
+    [Description("Use this tool when you need to list types declared in a specific project. It is useful for project-scoped discovery, for finding type symbols before follow-up calls such as load_types or load_member.")]
     public async Task<Result> Execute(CancellationToken cancellationToken,
-        [Description("Exact path to a project file (.csproj). Specify only one of projectPath, projectName, or projectId.")]
+        [Description("Exact path to a project file (.csproj), obtained from load_solution.")]
         string? projectPath = null
         )
     {
@@ -36,6 +36,7 @@ public sealed class McpTool(
 
         var types = compilation!.GlobalNamespace.GetTypes()
             .Select(ToEntry)
+            .Where(entry => entry.Type?.Location.IsHandwritten() ?? false)
             .OrderByDescending(e => e.Members?.Count)
             .ToList();
 

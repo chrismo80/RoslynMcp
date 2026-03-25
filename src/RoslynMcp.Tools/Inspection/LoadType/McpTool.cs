@@ -20,10 +20,10 @@ public sealed class McpTool(
     SymbolManager symbolManager
     ) : Tool
 {
-    [McpServerTool(Name = "list_members", Title = "List Members", ReadOnly = true, Idempotent = true)]
-    [Description("Use this tool when you need to inspect the members declared by a specific type. It returns methods, properties, fields, events, and constructors")]
+    [McpServerTool(Name = "load_type", Title = "Load Type", ReadOnly = true, Idempotent = true)]
+    [Description("Use this tool when you need to inspect type hierarchy and members declared by the specific type.")]
     public async Task<Result> Execute(CancellationToken cancellationToken,
-        [Description("The stable symbol ID of a type, obtained from list_types.")]
+        [Description("The stable symbol ID of a type, obtained from load_project.")]
         string? typeSymbolId = null)
     {
         if (solutionManager.Solution is not { } solution)

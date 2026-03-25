@@ -27,7 +27,6 @@ public sealed record TypeSymbol(
 	}
 }
 
-
 public sealed record MemberSymbol(
 	string SymbolId,
 	string? Location,
