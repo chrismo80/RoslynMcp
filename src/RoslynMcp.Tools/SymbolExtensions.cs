@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis;
+using RoslynMcp.Tools.Managers;
 
 namespace RoslynMcp.Tools;
 
@@ -33,6 +34,18 @@ internal static class SymbolExtensions
                 TypeKind.Struct => "struct",
                 _ => "unknown"
             };
+        }
+
+        internal IReadOnlyList<string> MembersPreview(SymbolManager symbolManager)
+        {
+            return symbol.GetMembers()
+                .Where(m => m.DeclaredAccessibility > Accessibility.Private)
+                .Select(m => MemberSymbol.From(m, symbolManager))
+                .Where(m => m.Kind != null)
+                .OrderBy(m => m.Kind, StringComparer.Ordinal)
+                .ThenBy(m => m.DisplayName, StringComparer.Ordinal)
+                .Select(m => m.ToLine())
+                .ToArray();
         }
     }
 
