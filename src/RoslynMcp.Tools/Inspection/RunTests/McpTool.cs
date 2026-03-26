@@ -16,8 +16,6 @@ public sealed class McpTool(WorkspaceManager workspaceManager) : Tool
         [Description("Optional dotnet test filter expression. Passed through to --filter semantics where practical.")]
         string? filter = null)
     {
-        target = workspaceManager.ToAbsolutePath(target) ?? workspaceManager.WorkspaceDirectory;
-        
         return await DotNet.Test(workspaceManager, target, filter, cancellationToken);
     }
 }

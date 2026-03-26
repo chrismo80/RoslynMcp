@@ -7,8 +7,10 @@ namespace RoslynMcp.Tools.Inspection.RunTests;
 
 internal static partial class DotNet
 {
-    public static async Task<Result> Test(WorkspaceManager workspaceManager, string targetPath, string? filter, CancellationToken cancellationToken)
+    public static async Task<Result> Test(WorkspaceManager workspaceManager, string? targetPath, string? filter, CancellationToken cancellationToken)
     {
+        targetPath = workspaceManager.ToAbsolutePath(targetPath) ?? workspaceManager.WorkspaceDirectory;
+        
         var resultsDirectory = Path.Combine(Path.GetTempPath(), "RoslynMcp", Guid.NewGuid().ToString("N"));
         
         using var runner = new TestRunner(workspaceManager, targetPath, filter, resultsDirectory);
@@ -50,11 +52,11 @@ internal sealed class TestRunner(
         arguments.Add("--results-directory");
         arguments.Add(resultsDirectory);
 
-        if (!string.IsNullOrWhiteSpace(filter))
-        {
-            arguments.Add("--filter");
-            arguments.Add(filter.Trim());
-        }
+        if (string.IsNullOrWhiteSpace(filter))
+            return;
+        
+        arguments.Add("--filter");
+        arguments.Add(filter.Trim());
     }
 
     protected override void PrepareEnvironment(ProcessStartInfo startInfo)
