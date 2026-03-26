@@ -21,6 +21,17 @@ public class LoadSolution(ITestOutputHelper o) : Tests<McpTool>
 		var result = await Sut.Execute(CancellationToken.None, "TestSolution.sln");
 		o.WriteLine(result.ToJson());
 
+		result.Error?.Message.IsEmpty();
 		result.Projects.Count.Is(7);
+	}
+	
+	[Fact]
+	public async Task NotSoHappyPath_WithFolder()
+	{
+		var result = await Sut.Execute(CancellationToken.None, "ProjectApp");
+		o.WriteLine(result.ToJson());
+
+		result.Error?.Message.IsNotEmpty();
+		result.Projects.Count.Is(0);
 	}
 }

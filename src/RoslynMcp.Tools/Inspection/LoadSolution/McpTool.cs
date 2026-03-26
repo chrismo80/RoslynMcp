@@ -29,19 +29,22 @@ public sealed class McpTool(
         string? solutionHintPath = null
     )
     {
+        if (solutionHintPath is not null && !File.Exists(workspaceManager.ToAbsolutePath(solutionHintPath)))
+            return Error("please provide a path to a .sln or .slnx file");
+
         var solutionPath = solutionHintPath ?? workspaceManager.DiscoverSolutionPaths().FirstOrDefault();
 
         if (solutionPath is null)
-            return new Result(null, [], new ErrorInfo("no solution found"));
+            return Error("no solution found");
 
         var solution = await solutionManager.Load(workspaceManager.ToAbsolutePath(solutionPath), cancellationToken);
 
         return new Result(
             workspaceManager.ToRelativePathIfPossible(solutionPath),
-            BuildAsync(solutionManager.Solution));
+            GetProjects(solutionManager.Solution));
     }
     
-    private IReadOnlyList<ProjectSummary> BuildAsync(Solution solution)
+    private IReadOnlyList<ProjectSummary> GetProjects(Solution solution)
     {
         var outgoingByPath = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         var incomingByPath = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -87,4 +90,6 @@ public sealed class McpTool(
             .OrderByDescending(static project => project.ReferencedBy.Count)
             .ThenBy(static project => project.Name, StringComparer.Ordinal)];
     }
+    
+    private Result Error(string errorMessage) => new(null, [], new ErrorInfo(errorMessage));
 }
