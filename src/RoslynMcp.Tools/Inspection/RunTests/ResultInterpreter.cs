@@ -86,9 +86,7 @@ internal sealed partial class ResultInterpreter
     internal static ParsedTrxRun ParseTrxRun(IReadOnlyList<string> trxFilePaths, WorkspaceManager workspaceManager)
     {
         if (trxFilePaths.Count == 0)
-        {
             return ParsedTrxRun.Empty;
-        }
 
         var failures = new List<ParsedFailure>();
         var counts = new MutableCounts();
@@ -145,9 +143,7 @@ internal sealed partial class ResultInterpreter
     private static IReadOnlyList<TestFailureGroup> BuildFailureGroups(IReadOnlyList<ParsedFailure> failures)
     {
         if (failures.Count == 0)
-        {
             return [];
-        }
 
         return failures
             .GroupBy(static failure => failure.File, GetPathStringComparer())
@@ -170,9 +166,7 @@ internal sealed partial class ResultInterpreter
         summary = null;
         
         foreach (var line in EnumerateOutputLines(standardOutput, standardError).Where(LooksLikeInfrastructureFailure))
-        {
             summary = line;
-        }
 
         return summary is not null;
     }
@@ -182,14 +176,10 @@ internal sealed partial class ResultInterpreter
         summary = null;
 
         if (trxRun.Counts is { Total: 0 })
-        {
             summary = "No tests matched the filter.";
-        }
 
         if (EnumerateOutputLines(processResult.StandardOutput, processResult.StandardError).Any(l => l.Contains("testcase filter", StringComparison.OrdinalIgnoreCase) && l.Contains("no test", StringComparison.OrdinalIgnoreCase)))
-        {
             summary = "No tests matched the filter.";
-        }
 
         return summary is not null;
     }
@@ -202,16 +192,14 @@ internal sealed partial class ResultInterpreter
         foreach (var line in EnumerateOutputLines(standardOutput, standardError))
         {
             var diagnostic = TryParseBuildDiagnostic(line);
+            
             if (diagnostic is null)
-            {
                 continue;
-            }
 
             var key = string.Join("|", diagnostic.File, diagnostic.Line, diagnostic.Column, diagnostic.Id, diagnostic.Severity, diagnostic.Message);
+
             if (seen.Add(key))
-            {
                 diagnostics.Add(diagnostic);
-            }
         }
 
         return diagnostics;
@@ -223,6 +211,7 @@ internal sealed partial class ResultInterpreter
     private static BuildDiagnostic? TryParseBuildDiagnostic(string line)
     {
         var detailedMatch = DetailedDiagnosticRegex().Match(line);
+        
         if (detailedMatch.Success)
         {
             return new BuildDiagnostic(
@@ -235,6 +224,7 @@ internal sealed partial class ResultInterpreter
         }
 
         var simpleMatch = SimpleDiagnosticRegex().Match(line);
+        
         if (simpleMatch.Success)
         {
             return new BuildDiagnostic(
@@ -252,15 +242,12 @@ internal sealed partial class ResultInterpreter
     private static (string File, int Line)? TryParseStackTraceLocation(string? stackTrace)
     {
         if (string.IsNullOrWhiteSpace(stackTrace))
-        {
             return null;
-        }
 
         var match = StackTraceLocationRegex().Match(stackTrace);
+
         if (!match.Success)
-        {
             return null;
-        }
 
         return (match.Groups["file"].Value, int.Parse(match.Groups["line"].Value, System.Globalization.CultureInfo.InvariantCulture));
     }
@@ -295,11 +282,10 @@ internal sealed partial class ResultInterpreter
         foreach (var element in document.Descendants(ns + "Counters"))
         {
             if (!int.TryParse((string?)element.Attribute("total"), out var total))
-            {
                 continue;
-            }
 
             found = true;
+            
             aggregated.Add(new TestRunCounts(
                 total,
                 ParseNullableInt((string?)element.Attribute("executed")) ?? 0,
@@ -313,6 +299,7 @@ internal sealed partial class ResultInterpreter
         }
 
         counts = aggregated.ToImmutable();
+        
         return found;
     }
 
@@ -325,9 +312,7 @@ internal sealed partial class ResultInterpreter
     private static bool LooksLikeInfrastructureFailure(string line)
     {
         if (string.IsNullOrWhiteSpace(line))
-        {
             return false;
-        }
 
         return InfrastructureFailurePatterns().Any(pattern => line.Contains(pattern, StringComparison.OrdinalIgnoreCase));
     }

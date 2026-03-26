@@ -12,34 +12,23 @@ internal static partial class DotNet
         targetPath = workspaceManager.ToAbsolutePath(targetPath) ?? workspaceManager.WorkspaceDirectory;
         
         var resultsDirectory = Path.Combine(Path.GetTempPath(), "RoslynMcp", Guid.NewGuid().ToString("N"));
-        
-        using var runner = new TestRunner(workspaceManager, targetPath, filter, resultsDirectory);
-        
-        return await runner.Run(cancellationToken);
-    }
-}
 
-internal sealed class TestRunner(
-    WorkspaceManager workspaceManager,
-    string targetPath,
-    string? filter,
-    string resultsDirectory
-    )
-    : ProcessRunner("dotnet")
-{
-    internal async Task<Result> Run(CancellationToken cancellationToken)
-    {
         Directory.CreateDirectory(resultsDirectory);
         
-        var processResult = await Run(targetPath, cancellationToken).ConfigureAwait(false);
+        using var runner = new TestRunner(targetPath, filter, resultsDirectory);
+        
+        var processResult = await runner.Run(targetPath, cancellationToken).ConfigureAwait(false);
             
-        var trxReports = resultsDirectory.DiscoverFiles("*.trx").ToList();
+        var trxFiles = resultsDirectory.DiscoverFiles("*.trx").ToList();
             
-        var trxRun = ResultInterpreter.ParseTrxRun(trxReports, workspaceManager);
+        var trxRun = ResultInterpreter.ParseTrxRun(trxFiles, workspaceManager);
             
         return ResultInterpreter.Interpret(processResult, trxRun);
     }
+}
 
+internal sealed class TestRunner(string targetPath, string? filter, string resultsDirectory) : ProcessRunner("dotnet")
+{
     protected override void SetArguments(Collection<string> arguments)
     {
         arguments.Add("test");
