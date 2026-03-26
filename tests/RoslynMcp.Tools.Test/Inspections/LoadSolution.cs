@@ -26,7 +26,7 @@ public class LoadSolution(ITestOutputHelper o) : Tests<McpTool>
 	}
 	
 	[Fact]
-	public async Task NotSoHappyPath_WithFolder()
+	public async Task HappyPath_WithFolder()
 	{
 		SetWorkspaceDirectory(Directory.GetParent(TestSolutionDirectory)!.FullName);
 	

@@ -56,4 +56,15 @@ public class RunTests(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		result.Counts.Passed.Is(1);
 		result.Counts.Failed.Is(3);
 	}
+	
+	[Fact]
+	public async Task HappyPath_WithProjectTarget_MixedOutcome()
+	{
+		var result = await Sut.Execute(CancellationToken.None, Path.Combine("RunTestsFixtures", "MixedOutcomeTests", "MixedOutcomeTests.csproj"));
+		o.WriteLine(result.ToJson());
+
+		result.Outcome.Is("test_failures");
+		result.Counts.Passed.Is(1);
+		result.Counts.Failed.Is(3);
+	}
 }

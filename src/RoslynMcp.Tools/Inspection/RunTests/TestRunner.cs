@@ -16,8 +16,14 @@ internal static partial class DotNet
         Directory.CreateDirectory(resultsDirectory);
         
         using var runner = new TestRunner(targetPath, filter, resultsDirectory);
+
+        var workingDirectory = File.Exists(targetPath) switch
+        {
+            true => Directory.GetParent(targetPath)?.FullName ?? targetPath,
+            false => targetPath
+        };
         
-        var processResult = await runner.Run(targetPath, cancellationToken).ConfigureAwait(false);
+        var processResult = await runner.Run(workingDirectory, cancellationToken).ConfigureAwait(false);
             
         var trxFiles = resultsDirectory.DiscoverFiles("*.trx").ToList();
             
