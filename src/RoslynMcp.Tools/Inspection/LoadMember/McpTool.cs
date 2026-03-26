@@ -12,7 +12,6 @@ namespace RoslynMcp.Tools.Inspection.LoadMember;
 public sealed record Result(
     MemberSymbol? Symbol,
     SymbolDocumentation? Documentation,
-    IReadOnlyList<MemberSymbol> References,
     IReadOnlyList<MemberSymbol> Callers,
     IReadOnlyList<MemberSymbol> Callees,
     IReadOnlyList<MemberSymbol> Overrides,
@@ -20,7 +19,7 @@ public sealed record Result(
     ErrorInfo? Error = null)
 {
     public static Result AsError(string message, IReadOnlyDictionary<string, string>? details = null)
-        => new(null, null, [], [], [], [], [], new ErrorInfo(message, details));
+        => new(null, null, [], [], [], [], new ErrorInfo(message, details));
 }
 
 [McpServerToolType]
@@ -53,7 +52,6 @@ public sealed class McpTool(
             return new Result(
                 MemberSymbol.From(symbol, symbolManager, workspaceManager),
                 symbol.GetDocumentation(),
-                await LoadReferences(symbol, solution, cancellationToken),
                 await LoadCallers(symbol, solution, cancellationToken),
                 await LoadCallees(symbol, solution, cancellationToken),
                 await LoadOverrides(symbol, solution, cancellationToken),
@@ -67,18 +65,6 @@ public sealed class McpTool(
                 ["stack trace"] = e.StackTrace ?? string.Empty
             });
         }
-    }
-
-    private async Task<IReadOnlyList<MemberSymbol>> LoadReferences(ISymbol symbol, Solution solution, CancellationToken cancellationToken)
-    {
-        var references = await SymbolFinder.FindReferencesAsync(symbol, solution, cancellationToken).ConfigureAwait(false);
-
-        return references
-            .Where(reference => reference.Definition != symbol)
-            .Select(reference => reference.Definition)
-            .Select(ToMemberSymbol)
-            .OfType<MemberSymbol>()
-            .ToList();
     }
 
     private async Task<IReadOnlyList<MemberSymbol>> LoadCallers(ISymbol symbol, Solution solution, CancellationToken cancellationToken)

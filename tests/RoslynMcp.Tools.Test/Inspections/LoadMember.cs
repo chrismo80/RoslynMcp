@@ -15,6 +15,8 @@ public class LoadMember(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 
 		var result = await Sut.Execute(CancellationToken.None, memberSymbolId);
 		o.WriteLine(result.ToJson());
+		
+		result.Callers.Count.Is(2);
 	}
 	
 	[Fact]
@@ -46,7 +48,6 @@ public class LoadMember(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		var result = await Sut.Execute(CancellationToken.None, memberSymbolId);
 		o.WriteLine(result.ToJson());
 		
-		result.References.Count.Is(2);
 		result.Overrides.Count.Is(2);
 	}
 	
