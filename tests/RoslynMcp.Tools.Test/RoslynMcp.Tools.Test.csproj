@@ -27,4 +27,13 @@
       <None Remove="xunit.runner.json" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Content Update="..\..\..\..\..\..\nuget\packages\assertwithis\1.10.3\contentFiles\any\any\is.configuration.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <Content Update="..\..\..\..\..\..\nuget\packages\assertwithis\1.10.3\contentFiles\any\any\is.unittestadapter.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+
 </Project>
