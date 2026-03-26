@@ -5,7 +5,7 @@ using Xunit.Abstractions;
 
 namespace RoslynMcp.Tools.Test.Inspections;
 
-public class RunTests(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
+public class RunTestsNoTarget(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 {
 	[Fact]
 	public async Task HappyPath_NoTarget_ButSolution()
@@ -38,7 +38,10 @@ public class RunTests(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		result.Counts.Passed.Is(1);
 		result.Counts.Failed.Is(0);
 	}
+}
 
+public class RunTestsWithTarget(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
+{
 	[Fact]
 	public async Task HappyPath_WithTarget_BuildFailed()
 	{

@@ -7,7 +7,7 @@ internal static class FileExtensions
         "bin",
         "obj"
     ];
-    
+
     private static readonly string[] GeneratedFileSuffixes =
     [
         ".g.cs",
@@ -17,7 +17,7 @@ internal static class FileExtensions
         ".AssemblyAttributes.cs",
         ".AssemblyInfo.cs"
     ];
-    
+
     internal enum SourceKind
     {
         HandWritten,
@@ -25,7 +25,7 @@ internal static class FileExtensions
         Intermediate,
         Unknown
     }
-    
+
     extension(string? path)
     {
         internal IEnumerable<string> DiscoverFiles(params string[] patterns)
@@ -40,26 +40,20 @@ internal static class FileExtensions
         }
 
         internal bool IsHandwritten() => path.Classify() is SourceKind.HandWritten or SourceKind.Unknown;
-        
+
         private SourceKind Classify()
         {
             if (string.IsNullOrWhiteSpace(path))
-            {
                 return SourceKind.Unknown;
-            }
 
-            var normalized = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+            var normalized = path.NormalizePathSeparators();
             var fileName = Path.GetFileName(normalized);
 
             if(SubFolders.Any(subFolder => normalized.Contains($"{Path.DirectorySeparatorChar}{subFolder}{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)))
-            {
                 return SourceKind.Intermediate;
-            }
 
-            if (GeneratedFileSuffixes.Any(suffix => fileName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)))
-            {
+            if (GeneratedFileSuffixes.Any(suffix => fileName.Contains(suffix, StringComparison.OrdinalIgnoreCase)))
                 return SourceKind.Generated;
-            }
 
             return SourceKind.HandWritten;
         }
