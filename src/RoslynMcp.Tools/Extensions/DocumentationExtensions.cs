@@ -17,13 +17,12 @@ public record SymbolParameterDocumentation(
 
 internal static partial class DocumentationExtensions
 {
-    private static readonly Regex WhitespacePattern = WhitespaceRegex();
-
     public static SymbolDocumentation? GetDocumentation(this ISymbol symbol)
     {
         ArgumentNullException.ThrowIfNull(symbol);
 
         var xml = symbol.GetDocumentationCommentXml(cancellationToken: CancellationToken.None);
+        
         if (string.IsNullOrWhiteSpace(xml))
             return null;
 
@@ -46,9 +45,7 @@ internal static partial class DocumentationExtensions
             .ToArray();
 
         if (summary == null && returns == null && parameters.Length == 0)
-        {
             return null;
-        }
 
         return new SymbolDocumentation(summary, returns, parameters);
     }
@@ -57,10 +54,9 @@ internal static partial class DocumentationExtensions
     {
         var name = NormalizeText(element.Attribute("name")?.Value);
         var description = NormalizeElementText(element);
+
         if (name == null || description == null)
-        {
             return null;
-        }
 
         return new SymbolParameterDocumentation(name, description);
     }
@@ -95,9 +91,7 @@ internal static partial class DocumentationExtensions
 
             case XElement element:
                 foreach (var child in element.Nodes())
-                {
                     AppendNodeText(child, builder);
-                }
 
                 return;
         }
@@ -106,24 +100,19 @@ internal static partial class DocumentationExtensions
     private static string? NormalizeSymbolReference(string? cref)
     {
         var normalized = NormalizeText(cref);
+        
         if (normalized == null)
-        {
             return null;
-        }
 
-        return normalized.Length > 2 && normalized[1] == ':'
-            ? normalized[2..]
-            : normalized;
+        return normalized.Length > 2 && normalized[1] == ':' ? normalized[2..] : normalized;
     }
 
     private static string? NormalizeText(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
-        {
             return null;
-        }
 
-        return WhitespacePattern.Replace(value.Trim(), " ");
+        return WhitespaceRegex().Replace(value.Trim(), " ");
     }
 
     [GeneratedRegex("\\s+")]

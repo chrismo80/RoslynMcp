@@ -28,7 +28,7 @@ public static class HostExtensions
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
                 TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
-                WriteIndented = false
+                WriteIndented = true
             };
 
             var builder = services.AddMcpServer(options =>
