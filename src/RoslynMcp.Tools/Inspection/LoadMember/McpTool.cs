@@ -30,7 +30,7 @@ public sealed class McpTool(
     ) : Tool
 {
     [McpServerTool(Name = "load_member", Title = "Load Member", ReadOnly = true, Idempotent = true)]
-    [Description("Use this tool when you need callers/calles or overrides/implementations of a symbol.")]
+    [Description("Use this tool when you need callers/callees or overrides/implementations of a symbol.")]
     public async Task<Result> Execute(CancellationToken cancellationToken,
         [Description("The stable symbol ID, obtained from load_type.")]
         string? memberSymbolId = null

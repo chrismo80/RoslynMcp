@@ -54,45 +54,7 @@ Traditional AI code assistants often rely on simplistic pattern matching (grep/g
 - **Call graph tracing** — See how code flows through your system
 - **Code smell detection** — Identifies potential issues using [Roslynator](https://github.com/dotnet/roslynator) analyzers
 
-## What You Can Use It For
-
-### `load_solution`
-
-Use this tool when you need to start working with a .NET solution and no solution has been loaded yet. This must be the first tool called in a session before any code analysis or navigation tools can be used.
-
-Parameters:
-- `solutionHintPath` (optional): Absolute path to a `.sln` file, or to a directory used as the recursive discovery root for `.sln`/`.slnx` files. If omitted, the tool auto-detects from the current workspace.
-
-### `load_project`
-
-Use this tool when you need to list types declared in a specific project. It is useful for project-scoped discovery, for finding type symbols before follow-up calls such as `load_type` or `load_member`.
-
-Parameters:
-- `projectPath`: Exact path to a project file (`.csproj`), obtained from `load_solution`.
-
-### `load_type`
-
-Use this tool when you need to inspect type hierarchy and members declared by the specific type.
-
-Parameters:
-- `typeSymbolId`: The stable symbol ID of a type, obtained from `load_project`.
-
-### `load_member`
-
-Use this tool when you need callers/calles or overrides/implementations of a symbol.
-
-Parameters:
-- `memberSymbolId`: The stable symbol ID, obtained from `load_type`.
-
-### `run_tests`
-
-Default .NET test runner. Use this instead of `dotnet test` unless you need unsupported CLI behavior.
-
-Parameters:
-- `target` (optional): Execution target. Omit to run the currently loaded solution. Supports solution-relative or absolute `.sln`, `.slnx`, `.csproj`, or directory paths when the resolved target stays within the loaded solution directory.
-- `filter` (optional): `dotnet test` filter expression, passed through where practical.
-
-### Recommended Workflow
+## Recommended Workflow
 
 In practice, the usual flow is:
 
@@ -103,3 +65,5 @@ In practice, the usual flow is:
 5. `run_tests`
 
 This keeps navigation semantic and symbol-aware without relying on text-only search.
+
+The full tool descriptions can be [found here](https://github.com/chrismo80/RoslynMcp/blob/main/TOOLS.md)
