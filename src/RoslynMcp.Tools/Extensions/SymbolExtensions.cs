@@ -9,8 +9,8 @@ internal static class SymbolExtensions
     {
         internal IEnumerable<INamedTypeSymbol> GetTypes()
         {
-            return namespaceSymbol.GetNamespaceMembers()
-                .SelectMany(GetAllTypes)
+            return namespaceSymbol
+                .GetAllTypes()
                 .Where(symbol => symbol.Locations.Any(location => location.IsInSource));
         }
 
