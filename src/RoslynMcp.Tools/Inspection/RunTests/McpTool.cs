@@ -16,6 +16,22 @@ public sealed class McpTool(WorkspaceManager workspaceManager) : Tool
         [Description("Optional dotnet test filter expression. Passed through to --filter semantics where practical.")]
         string? filter = null)
     {
-        return await DotNet.Test(workspaceManager, target, filter, cancellationToken);
+        try
+        {
+            return await DotNet.Test(workspaceManager, target, filter, cancellationToken);
+        }
+        catch (Exception e)
+        {
+            return Error(e.Message, new Dictionary<string, string>
+            {
+                ["inner exception"] = e.InnerException?.Message ?? string.Empty,
+                ["stack trace"] = e.StackTrace ?? string.Empty
+            });
+        }
+    }
+    
+    private static Result Error(string message, IReadOnlyDictionary<string, string>? details = null)
+    {
+        return new Result(null, -99, [], [], null, new ErrorInfo(message, details));
     }
 }

@@ -12,8 +12,18 @@ public sealed class WorkspaceManager : Manager
             WorkspaceDirectory = dir;
     }
 
-    internal string? ToAbsolutePath(string? path) =>
-        path is null ? path : Path.IsPathRooted(path) ? path : Path.Combine(WorkspaceDirectory, path);
+    internal string? ToAbsolutePath(string? path)
+    {
+        if (path is null)
+            return null;
+
+        path = path.NormalizePathSeparators();
+
+        if (Path.IsPathRooted(path))
+            return path;
+        
+        return Path.Combine(WorkspaceDirectory, path);
+    }
 
     internal string? ToRelativePathIfPossible(string? path) =>
         path is null ? path : path.StartsWith(WorkspaceDirectory + Path.DirectorySeparatorChar) ? Path.GetRelativePath(WorkspaceDirectory, path) : path;

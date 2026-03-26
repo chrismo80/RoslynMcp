@@ -17,3 +17,5 @@ TestResults/
 tmp/
 docs/
 .nupkg/
+
+.fastembed_cache
