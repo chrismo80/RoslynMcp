@@ -7,12 +7,13 @@ using RoslynMcp.Tools.Managers;
 namespace RoslynMcp.Tools.Inspection.LoadProject;
 
 public sealed record Result(
+    int TypeCount,
     IReadOnlyList<Entry> Types,
     ErrorInfo? Error = null);
 
 public sealed record Entry(
-    TypeSymbol? Type = null,
-    IReadOnlyList<string>? Members = null);
+    TypeSymbol? Type,
+    int Members);
 
 [McpServerToolType]
 public sealed class McpTool(
@@ -29,10 +30,10 @@ public sealed class McpTool(
         )
     {
         if (solutionManager.Solution?.Projects.FirstOrDefault(p => Matches(p, projectPath)) is not { } project)
-            return new Result([], new ErrorInfo("no project found"));
+            return Error("no project found");
 
         if(await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false) is not { } compilation)
-            return new Result([], new ErrorInfo("no compilation found"));
+            return Error("no compilation found");
 
         var types = compilation!.GlobalNamespace.GetTypes()
             .Select(ToEntry)
@@ -41,7 +42,7 @@ public sealed class McpTool(
         if (types.Any(entry => entry.Type?.Location.IsHandwritten() ?? false))
             types.RemoveAll(entry => entry.Type?.Location.IsHandwritten() != true);
 
-        return new Result(types.OrderByDescending(e => e.Members?.Count).ToList());
+        return new Result(types.Count, types.OrderByDescending(e => e.Members).ToList());
     }
 
     private bool Matches(Project project, string input)
@@ -51,6 +52,8 @@ public sealed class McpTool(
 
     private Entry ToEntry(INamedTypeSymbol symbol)
     {
-        return new Entry(TypeSymbol.From(symbol, symbolManager, workspaceManager), symbol.MembersPreview(symbolManager, workspaceManager));
+        return new Entry(TypeSymbol.From(symbol, symbolManager, workspaceManager), symbol.MembersCount(symbolManager, workspaceManager));
     }
+    
+    private Result Error(string errorMessage) => new(0, [], new ErrorInfo(errorMessage));
 }

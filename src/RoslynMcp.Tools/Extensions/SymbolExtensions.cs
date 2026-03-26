@@ -38,6 +38,14 @@ internal static class SymbolExtensions
                 .Select(m => m.Text)
                 .ToArray();
         }
+        
+        internal int MembersCount(SymbolManager symbolManager, WorkspaceManager workspaceManager)
+        {
+            return symbol.GetMembers()
+                .Where(m => m.DeclaredAccessibility > Accessibility.Private)
+                .Select(m => MemberSymbol.From(m, symbolManager, workspaceManager))
+                .Count(m => m.Kind != null);
+        }
     }
 
     extension(ISymbol symbol)

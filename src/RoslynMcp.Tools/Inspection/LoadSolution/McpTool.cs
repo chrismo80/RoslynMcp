@@ -47,7 +47,7 @@ public sealed class McpTool(
 
         return new Result(
             workspaceManager.ToRelativePathIfPossible(solutionPath),
-            GetProjects(solutionManager.Solution));
+            GetProjects(solution));
     }
     
     private IReadOnlyList<ProjectSummary> GetProjects(Solution solution)
