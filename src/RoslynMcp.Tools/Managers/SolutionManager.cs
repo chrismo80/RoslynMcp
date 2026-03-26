@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis.MSBuild;
 
 namespace RoslynMcp.Tools.Managers;
 
-public sealed class SolutionManager : Manager, IAsyncDisposable
+public sealed class SolutionManager(SymbolManager symbolManager) : Manager, IAsyncDisposable
 {
     private record Session(MSBuildWorkspace Workspace, Solution Solution, int Version);
 
@@ -68,5 +68,7 @@ public sealed class SolutionManager : Manager, IAsyncDisposable
         var old = Interlocked.Exchange(ref _session, session);
         
         old?.Workspace.Dispose();
+        
+        symbolManager.Clear();
     }
 }
