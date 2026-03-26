@@ -7,14 +7,16 @@ namespace RoslynMcp.Tools.Test.Inspections;
 public class RunTests(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 {
 	[Fact]
-	public async Task HappyPath_NoTarget()
+	public async Task HappyPath_NoTarget_NoFilter()
 	{
 		var result = await Sut.Execute(CancellationToken.None);
 		o.WriteLine(result.ToJson());
+		
+		result.Outcome.Is("test_failures");
 	}
 	
 	[Fact]
-	public async Task HappyPath_WithFilter()
+	public async Task HappyPath_NoTarget_WithFilter()
 	{
 		var result = await Sut.Execute(CancellationToken.None, filter: "Passing_filter_test");
 		o.WriteLine(result.ToJson());

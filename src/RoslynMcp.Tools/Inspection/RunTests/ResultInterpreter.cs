@@ -4,9 +4,52 @@ using RoslynMcp.Tools.Managers;
 
 namespace RoslynMcp.Tools.Inspection.RunTests;
 
-internal sealed partial class TestResultInterpreter
+public static class RunTestOutcomes
 {
-    public static Result Interpret(TestProcessResult processResult, ParsedTrxRun trxRun)
+    public const string Passed = "passed";
+    public const string TestFailures = "test_failures";
+    public const string BuildFailed = "build_failed";
+    public const string InfrastructureError = "infrastructure_error";
+}
+
+public sealed record Result(
+    string? Outcome,
+    int? ExitCode,
+    IReadOnlyList<TestFailureGroup> FailureGroups,
+    IReadOnlyList<BuildDiagnostic>? BuildDiagnostics = null,
+    string? Summary = null,
+    ErrorInfo? Error = null,
+    TestRunCounts? Counts = null);
+
+public sealed record TestFailureGroup(
+    string? File,
+    int Count,
+    IReadOnlyList<GroupedTestFailure> Failures);
+
+public sealed record GroupedTestFailure(
+    string? TestName,
+    string? Message,
+    int? Line);
+
+public sealed record TestRunCounts(
+    int Total,
+    int Executed,
+    int Passed,
+    int Failed,
+    int Skipped,
+    int NotExecuted);
+
+public sealed record BuildDiagnostic(
+    string? Id,
+    string? Message,
+    string? File,
+    int? Line,
+    int? Column,
+    string? Severity);
+
+internal sealed partial class ResultInterpreter
+{
+    public static Result Interpret(ProcessResult processResult, ParsedTrxRun trxRun)
     {
         if (trxRun.FailureGroups.Count > 0)
         {
@@ -134,14 +177,9 @@ internal sealed partial class TestResultInterpreter
         return summary is not null;
     }
 
-    private static bool TryGetNoTestsMatchedSummary(TestProcessResult processResult, ParsedTrxRun trxRun, out string? summary)
+    private static bool TryGetNoTestsMatchedSummary(ProcessResult processResult, ParsedTrxRun trxRun, out string? summary)
     {
         summary = null;
-        
-        if (string.IsNullOrWhiteSpace(processResult.AppliedFilter))
-        {
-            return false;
-        }
 
         if (trxRun.Counts is { Total: 0 })
         {
