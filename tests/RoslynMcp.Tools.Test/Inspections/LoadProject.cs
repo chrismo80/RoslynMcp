@@ -12,7 +12,7 @@ public class LoadProject(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		var result = await Sut.Execute(CancellationToken.None, Path.Combine("ProjectCore", "ProjectCore.csproj"));
 		o.WriteLine(result.ToJson());
 
-		result.Types.Count.Is(16);
+		result.Types.Count.Is(19);
 	}
 
 	[Fact]
@@ -21,6 +21,6 @@ public class LoadProject(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		var result = await Sut.Execute(CancellationToken.None, "ProjectImpl");
 		o.WriteLine(result.ToJson());
 
-		result.Types.Count.Is(26);
+		result.Types.Count.Is(29);
 	}
 }

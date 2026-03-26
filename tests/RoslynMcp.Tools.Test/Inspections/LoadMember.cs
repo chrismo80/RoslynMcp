@@ -38,6 +38,19 @@ public class LoadMember(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 	}
 	
 	[Fact]
+	public async Task HappyPath_Generics()
+	{
+		var typeSymbolId = await GetTypeSymbolIdAsync("ProjectCore", "GenericWorker");
+		var memberSymbolId = await GetMemberSymbolIdAsync(typeSymbolId, "Finish");
+
+		var result = await Sut.Execute(CancellationToken.None, memberSymbolId);
+		o.WriteLine(result.ToJson());
+		
+		result.References.Count.Is(2);
+		result.Overrides.Count.Is(2);
+	}
+	
+	[Fact]
 	public async Task HappyPath_WithDocumentation()
 	{
 		var typeSymbolId = await GetTypeSymbolIdAsync("ProjectCore", "Documentation");

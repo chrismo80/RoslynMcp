@@ -57,7 +57,9 @@ internal static class SymbolExtensions
 
         internal string GetLocation(WorkspaceManager workspaceManager)
         {
-            return string.Join(", ", symbol.Locations.Select(l => workspaceManager.ToRelativePathIfPossible(l.GetLineSpan().Path)));
+            return string.Join(", ", symbol.Locations
+                .Select(l => l.GetLineSpan())
+                .Select(pos => $"{workspaceManager.ToRelativePathIfPossible(pos.Path)}:{pos.StartLinePosition.Line + 1}"));
         }
 
         internal string ToLightweightMemberSignature() => symbol switch

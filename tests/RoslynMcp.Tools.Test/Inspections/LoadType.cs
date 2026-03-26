@@ -25,6 +25,20 @@ public class LoadType(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 
 		var result = await Sut.Execute(CancellationToken.None, symbolId);
 		o.WriteLine(result.ToJson());
+		
+		result.Implementations.Count.Is(3);
+	}
+	
+	
+	[Fact]
+	public async Task HappyPath_Generics()
+	{
+		var symbolId = await GetTypeSymbolIdAsync("ProjectCore", "GenericWorker");
+
+		var result = await Sut.Execute(CancellationToken.None, symbolId);
+		o.WriteLine(result.ToJson());
+		
+		result.Derived.Count.Is(2);
 	}
 	
 	[Fact]

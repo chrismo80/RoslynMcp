@@ -111,7 +111,7 @@ public sealed class McpTool(
 
     private async Task<IReadOnlyList<MemberSymbol>> LoadImplementations(ISymbol symbol, Solution solution, CancellationToken cancellationToken)
     {
-        var implementations = await SymbolFinder.FindImplementedInterfaceMembersAsync(symbol, solution, null, cancellationToken).ConfigureAwait(false);
+        var implementations = await SymbolFinder.FindImplementationsAsync(symbol, solution, null, cancellationToken).ConfigureAwait(false);
 
         return implementations
             .Select(ToMemberSymbol)
