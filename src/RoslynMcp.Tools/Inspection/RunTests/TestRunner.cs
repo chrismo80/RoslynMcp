@@ -9,12 +9,10 @@ internal static partial class DotNet
 {
     public static async Task<Result> Test(WorkspaceManager workspaceManager, string? targetPath, string? filter, CancellationToken cancellationToken)
     {
-        targetPath = workspaceManager.ToAbsolutePath(targetPath) ?? workspaceManager.WorkspaceDirectory;
-        
         var resultsDirectory = Path.Combine(Path.GetTempPath(), "RoslynMcp", Guid.NewGuid().ToString("N"));
 
         Directory.CreateDirectory(resultsDirectory);
-        
+
         using var runner = new TestRunner(targetPath, filter, resultsDirectory);
 
         var workingDirectory = File.Exists(targetPath) switch
@@ -22,13 +20,13 @@ internal static partial class DotNet
             true => Directory.GetParent(targetPath)?.FullName ?? targetPath,
             false => targetPath
         };
-        
+
         var processResult = await runner.Run(workingDirectory, cancellationToken).ConfigureAwait(false);
-            
+
         var trxFiles = resultsDirectory.DiscoverFiles("*.trx").ToList();
-            
+
         var trxRun = ResultInterpreter.ParseTrxRun(trxFiles, workspaceManager);
-            
+
         return ResultInterpreter.Interpret(processResult, trxRun);
     }
 }
@@ -49,7 +47,7 @@ internal sealed class TestRunner(string targetPath, string? filter, string resul
 
         if (string.IsNullOrWhiteSpace(filter))
             return;
-        
+
         arguments.Add("--filter");
         arguments.Add(filter.Trim());
     }
@@ -69,4 +67,3 @@ internal sealed class TestRunner(string targetPath, string? filter, string resul
             Directory.Delete(resultsDirectory, recursive: true);
     }
 }
-
