@@ -8,12 +8,16 @@ using RoslynMcp.Tools.Managers;
 namespace RoslynMcp.Tools.Inspection.LoadType;
 
 public sealed record Result(
-    TypeSymbol Symbol,
+    TypeSymbol? Symbol,
     string? Documentation,
     IReadOnlyList<TypeSymbol> Derived,
     IReadOnlyList<TypeSymbol> Implementations,
     IReadOnlyList<MemberSymbol> Members,
-    ErrorInfo? Error = null);
+    ErrorInfo? Error = null)
+{
+    public static Result AsError(string message, IReadOnlyDictionary<string, string>? details = null)
+        => new(null, null, [], [], [], new ErrorInfo(message, details));
+}
 
 [McpServerToolType]
 public sealed class McpTool(
@@ -29,10 +33,10 @@ public sealed class McpTool(
         string? typeSymbolId = null)
     {
         if (solutionManager.Solution is not { } solution)
-            return new Result(null, null, [], [], [], new ErrorInfo("load solution first"));
+            return Result.AsError("load solution first");
         
         if (symbolManager.ToSymbol(typeSymbolId) is not INamedTypeSymbol symbol)
-            return new Result(null, null, [], [], [], new ErrorInfo("type not found"));
+            return Result.AsError("type not found");
 
         var deriveClassed = await SymbolFinder.FindDerivedClassesAsync(symbol, solution, cancellationToken: cancellationToken)
             .ConfigureAwait(false);

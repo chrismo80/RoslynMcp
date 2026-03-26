@@ -9,7 +9,11 @@ namespace RoslynMcp.Tools.Inspection.LoadSolution;
 public sealed record Result(
     string? Path,
     IReadOnlyList<ProjectSummary> Projects,
-    ErrorInfo? Error = null);
+    ErrorInfo? Error = null)
+{
+    public static Result AsError(string message, IReadOnlyDictionary<string, string>? details = null)
+        => new(null, [], new ErrorInfo(message, details));
+}
 
 public sealed record ProjectSummary(
     string Name,
@@ -41,7 +45,7 @@ public sealed class McpTool(
         };
 
         if (solutionPath is null)
-            return Error("no solution found");
+            return Result.AsError("no solution found");
 
         var solution = await solutionManager.Load(solutionPath, cancellationToken);
 
@@ -96,6 +100,4 @@ public sealed class McpTool(
             .OrderByDescending(static project => project.ReferencedBy.Count)
             .ThenBy(static project => project.Name, StringComparer.Ordinal)];
     }
-    
-    private Result Error(string errorMessage) => new(null, [], new ErrorInfo(errorMessage));
 }

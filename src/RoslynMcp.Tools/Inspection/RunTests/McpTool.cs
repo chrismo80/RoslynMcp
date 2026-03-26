@@ -22,16 +22,11 @@ public sealed class McpTool(WorkspaceManager workspaceManager) : Tool
         }
         catch (Exception e)
         {
-            return Error(e.Message, new Dictionary<string, string>
+            return Result.AsError(e.Message, new Dictionary<string, string>
             {
                 ["inner exception"] = e.InnerException?.Message ?? string.Empty,
                 ["stack trace"] = e.StackTrace ?? string.Empty
             });
         }
-    }
-    
-    private static Result Error(string message, IReadOnlyDictionary<string, string>? details = null)
-    {
-        return new Result(null, -99, [], [], null, new ErrorInfo(message, details));
     }
 }

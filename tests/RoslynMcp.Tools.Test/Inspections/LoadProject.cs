@@ -21,6 +21,6 @@ public class LoadProject(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		var result = await Sut.Execute(CancellationToken.None, "ProjectImpl");
 		o.WriteLine(result.ToJson());
 
-		result.Types.Count.Is(29);
+		result.Types.Count.Is(10);
 	}
 }

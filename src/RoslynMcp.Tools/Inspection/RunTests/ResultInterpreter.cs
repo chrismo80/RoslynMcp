@@ -19,7 +19,11 @@ public sealed record Result(
     IReadOnlyList<BuildDiagnostic>? BuildDiagnostics = null,
     string? Summary = null,
     ErrorInfo? Error = null,
-    TestRunCounts? Counts = null);
+    TestRunCounts? Counts = null)
+{
+    public static Result AsError(string message, IReadOnlyDictionary<string, string>? details = null)
+        => new(null, -99, [], [], null, new ErrorInfo(message, details));
+}
 
 public sealed record TestFailureGroup(
     string? File,
@@ -47,8 +51,17 @@ public sealed record BuildDiagnostic(
     int? Column,
     string? Severity);
 
-internal sealed partial class ResultInterpreter
+internal static partial class ResultInterpreter
 {
+    [GeneratedRegex(@"^(?<file>.+?)\((?<line>\d+),(?<column>\d+)\):\s(?<severity>error|warning)\s(?<id>[A-Za-z]+\d+):\s(?<message>.+?)(?:\s\[.+\])?$", RegexOptions.IgnoreCase)]
+    private static partial Regex DetailedDiagnosticRegex();
+
+    [GeneratedRegex(@"^(?<severity>error|warning)\s(?<id>[A-Za-z]+\d+):\s(?<message>.+)$", RegexOptions.IgnoreCase)]
+    private static partial Regex SimpleDiagnosticRegex();
+
+    [GeneratedRegex(@"\sin\s(?<file>.+):line\s(?<line>\d+)", RegexOptions.IgnoreCase)]
+    private static partial Regex StackTraceLocationRegex();
+    
     public static Result Interpret(ProcessResult processResult, ParsedTrxRun trxRun)
     {
         if (trxRun.FailureGroups.Count > 0)
@@ -330,16 +343,7 @@ internal sealed partial class ResultInterpreter
             "process terminated",
             "the active test run was aborted"
         ];
-
-    [GeneratedRegex(@"^(?<file>.+?)\((?<line>\d+),(?<column>\d+)\):\s(?<severity>error|warning)\s(?<id>[A-Za-z]+\d+):\s(?<message>.+?)(?:\s\[.+\])?$", RegexOptions.IgnoreCase)]
-    private static partial Regex DetailedDiagnosticRegex();
-
-    [GeneratedRegex(@"^(?<severity>error|warning)\s(?<id>[A-Za-z]+\d+):\s(?<message>.+)$", RegexOptions.IgnoreCase)]
-    private static partial Regex SimpleDiagnosticRegex();
-
-    [GeneratedRegex(@"\sin\s(?<file>.+):line\s(?<line>\d+)", RegexOptions.IgnoreCase)]
-    private static partial Regex StackTraceLocationRegex();
-
+    
     internal sealed record ParsedTrxRun(
         IReadOnlyList<TestFailureGroup> FailureGroups,
         int TotalFailureCount,

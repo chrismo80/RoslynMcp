@@ -17,7 +17,11 @@ public sealed record Result(
     IReadOnlyList<MemberSymbol> Callees,
     IReadOnlyList<MemberSymbol> Overrides,
     IReadOnlyList<MemberSymbol> Implementations,
-    ErrorInfo? Error = null);
+    ErrorInfo? Error = null)
+{
+    public static Result AsError(string message, IReadOnlyDictionary<string, string>? details = null)
+        => new(null, null, [], [], [], [], [], new ErrorInfo(message, details));
+}
 
 [McpServerToolType]
 public sealed class McpTool(
@@ -34,15 +38,15 @@ public sealed class McpTool(
         )
     {
         if (solutionManager.Solution is not { } solution)
-            return Error("load solution first");
+            return Result.AsError("load solution first");
 
         var symbol = symbolManager.ToSymbol(memberSymbolId);
 
         if (symbol is null)
-            return Error("symbol not found");
+            return Result.AsError("symbol not found");
 
         if (symbol is ITypeSymbol)
-            return Error("no type symbol please");
+            return Result.AsError("no type symbol please");
 
         try
         {
@@ -57,7 +61,7 @@ public sealed class McpTool(
         }
         catch (Exception e)
         {
-            return Error(e.Message, new Dictionary<string, string>
+            return Result.AsError(e.Message, new Dictionary<string, string>
             {
                 ["inner exception"] = e.InnerException?.Message ?? string.Empty,
                 ["stack trace"] = e.StackTrace ?? string.Empty
@@ -124,11 +128,6 @@ public sealed class McpTool(
         var member = MemberSymbol.From(symbol, symbolManager, workspaceManager);
 
         return member.Kind is null || member.Location.IsNullOrEmpty() ? null : member;
-    }
-
-    private static Result Error(string message, IReadOnlyDictionary<string, string>? details = null)
-    {
-        return new Result(null, null, [], [], [], [], [], new ErrorInfo(message, details));
     }
     
     private static async Task<IReadOnlyList<(ISymbol Symbol, Location Location)>> CollectCalleesAsync(ISymbol symbol, Solution solution, CancellationToken ct)

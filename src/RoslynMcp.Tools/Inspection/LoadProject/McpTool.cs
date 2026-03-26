@@ -9,7 +9,11 @@ namespace RoslynMcp.Tools.Inspection.LoadProject;
 public sealed record Result(
     int TypeCount,
     IReadOnlyList<Entry> Types,
-    ErrorInfo? Error = null);
+    ErrorInfo? Error = null)
+{
+    public static Result AsError(string message, IReadOnlyDictionary<string, string>? details = null)
+        => new(0, [], new ErrorInfo(message));
+}
 
 public sealed record Entry(
     TypeSymbol? Type,
@@ -30,12 +34,19 @@ public sealed class McpTool(
         )
     {
         if (solutionManager.Solution?.Projects.FirstOrDefault(p => Matches(p, projectPath)) is not { } project)
-            return Error("no project found");
+            return Result.AsError("no project found");
 
         if(await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false) is not { } compilation)
-            return Error("no compilation found");
+            return Result.AsError("no compilation found");
 
+        var projectTrees = (await Task.WhenAll(project.Documents
+                .Where(d => d.SupportsSyntaxTree)
+                .Select(d => d.GetSyntaxTreeAsync(cancellationToken))))
+            .Where(t => t is not null)
+            .ToHashSet();
+        
         var types = compilation!.GlobalNamespace.GetTypes()
+            .Where(type => type.DeclaringSyntaxReferences.Select(r => r.SyntaxTree).Any(projectTrees.Contains))
             .Select(ToEntry)
             .ToList();
 
@@ -54,6 +65,4 @@ public sealed class McpTool(
     {
         return new Entry(TypeSymbol.From(symbol, symbolManager, workspaceManager), symbol.MembersCount(symbolManager, workspaceManager));
     }
-    
-    private Result Error(string errorMessage) => new(0, [], new ErrorInfo(errorMessage));
 }
