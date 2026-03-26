@@ -28,10 +28,12 @@ public class LoadSolution(ITestOutputHelper o) : Tests<McpTool>
 	[Fact]
 	public async Task NotSoHappyPath_WithFolder()
 	{
-		var result = await Sut.Execute(CancellationToken.None, "ProjectApp");
+		SetWorkspaceDirectory(Directory.GetParent(TestSolutionDirectory)!.FullName);
+	
+		var result = await Sut.Execute(CancellationToken.None, "TestSolution");
 		o.WriteLine(result.ToJson());
 
-		result.Error?.Message.IsNotEmpty();
-		result.Projects.Count.Is(0);
+		result.Error?.Message.IsEmpty();
+		result.Projects.Count.Is(7);
 	}
 }

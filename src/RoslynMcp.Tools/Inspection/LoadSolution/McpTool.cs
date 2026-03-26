@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Microsoft.CodeAnalysis;
 using ModelContextProtocol.Server;
+using RoslynMcp.Tools.Extensions;
 using RoslynMcp.Tools.Managers;
 
 namespace RoslynMcp.Tools.Inspection.LoadSolution;
@@ -29,15 +30,20 @@ public sealed class McpTool(
         string? solutionHintPath = null
     )
     {
-        if (solutionHintPath is not null && !File.Exists(workspaceManager.ToAbsolutePath(solutionHintPath)))
-            return Error("please provide a path to a .sln or .slnx file");
-
-        var solutionPath = solutionHintPath ?? workspaceManager.DiscoverSolutionPaths().FirstOrDefault();
+        solutionHintPath = workspaceManager.ToAbsolutePath(solutionHintPath);
+        
+        var solutionPath = solutionHintPath switch
+        {
+            null => workspaceManager.DiscoverSolutionPaths().FirstOrDefault(),
+            _ when File.Exists(solutionHintPath) => solutionHintPath,
+            _ when Directory.Exists(solutionHintPath) => solutionHintPath.DiscoverFiles("*.sln", "*.slnx").OrderBy(path => path.Length).FirstOrDefault(),
+            _ => null
+        };
 
         if (solutionPath is null)
             return Error("no solution found");
 
-        var solution = await solutionManager.Load(workspaceManager.ToAbsolutePath(solutionPath), cancellationToken);
+        var solution = await solutionManager.Load(solutionPath, cancellationToken);
 
         return new Result(
             workspaceManager.ToRelativePathIfPossible(solutionPath),

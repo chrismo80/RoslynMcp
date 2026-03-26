@@ -123,7 +123,7 @@ public sealed class McpTool(
     {
         var member = MemberSymbol.From(symbol, symbolManager, workspaceManager);
 
-        return member.Kind is null ? null : member;
+        return member.Kind is null || member.Location.IsNullOrEmpty() ? null : member;
     }
 
     private static Result Error(string message, IReadOnlyDictionary<string, string>? details = null)

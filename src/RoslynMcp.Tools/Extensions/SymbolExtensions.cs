@@ -59,6 +59,7 @@ internal static class SymbolExtensions
         {
             return string.Join(", ", symbol.Locations
                 .Select(l => l.GetLineSpan())
+                .Where(pos => pos.IsValid)
                 .Select(pos => $"{workspaceManager.ToRelativePathIfPossible(pos.Path)}:{pos.StartLinePosition.Line + 1}"));
         }
 
