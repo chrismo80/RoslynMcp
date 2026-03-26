@@ -12,7 +12,7 @@ public class RunTests(ITestOutputHelper o) : LoadedSolutionTests<McpTool>
 		var result = await Sut.Execute(CancellationToken.None);
 		o.WriteLine(result.ToJson());
 		
-		result.Outcome.Is("test_failures2");
+		result.Outcome.Is("test_failures");
 	}
 	
 	[Fact]
