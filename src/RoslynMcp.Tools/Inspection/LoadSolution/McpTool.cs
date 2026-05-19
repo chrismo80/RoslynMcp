@@ -81,8 +81,9 @@ public sealed class McpTool(WorkspaceManager workspaceManager, SolutionManager s
             .Select(project => (Project: project, ProjectPath: ToRelativeProjectPath(project.FilePath)))
             .Where(project => !string.IsNullOrWhiteSpace(project.ProjectPath))
             .Select(project => (project.Project, ProjectPath: project.ProjectPath!))
+            .DistinctBy(p => p.ProjectPath, StringComparer.OrdinalIgnoreCase)
             .ToList();
-
+        
         var projectPathsById = emittedProjects.ToDictionary(project => project.Project.Id, project => project.ProjectPath);
         var referencesByPath = emittedProjects.ToDictionary(
             project => project.ProjectPath,
